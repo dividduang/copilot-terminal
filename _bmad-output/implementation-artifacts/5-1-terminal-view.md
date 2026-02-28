@@ -1,6 +1,6 @@
 # Story 5.1: 终端视图（TerminalView）
 
-Status: ready-for-dev
+Status: completed
 
 ## Story
 
@@ -310,10 +310,37 @@ npm install xterm xterm-addon-fit
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+claude-sonnet-4-6
 
 ### Debug Log References
 
+- xterm/xterm-addon-fit 已弃用，改用 @xterm/xterm 和 @xterm/addon-fit
+- TerminalView 中 window prop 与浏览器全局 window 命名冲突，重命名为 terminalWindow
+- Esc 键测试改用 fireEvent.keyDown 直接触发，避免 userEvent 被 xterm mock 拦截
+
 ### Completion Notes List
 
+- 安装 @xterm/xterm 和 @xterm/addon-fit（替代已弃用的 xterm 包）
+- 新增 src/renderer/styles/xterm.css（导入 xterm 样式）
+- 新增 src/renderer/components/TerminalView.tsx（终端视图组件）
+- 更新 src/main/services/ProcessManager.ts（添加 ptys Map、writeToPty、resizePty、subscribePtyData 方法）
+- 更新 src/main/index.ts（添加 pty-write、pty-resize IPC handler，PTY 数据推送到渲染进程）
+- 更新 src/preload/index.ts（暴露 ptyWrite、ptyResize、onPtyData、offPtyData API）
+- 更新 src/renderer/global.d.ts（添加 PTY API 类型声明）
+- 更新 src/renderer/App.tsx（集成 TerminalView，管理 activeTerminalWindow 状态）
+- 更新 src/renderer/components/CardGrid.tsx（添加 onEnterTerminal prop，点击卡片进入终端视图）
+- 更新 src/renderer/test-setup.ts（添加 PTY API mock）
+- 新增 src/renderer/components/__tests__/TerminalView.test.tsx（15 个测试，全部通过）
+
 ### File List
+
+- src/renderer/styles/xterm.css
+- src/renderer/components/TerminalView.tsx
+- src/renderer/components/__tests__/TerminalView.test.tsx
+- src/main/services/ProcessManager.ts
+- src/main/index.ts
+- src/preload/index.ts
+- src/renderer/global.d.ts
+- src/renderer/App.tsx
+- src/renderer/components/CardGrid.tsx
+- src/renderer/test-setup.ts

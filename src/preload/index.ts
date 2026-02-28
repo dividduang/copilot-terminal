@@ -25,4 +25,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   offWindowStatusChanged: (callback: (event: unknown, payload: unknown) => void) =>
     ipcRenderer.removeListener('window-status-changed', callback),
+
+  // PTY I/O
+  ptyWrite: (windowId: string, data: string) =>
+    ipcRenderer.invoke('pty-write', { windowId, data }),
+  ptyResize: (windowId: string, cols: number, rows: number) =>
+    ipcRenderer.invoke('pty-resize', { windowId, cols, rows }),
+  onPtyData: (callback: (event: unknown, payload: { windowId: string; data: string }) => void) => {
+    ipcRenderer.on('pty-data', callback);
+  },
+  offPtyData: (callback: (event: unknown, payload: { windowId: string; data: string }) => void) => {
+    ipcRenderer.removeListener('pty-data', callback);
+  },
 });

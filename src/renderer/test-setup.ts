@@ -22,6 +22,10 @@ Object.defineProperty(window, 'electronAPI', {
     selectDirectory: vi.fn().mockResolvedValue(null),
     onWindowStatusChanged: vi.fn(),
     offWindowStatusChanged: vi.fn(),
+    ptyWrite: vi.fn().mockResolvedValue(undefined),
+    ptyResize: vi.fn().mockResolvedValue(undefined),
+    onPtyData: vi.fn(),
+    offPtyData: vi.fn(),
   },
   writable: true,
 });

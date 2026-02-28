@@ -24,6 +24,12 @@ export interface ElectronAPI {
   // Status events
   onWindowStatusChanged: (callback: (event: unknown, payload: unknown) => void) => void
   offWindowStatusChanged: (callback: (event: unknown, payload: unknown) => void) => void
+
+  // PTY I/O
+  ptyWrite: (windowId: string, data: string) => Promise<void>
+  ptyResize: (windowId: string, cols: number, rows: number) => Promise<void>
+  onPtyData: (callback: (event: unknown, payload: { windowId: string; data: string }) => void) => void
+  offPtyData: (callback: (event: unknown, payload: { windowId: string; data: string }) => void) => void
 }
 
 declare global {

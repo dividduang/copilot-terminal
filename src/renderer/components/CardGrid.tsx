@@ -4,16 +4,18 @@ import { useWindowStore } from '../stores/windowStore';
 import { sortWindows } from '../utils/sortWindows';
 import { WindowCard } from './WindowCard';
 import { NewWindowCard } from './NewWindowCard';
+import { Window } from '../types/window';
 
 interface CardGridProps {
   onCreateWindow?: () => void;
+  onEnterTerminal?: (window: Window) => void;
 }
 
 /**
  * CardGrid 组件
  * 以响应式 CSS Grid 网格布局显示所有窗口卡片
  */
-export const CardGrid = React.memo<CardGridProps>(({ onCreateWindow }) => {
+export const CardGrid = React.memo<CardGridProps>(({ onCreateWindow, onEnterTerminal }) => {
   const windows = useWindowStore((state) => state.windows);
   const setActiveWindow = useWindowStore((state) => state.setActiveWindow);
 
@@ -21,11 +23,11 @@ export const CardGrid = React.memo<CardGridProps>(({ onCreateWindow }) => {
   const sortedWindows = useMemo(() => sortWindows(windows, 'lastActiveAt'), [windows]);
 
   const handleCardClick = useCallback(
-    (windowId: string) => {
-      setActiveWindow(windowId);
-      // TODO: Story 5-2 将实现切换到终端视图
+    (win: Window) => {
+      setActiveWindow(win.id);
+      onEnterTerminal?.(win);
     },
-    [setActiveWindow]
+    [setActiveWindow, onEnterTerminal]
   );
 
   const handleContextMenu = useCallback((e: React.MouseEvent, windowId: string) => {
@@ -49,7 +51,7 @@ export const CardGrid = React.memo<CardGridProps>(({ onCreateWindow }) => {
             <WindowCard
               key={window.id}
               window={window}
-              onClick={() => handleCardClick(window.id)}
+              onClick={() => handleCardClick(window)}
               onContextMenu={(e) => handleContextMenu(e, window.id)}
             />
           ))}

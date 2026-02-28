@@ -15,12 +15,14 @@ import { WindowStatus } from '../../renderer/types/window';
  */
 export class ProcessManager extends EventEmitter implements IProcessManager {
   private processes: Map<number, ProcessInfo>;
+  private ptys: Map<number, any>;
   private nextPid: number;
   private statusDetector: IStatusDetector;
 
   constructor() {
     super();
     this.processes = new Map();
+    this.ptys = new Map();
     this.nextPid = 1000;  // Start from 1000 for mock PIDs
     this.statusDetector = new StatusDetectorImpl();
     this.statusDetector.startPolling();
@@ -52,6 +54,7 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
       windowId: config.windowId,
     };
     this.processes.set(pid, processInfo);
+    this.ptys.set(pid, mockPty);
 
     // Start tracking this PID before registering listeners (avoids race condition)
     this.statusDetector.trackPid(pid);
@@ -100,6 +103,7 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     // Clean up after a delay
     setTimeout(() => {
       this.processes.delete(pid);
+      this.ptys.delete(pid);
       this.statusDetector.untrackPid(pid);
     }, 1000);
   }
@@ -144,11 +148,46 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
   }
 
   /**
+   * 向 PTY 写入数据（用户输入）
+   */
+  writeToPty(pid: number, data: string): void {
+    const pty = this.ptys.get(pid);
+    if (pty) {
+      pty.write(data);
+    }
+  }
+
+  /**
+   * 调整 PTY 大小
+   */
+  resizePty(pid: number, cols: number, rows: number): void {
+    const pty = this.ptys.get(pid);
+    if (pty) {
+      pty.resize(cols, rows);
+    }
+  }
+
+  /**
+   * 订阅 PTY 数据输出，返回取消订阅函数
+   */
+  subscribePtyData(pid: number, callback: (data: string) => void): () => void {
+    const pty = this.ptys.get(pid);
+    if (!pty) return () => {};
+    // Store callback for cleanup
+    const handler = (data: string) => callback(data);
+    pty.onData(handler);
+    return () => {
+      // Mock PTY doesn't support removeListener, no-op
+    };
+  }
+
+  /**
    * 销毁 ProcessManager，释放资源
    */
   destroy(): void {
     this.statusDetector.destroy();
     this.processes.clear();
+    this.ptys.clear();
   }
 
   /**

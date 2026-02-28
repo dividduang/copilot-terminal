@@ -159,6 +159,13 @@ function registerIPCHandlers() {
       // 将新窗口添加到 StatusPoller
       statusPoller?.addWindow(windowId, handle.pid);
 
+      // 订阅 PTY 数据，推送到渲染进程
+      processManager.subscribePtyData(handle.pid, (data: string) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('pty-data', { windowId, data });
+        }
+      });
+
       return window;
     } catch (error) {
       const errorMessage = (error as Error).message;
@@ -296,6 +303,42 @@ function registerIPCHandlers() {
         console.error('Failed to delete window:', error);
       }
       throw error;
+    }
+  });
+
+  // PTY 数据写入（用户输入 → PTY 进程）
+  ipcMain.handle('pty-write', async (_event, { windowId, data }: { windowId: string; data: string }) => {
+    try {
+      if (!processManager) {
+        throw new Error('ProcessManager not initialized');
+      }
+      const processes = processManager.listProcesses();
+      const found = processes.find(p => p.windowId === windowId);
+      if (found) {
+        processManager.writeToPty(found.pid, data);
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to write to PTY:', error);
+      }
+    }
+  });
+
+  // PTY resize
+  ipcMain.handle('pty-resize', async (_event, { windowId, cols, rows }: { windowId: string; cols: number; rows: number }) => {
+    try {
+      if (!processManager) {
+        throw new Error('ProcessManager not initialized');
+      }
+      const processes = processManager.listProcesses();
+      const found = processes.find(p => p.windowId === windowId);
+      if (found) {
+        processManager.resizePty(found.pid, cols, rows);
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to resize PTY:', error);
+      }
     }
   });
 
