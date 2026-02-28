@@ -1,6 +1,6 @@
 # Story 3.3: 状态统计栏（StatusBar）
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -276,10 +276,25 @@ src/
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+claude-sonnet-4-6
 
 ### Debug Log References
 
+无
+
 ### Completion Notes List
 
+- 安装了 lucide-react 图标库
+- 创建了 StatusBar 组件，使用 React.memo + useMemo 优化性能
+- 复用了 statusHelpers.ts 的状态色系统（text-* 变体）
+- 实现了响应式布局：>= 640px 显示文字标签+数字，< 640px 显示图标+数字
+- 实现了无障碍支持：aria-live="polite"，aria-label 动态更新，图标 aria-hidden="true"
+- 集成到 Toolbar.tsx，放置在新建窗口按钮左侧
+- 编写了 15 个单元测试，全部通过
+- 全套 175 个测试全部通过
+
 ### File List
+
+- src/renderer/components/StatusBar.tsx (新建)
+- src/renderer/components/layout/Toolbar.tsx (修改)
+- src/renderer/components/__tests__/StatusBar.test.tsx (新建)

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '../ui/Button';
 import { CreateWindowDialog } from '../CreateWindowDialog';
+import { StatusBar } from '../StatusBar';
 
 interface ToolbarProps {
   appName?: string;
@@ -26,8 +27,9 @@ export function Toolbar({
           </span>
         </div>
 
-        {/* 右侧：新建窗口按钮 */}
+        {/* 右侧：状态统计栏 + 新建窗口按钮 */}
         <div className="flex items-center gap-3">
+          <StatusBar />
           <Button
             variant="primary"
             onClick={() => setIsDialogOpen(true)}

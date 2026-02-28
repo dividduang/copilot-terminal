@@ -50,4 +50,16 @@ describe('Toolbar', () => {
     const header = container.querySelector('header');
     expect(header).toHaveClass('h-14'); // h-14 = 56px (14 * 4px)
   });
+
+  it('should render StatusBar inside toolbar', () => {
+    const { container } = render(<Toolbar />);
+    // StatusBar renders an aria-live region
+    const statusBar = container.querySelector('[aria-live="polite"]');
+    expect(statusBar).toBeInTheDocument();
+  });
+
+  it('should render new window button', () => {
+    render(<Toolbar />);
+    expect(screen.getByText('+ 新建窗口')).toBeInTheDocument();
+  });
 });
