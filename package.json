@@ -4,7 +4,7 @@
   "description": "A modern terminal window manager built with Electron",
   "main": "dist/main/index.js",
   "scripts": {
-    "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:main\" \"npm run dev:electron\"",
+    "dev": "concurrently --kill-others --names \"VITE,TSC,ELECTRON\" --prefix-colors \"cyan,yellow,green\" \"npm run dev:renderer\" \"npm run dev:main\" \"npm run dev:electron\"",
     "dev:renderer": "vite",
     "dev:main": "tsc -p tsconfig.json --watch --preserveWatchOutput",
     "dev:electron": "wait-on http://localhost:5173 dist/main/index.js && cross-env NODE_ENV=development electron .",
