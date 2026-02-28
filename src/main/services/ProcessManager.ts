@@ -226,25 +226,39 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
    * 创建 mock PTY (临时实现，待 node-pty 可用后替换)
    */
   private createMockPty(pid: number, config: TerminalConfig): any {
+    const dataCallbacks: Array<(data: string) => void> = [];
+    const exitCallbacks: Array<(exitCode: number) => void> = [];
+
     return {
       pid,
       onData: (callback: (data: string) => void) => {
+        dataCallbacks.push(callback);
         // Mock: 模拟终端输出
         setTimeout(() => {
           callback(`Mock terminal started in ${config.workingDirectory}\r\n`);
+          callback(`$ `); // 显示提示符
         }, 100);
       },
       onExit: (callback: (exitCode: number) => void) => {
-        // Mock: 模拟进程退出
+        exitCallbacks.push(callback);
       },
       write: (data: string) => {
-        // Mock: 模拟写入终端
+        // Mock: 回显用户输入并模拟命令执行
+        dataCallbacks.forEach(cb => {
+          cb(data); // 回显输入
+
+          // 如果是回车，模拟命令执行
+          if (data === '\r') {
+            cb('\r\n$ '); // 新行 + 提示符
+          }
+        });
       },
       resize: (cols: number, rows: number) => {
-        // Mock: 模拟调整终端大小
+        // Mock: 模拟调整终端大小（无需实际操作）
       },
       kill: () => {
         // Mock: 模拟终止进程
+        exitCallbacks.forEach(cb => cb(0));
         this.killProcess(pid);
       },
     };
