@@ -46,6 +46,13 @@ export interface ElectronAPI {
 
   // Auto-save
   triggerAutoSave: (windows?: TerminalWindow[]) => void
+
+  // Workspace restore
+  onWindowRestored: (callback: (event: unknown, result: unknown) => void) => void
+  offWindowRestored: (callback: (event: unknown, result: unknown) => void) => void
+  onWorkspaceRestoreError: (callback: (event: unknown, error: { error: string }) => void) => void
+  offWorkspaceRestoreError: (callback: (event: unknown, error: { error: string }) => void) => void
+  recoverFromBackup: () => Promise<{ success: boolean; data?: Workspace; error?: string }>
 }
 
 declare global {

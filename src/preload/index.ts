@@ -65,4 +65,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Auto-save
   triggerAutoSave: (windows?: unknown[]) =>
     ipcRenderer.send('trigger-auto-save', windows),
+
+  // Workspace restore
+  onWindowRestored: (callback: (event: unknown, result: unknown) => void) => {
+    ipcRenderer.on('window-restored', callback);
+  },
+  offWindowRestored: (callback: (event: unknown, result: unknown) => void) => {
+    ipcRenderer.removeListener('window-restored', callback);
+  },
+  onWorkspaceRestoreError: (callback: (event: unknown, error: unknown) => void) => {
+    ipcRenderer.on('workspace-restore-error', callback);
+  },
+  offWorkspaceRestoreError: (callback: (event: unknown, error: unknown) => void) => {
+    ipcRenderer.removeListener('workspace-restore-error', callback);
+  },
+  recoverFromBackup: () =>
+    ipcRenderer.invoke('recover-from-backup'),
 });

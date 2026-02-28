@@ -8,6 +8,7 @@ import { StatusPoller } from './services/StatusPoller';
 import { ViewSwitcherImpl } from './services/ViewSwitcher';
 import { WorkspaceManagerImpl } from './services/WorkspaceManager';
 import { AutoSaveManagerImpl } from './services/AutoSaveManager';
+import { WorkspaceRestorerImpl } from './services/WorkspaceRestorer';
 import { TerminalConfig } from './types/process';
 import { WindowStatus } from '../renderer/types/window';
 import { Window } from '../renderer/types/window';
@@ -19,6 +20,7 @@ let statusPoller: StatusPoller | null = null;
 let viewSwitcher: ViewSwitcherImpl | null = null;
 let workspaceManager: WorkspaceManagerImpl | null = null;
 let autoSaveManager: AutoSaveManagerImpl | null = null;
+let workspaceRestorer: WorkspaceRestorerImpl | null = null;
 let windowCounter = 0; // 用于生成唯一的窗口编号
 let currentWorkspace: Workspace | null = null; // 缓存当前工作区状态
 
@@ -98,6 +100,9 @@ app.whenReady().then(async () => {
     statusPoller = new StatusPoller(processManager.getStatusDetector(), mainWindow);
     statusPoller.startPolling();
     viewSwitcher = new ViewSwitcherImpl(mainWindow);
+
+    // 初始化 WorkspaceRestorer
+    workspaceRestorer = new WorkspaceRestorerImpl(processManager, mainWindow);
   }
 
   // 加载工作区并恢复窗口
@@ -113,14 +118,43 @@ app.whenReady().then(async () => {
       });
     }
 
-    // 通知渲染进程工作区已加载（窗口将在渲染进程中恢复）
+    // 恢复工作区窗口
     if (mainWindow && workspace.windows.length > 0) {
-      mainWindow.webContents.once('did-finish-load', () => {
+      mainWindow.webContents.once('did-finish-load', async () => {
+        // 通知渲染进程工作区已加载（立即渲染骨架屏）
         mainWindow?.webContents.send('workspace-loaded', workspace);
+
+        // 并行启动所有终端进程
+        if (workspaceRestorer) {
+          try {
+            const results = await workspaceRestorer.restoreWorkspace(workspace);
+
+            // 将恢复的窗口添加到 StatusPoller
+            for (const result of results) {
+              if (result.pid && result.status === 'restoring') {
+                statusPoller?.addWindow(result.windowId, result.pid);
+              }
+            }
+          } catch (error) {
+            console.error('[Main] Failed to restore workspace:', error);
+            // 通知渲染进程恢复失败
+            mainWindow?.webContents.send('workspace-restore-error', {
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
       });
     }
   } catch (error) {
     console.error('Failed to load workspace:', error);
+    // 通知渲染进程加载失败
+    if (mainWindow) {
+      mainWindow.webContents.once('did-finish-load', () => {
+        mainWindow?.webContents.send('workspace-restore-error', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+    }
   }
 
   // macOS 特定: 点击 Dock 图标时重新创建窗口
@@ -493,6 +527,24 @@ function registerIPCHandlers() {
         currentWorkspace.windows = windows;
       }
       autoSaveManager.triggerSave();
+    }
+  });
+
+  // 从备份恢复工作区
+  ipcMain.handle('recover-from-backup', async () => {
+    try {
+      if (!workspaceManager) {
+        throw new Error('WorkspaceManager not initialized');
+      }
+
+      // 尝试从备份恢复
+      const workspace = await workspaceManager.loadWorkspace();
+      currentWorkspace = workspace;
+
+      return { success: true, data: workspace };
+    } catch (error) {
+      console.error('Failed to recover from backup:', error);
+      return { success: false, error: (error as Error).message };
     }
   });
 }

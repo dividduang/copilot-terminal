@@ -80,15 +80,20 @@ export const useWindowStore = create<WindowStore>()(
     },
 
     // 设置活跃窗口
-    setActiveWindow: (id) => set((state) => {
-      state.activeWindowId = id;
-      if (id) {
-        const window = state.windows.find(w => w.id === id);
-        if (window) {
-          window.lastActiveAt = new Date().toISOString();
+    setActiveWindow: (id) => {
+      set((state) => {
+        state.activeWindowId = id;
+        if (id) {
+          const window = state.windows.find(w => w.id === id);
+          if (window) {
+            window.lastActiveAt = new Date().toISOString();
+          }
         }
-      }
-    }),
+      });
+      // 触发自动保存，传递最新的窗口列表
+      const windows = get().windows;
+      triggerAutoSave(windows);
+    },
 
     // 根据 ID 查找窗口
     getWindowById: (id) => {

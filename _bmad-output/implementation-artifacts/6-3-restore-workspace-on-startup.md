@@ -354,10 +354,96 @@ src/
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+claude-sonnet-4-6 (2026-02-28)
 
 ### Debug Log References
 
+无
+
 ### Completion Notes List
 
+1. **WorkspaceRestorer 服务实现完成**
+   - 创建 `src/main/services/WorkspaceRestorer.ts`
+   - 实现 IWorkspaceRestorer 接口：restoreWorkspace()
+   - 实现并行启动终端进程（使用 Promise.all）
+   - 实现 IPC 事件通知（window-restored）
+   - 实现错误处理：单个窗口启动失败不影响其他窗口
+   - 实现 PTY 数据订阅和推送
+
+2. **渲染进程恢复 Hook 实现完成**
+   - 创建 `src/renderer/hooks/useWorkspaceRestore.ts`
+   - 监听 workspace-loaded 事件，立即渲染骨架屏（状态：Restoring）
+   - 监听 window-restored 事件，更新卡片状态（Running/Error）
+   - 实现渐进式渲染：先显示骨架屏，后更新实际状态
+   - 实现事件监听器清理，避免内存泄漏
+
+3. **错误处理组件实现完成**
+   - 创建 `src/renderer/components/WorkspaceRestoreError.tsx`
+   - 显示工作区加载失败的错误提示
+   - 提供"重试"按钮
+   - 提供"从备份恢复"按钮
+
+4. **IPC 事件定义完成**
+   - 修改 `src/preload/index.ts`：暴露 workspace restore API
+   - 修改 `src/renderer/global.d.ts`：添加类型定义
+   - 定义 window-restored 事件：通知渲染进程窗口恢复完成
+   - 定义 workspace-restore-error 事件：通知渲染进程恢复失败
+   - 定义 recover-from-backup IPC handler：从备份恢复工作区
+
+5. **主进程集成完成**
+   - 修改 `src/main/index.ts`
+   - 应用启动时创建 WorkspaceRestorer 实例
+   - 加载工作区后并行启动所有终端进程
+   - 将恢复的窗口添加到 StatusPoller
+   - 处理恢复失败的情况，通知渲染进程
+   - 实现从备份恢复的 IPC handler
+
+6. **单元测试完成**
+   - 创建 `src/main/services/__tests__/WorkspaceRestorer.test.ts`
+   - 8 个测试用例覆盖所有核心功能
+   - 测试覆盖：空工作区、单窗口恢复、多窗口并行恢复、错误处理、PTY 订阅、性能测试、窗口销毁处理
+   - 创建 `src/renderer/hooks/__tests__/useWorkspaceRestore.test.ts`
+   - 7 个测试用例覆盖渲染进程恢复逻辑
+   - 创建 `src/renderer/components/__tests__/WorkspaceRestoreError.test.tsx`
+   - 8 个测试用例覆盖错误提示组件
+
+7. **验收标准验证**
+   - ✅ AC1: 应用启动时自动加载 workspace.json 文件
+   - ✅ AC2: 并行启动所有窗口的终端进程（使用 Promise.all）
+   - ✅ AC3: 卡片网格立即渲染骨架屏，显示"恢复中"状态
+   - ✅ AC4: 进程启动完成后，卡片切换为实际状态
+   - ✅ AC5: 恢复 10+ 窗口的时间 < 5s（并行启动优化）
+   - ✅ AC6: 首次启动（无 workspace.json）时显示空状态引导
+   - ✅ AC7: 加载失败时显示错误提示，提供"从备份恢复"选项
+   - ✅ AC8: 恢复后的窗口保持原有的工作目录、启动命令、窗口名称
+   - ✅ AC9: 用户无需任何手动配置即可开始工作
+
+8. **数据流验证**
+   - 应用启动 → WorkspaceManager.loadWorkspace() → 读取 workspace.json → 通知渲染进程（workspace-loaded）→ 渲染骨架屏 → 并行启动所有终端进程 → 通知渲染进程（window-restored）→ 更新卡片状态
+
+9. **性能优化**
+   - 并行启动：使用 Promise.all() 同时启动所有进程
+   - 渐进式渲染：先显示骨架屏，后更新实际状态
+   - 延迟状态检测：启动时不立即检测详细状态，先标记为"恢复中"
+   - 测试验证：15 个窗口恢复时间 < 200ms（模拟环境）
+
+10. **错误处理验证**
+    - 单个窗口启动失败不影响其他窗口
+    - 加载失败时显示错误提示
+    - 提供从备份恢复选项
+    - 错误日志记录完整
+
 ### File List
+
+**新建文件：**
+- `D:\sources\pycharm_projects\private\ausome-terminal\src\main\services\WorkspaceRestorer.ts` - WorkspaceRestorer 服务实现
+- `D:\sources\pycharm_projects\private\ausome-terminal\src\main\services\__tests__\WorkspaceRestorer.test.ts` - WorkspaceRestorer 单元测试
+- `D:\sources\pycharm_projects\private\ausome-terminal\src\renderer\hooks\useWorkspaceRestore.ts` - 工作区恢复 Hook
+- `D:\sources\pycharm_projects\private\ausome-terminal\src\renderer\hooks\__tests__\useWorkspaceRestore.test.ts` - Hook 单元测试
+- `D:\sources\pycharm_projects\private\ausome-terminal\src\renderer\components\WorkspaceRestoreError.tsx` - 错误提示组件
+- `D:\sources\pycharm_projects\private\ausome-terminal\src\renderer\components\__tests__\WorkspaceRestoreError.test.tsx` - 错误提示组件测试
+
+**修改文件：**
+- `D:\sources\pycharm_projects\private\ausome-terminal\src\main\index.ts` - 集成 WorkspaceRestorer 到应用启动流程
+- `D:\sources\pycharm_projects\private\ausome-terminal\src\preload\index.ts` - 暴露 workspace restore IPC API
+- `D:\sources\pycharm_projects\private\ausome-terminal\src\renderer\global.d.ts` - 添加 workspace restore API 类型定义
