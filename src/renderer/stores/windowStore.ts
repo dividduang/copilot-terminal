@@ -3,6 +3,17 @@ import { immer } from 'zustand/middleware/immer';
 import { Window, WindowStatus } from '../types/window';
 
 /**
+ * 触发自动保存
+ * 通过 IPC 事件通知主进程触发保存
+ * @param windows 当前窗口列表
+ */
+function triggerAutoSave(windows: Window[]): void {
+  if (window.electronAPI) {
+    window.electronAPI.triggerAutoSave(windows);
+  }
+}
+
+/**
  * 窗口状态管理 Store 接口
  */
 interface WindowStore {
@@ -32,26 +43,41 @@ export const useWindowStore = create<WindowStore>()(
     activeWindowId: null,
 
     // 添加窗口
-    addWindow: (window) => set((state) => {
-      state.windows.push(window);
-    }),
+    addWindow: (window) => {
+      set((state) => {
+        state.windows.push(window);
+      });
+      // 触发自动保存，传递最新的窗口列表
+      const windows = get().windows;
+      triggerAutoSave(windows);
+    },
 
     // 删除窗口
-    removeWindow: (id) => set((state) => {
-      state.windows = state.windows.filter(w => w.id !== id);
-      if (state.activeWindowId === id) {
-        state.activeWindowId = null;
-      }
-    }),
+    removeWindow: (id) => {
+      set((state) => {
+        state.windows = state.windows.filter(w => w.id !== id);
+        if (state.activeWindowId === id) {
+          state.activeWindowId = null;
+        }
+      });
+      // 触发自动保存，传递最新的窗口列表
+      const windows = get().windows;
+      triggerAutoSave(windows);
+    },
 
     // 更新窗口状态
-    updateWindowStatus: (id, status) => set((state) => {
-      const window = state.windows.find(w => w.id === id);
-      if (window) {
-        window.status = status;
-        window.lastActiveAt = new Date().toISOString();
-      }
-    }),
+    updateWindowStatus: (id, status) => {
+      set((state) => {
+        const window = state.windows.find(w => w.id === id);
+        if (window) {
+          window.status = status;
+          window.lastActiveAt = new Date().toISOString();
+        }
+      });
+      // 触发自动保存，传递最新的窗口列表
+      const windows = get().windows;
+      triggerAutoSave(windows);
+    },
 
     // 设置活跃窗口
     setActiveWindow: (id) => set((state) => {

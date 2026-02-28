@@ -43,6 +43,9 @@ export interface ElectronAPI {
   loadWorkspace: () => Promise<{ success: boolean; data?: Workspace; error?: string }>
   onWorkspaceLoaded: (callback: (event: unknown, workspace: Workspace) => void) => void
   offWorkspaceLoaded: (callback: (event: unknown, workspace: Workspace) => void) => void
+
+  // Auto-save
+  triggerAutoSave: (windows?: TerminalWindow[]) => void
 }
 
 declare global {

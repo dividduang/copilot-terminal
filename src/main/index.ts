@@ -7,16 +7,20 @@ import { ProcessManager } from './services/ProcessManager';
 import { StatusPoller } from './services/StatusPoller';
 import { ViewSwitcherImpl } from './services/ViewSwitcher';
 import { WorkspaceManagerImpl } from './services/WorkspaceManager';
+import { AutoSaveManagerImpl } from './services/AutoSaveManager';
 import { TerminalConfig } from './types/process';
 import { WindowStatus } from '../renderer/types/window';
 import { Window } from '../renderer/types/window';
+import { Workspace } from './types/workspace';
 
 let mainWindow: BrowserWindow | null = null;
 let processManager: ProcessManager | null = null;
 let statusPoller: StatusPoller | null = null;
 let viewSwitcher: ViewSwitcherImpl | null = null;
 let workspaceManager: WorkspaceManagerImpl | null = null;
+let autoSaveManager: AutoSaveManagerImpl | null = null;
 let windowCounter = 0; // 用于生成唯一的窗口编号
+let currentWorkspace: Workspace | null = null; // 缓存当前工作区状态
 
 // 获取默认 shell，带回退逻辑
 function getDefaultShell(): string {
@@ -78,6 +82,9 @@ app.whenReady().then(async () => {
   // 崩溃恢复
   await workspaceManager.recoverFromCrash();
 
+  // 初始化 AutoSaveManager
+  autoSaveManager = new AutoSaveManagerImpl();
+
   // 初始化 ProcessManager
   processManager = new ProcessManager();
 
@@ -96,6 +103,15 @@ app.whenReady().then(async () => {
   // 加载工作区并恢复窗口
   try {
     const workspace = await workspaceManager.loadWorkspace();
+    currentWorkspace = workspace;
+
+    // 启动自动保存
+    if (autoSaveManager && workspaceManager) {
+      autoSaveManager.startAutoSave(workspaceManager, () => {
+        // 返回当前工作区状态
+        return currentWorkspace || workspaceManager!.loadWorkspace() as any;
+      });
+    }
 
     // 通知渲染进程工作区已加载（窗口将在渲染进程中恢复）
     if (mainWindow && workspace.windows.length > 0) {
@@ -115,23 +131,33 @@ app.whenReady().then(async () => {
   });
 });
 
-// 所有窗口关闭时退出应用 (macOS 除外)
-app.on('window-all-closed', async () => {
-  statusPoller?.stopPolling();
-  processManager?.destroy();
+// 应用退出前保存工作区
+app.on('before-quit', async (event) => {
+  // 阻止默认退出行为，等待保存完成
+  event.preventDefault();
 
-  // 保存工作区
-  if (workspaceManager) {
+  // 立即保存工作区
+  if (autoSaveManager && currentWorkspace) {
     try {
-      // 获取当前所有窗口状态（从渲染进程）
-      // 注意：这里简化处理，实际应该从渲染进程获取完整状态
-      const workspace = await workspaceManager.loadWorkspace();
-      await workspaceManager.saveWorkspace(workspace);
+      await autoSaveManager.saveImmediately();
     } catch (error) {
       console.error('Failed to save workspace on quit:', error);
     }
   }
 
+  // 停止自动保存
+  autoSaveManager?.stopAutoSave();
+
+  // 清理资源
+  statusPoller?.stopPolling();
+  processManager?.destroy();
+
+  // 允许应用退出
+  app.exit(0);
+});
+
+// 所有窗口关闭时退出应用 (macOS 除外)
+app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -433,6 +459,9 @@ function registerIPCHandlers() {
       workspace.windows = windows;
       await workspaceManager.saveWorkspace(workspace);
 
+      // 更新缓存的工作区状态
+      currentWorkspace = workspace;
+
       return { success: true };
     } catch (error) {
       console.error('Failed to save workspace:', error);
@@ -448,10 +477,22 @@ function registerIPCHandlers() {
       }
 
       const workspace = await workspaceManager.loadWorkspace();
+      currentWorkspace = workspace;
       return { success: true, data: workspace };
     } catch (error) {
       console.error('Failed to load workspace:', error);
       return { success: false, error: (error as Error).message };
+    }
+  });
+
+  // 触发自动保存
+  ipcMain.on('trigger-auto-save', async (_event, windows?: Window[]) => {
+    if (autoSaveManager && workspaceManager) {
+      // 如果提供了窗口列表，更新缓存的工作区状态
+      if (windows && currentWorkspace) {
+        currentWorkspace.windows = windows;
+      }
+      autoSaveManager.triggerSave();
     }
   });
 }

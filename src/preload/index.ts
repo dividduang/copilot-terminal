@@ -61,4 +61,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   offWorkspaceLoaded: (callback: (event: unknown, workspace: unknown) => void) => {
     ipcRenderer.removeListener('workspace-loaded', callback);
   },
+
+  // Auto-save
+  triggerAutoSave: (windows?: unknown[]) =>
+    ipcRenderer.send('trigger-auto-save', windows),
 });
