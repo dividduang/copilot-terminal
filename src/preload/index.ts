@@ -37,4 +37,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   offPtyData: (callback: (event: unknown, payload: { windowId: string; data: string }) => void) => {
     ipcRenderer.removeListener('pty-data', callback);
   },
+
+  // View switching
+  switchToTerminalView: (windowId: string) =>
+    ipcRenderer.invoke('switch-to-terminal-view', { windowId }),
+  switchToUnifiedView: () =>
+    ipcRenderer.invoke('switch-to-unified-view'),
+  onViewChanged: (callback: (event: unknown, payload: { view: 'unified' | 'terminal'; windowId?: string }) => void) => {
+    ipcRenderer.on('view-changed', callback);
+  },
+  offViewChanged: (callback: (event: unknown, payload: { view: 'unified' | 'terminal'; windowId?: string }) => void) => {
+    ipcRenderer.removeListener('view-changed', callback);
+  },
 });

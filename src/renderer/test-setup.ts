@@ -26,6 +26,10 @@ Object.defineProperty(window, 'electronAPI', {
     ptyResize: vi.fn().mockResolvedValue(undefined),
     onPtyData: vi.fn(),
     offPtyData: vi.fn(),
+    switchToTerminalView: vi.fn().mockResolvedValue(undefined),
+    switchToUnifiedView: vi.fn().mockResolvedValue(undefined),
+    onViewChanged: vi.fn(),
+    offViewChanged: vi.fn(),
   },
   writable: true,
 });

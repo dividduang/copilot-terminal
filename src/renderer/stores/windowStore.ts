@@ -14,7 +14,7 @@ interface WindowStore {
   addWindow: (window: Window) => void;
   removeWindow: (id: string) => void;
   updateWindowStatus: (id: string, status: WindowStatus) => void;
-  setActiveWindow: (id: string) => void;
+  setActiveWindow: (id: string | null) => void;
 
   // 辅助方法
   getWindowById: (id: string) => Window | undefined;
@@ -56,9 +56,11 @@ export const useWindowStore = create<WindowStore>()(
     // 设置活跃窗口
     setActiveWindow: (id) => set((state) => {
       state.activeWindowId = id;
-      const window = state.windows.find(w => w.id === id);
-      if (window) {
-        window.lastActiveAt = new Date().toISOString();
+      if (id) {
+        const window = state.windows.find(w => w.id === id);
+        if (window) {
+          window.lastActiveAt = new Date().toISOString();
+        }
       }
     }),
 

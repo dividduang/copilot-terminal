@@ -5,12 +5,14 @@ import { randomUUID } from 'crypto';
 import { execSync } from 'child_process';
 import { ProcessManager } from './services/ProcessManager';
 import { StatusPoller } from './services/StatusPoller';
+import { ViewSwitcherImpl } from './services/ViewSwitcher';
 import { TerminalConfig } from './types/process';
 import { WindowStatus } from '../renderer/types/window';
 
 let mainWindow: BrowserWindow | null = null;
 let processManager: ProcessManager | null = null;
 let statusPoller: StatusPoller | null = null;
+let viewSwitcher: ViewSwitcherImpl | null = null;
 let windowCounter = 0; // 用于生成唯一的窗口编号
 
 // 获取默认 shell，带回退逻辑
@@ -79,6 +81,7 @@ app.whenReady().then(() => {
   if (mainWindow) {
     statusPoller = new StatusPoller(processManager.getStatusDetector(), mainWindow);
     statusPoller.startPolling();
+    viewSwitcher = new ViewSwitcherImpl(mainWindow);
   }
 
   // macOS 特定: 点击 Dock 图标时重新创建窗口
@@ -365,5 +368,21 @@ function registerIPCHandlers() {
       }
       return null;
     }
+  });
+
+  // 视图切换：切换到终端视图
+  ipcMain.handle('switch-to-terminal-view', (_event, { windowId }: { windowId: string }) => {
+    if (!viewSwitcher) {
+      throw new Error('ViewSwitcher not initialized');
+    }
+    viewSwitcher.switchToTerminalView(windowId);
+  });
+
+  // 视图切换：切换到统一视图
+  ipcMain.handle('switch-to-unified-view', () => {
+    if (!viewSwitcher) {
+      throw new Error('ViewSwitcher not initialized');
+    }
+    viewSwitcher.switchToUnifiedView();
   });
 }

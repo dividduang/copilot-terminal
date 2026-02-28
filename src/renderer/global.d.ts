@@ -30,6 +30,12 @@ export interface ElectronAPI {
   ptyResize: (windowId: string, cols: number, rows: number) => Promise<void>
   onPtyData: (callback: (event: unknown, payload: { windowId: string; data: string }) => void) => void
   offPtyData: (callback: (event: unknown, payload: { windowId: string; data: string }) => void) => void
+
+  // View switching
+  switchToTerminalView: (windowId: string) => Promise<void>
+  switchToUnifiedView: () => Promise<void>
+  onViewChanged: (callback: (event: unknown, payload: { view: 'unified' | 'terminal'; windowId?: string }) => void) => void
+  offViewChanged: (callback: (event: unknown, payload: { view: 'unified' | 'terminal'; windowId?: string }) => void) => void
 }
 
 declare global {
