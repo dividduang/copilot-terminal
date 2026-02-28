@@ -27,7 +27,10 @@ export const WindowCard = React.memo<WindowCardProps>(({ window, onClick, onCont
         addSuffix: true,
         locale: zhCN
       });
-    } catch {
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to format time:', error, 'lastActiveAt:', window.lastActiveAt);
+      }
       return '未知';
     }
   }, [window.lastActiveAt]);
@@ -59,10 +62,10 @@ export const WindowCard = React.memo<WindowCardProps>(({ window, onClick, onCont
       aria-label={ariaLabel}
       className="min-w-[280px] h-40 bg-zinc-800 rounded-lg overflow-hidden cursor-pointer transition-colors hover:bg-zinc-750 active:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
     >
-      {/* 圆弧形彩色顶部线条 */}
+      {/* 圆弧形彩色顶部线条 (4px 高度) */}
       <div
         data-testid="status-bar"
-        className={`h-1 rounded-t-lg ${statusColor}`}
+        className={`h-[4px] rounded-t-lg ${statusColor}`}
       />
 
       {/* 卡片内容 */}
@@ -88,12 +91,14 @@ export const WindowCard = React.memo<WindowCardProps>(({ window, onClick, onCont
                 {window.workingDirectory}
               </p>
             </Tooltip.Trigger>
-            <Tooltip.Content
-              className="bg-zinc-900 text-zinc-100 px-2 py-1 rounded text-sm max-w-md break-all"
-              sideOffset={5}
-            >
-              {window.workingDirectory}
-            </Tooltip.Content>
+            <Tooltip.Portal>
+              <Tooltip.Content
+                className="bg-zinc-900 text-zinc-100 px-2 py-1 rounded text-sm max-w-md break-all z-50"
+                sideOffset={5}
+              >
+                {window.workingDirectory}
+              </Tooltip.Content>
+            </Tooltip.Portal>
           </Tooltip.Root>
         </Tooltip.Provider>
 
@@ -118,3 +123,5 @@ export const WindowCard = React.memo<WindowCardProps>(({ window, onClick, onCont
     </div>
   );
 });
+
+WindowCard.displayName = 'WindowCard';

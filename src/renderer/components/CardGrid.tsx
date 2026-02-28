@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useWindowStore } from '../stores/windowStore';
 import { WindowCard } from './WindowCard';
 
@@ -6,21 +6,21 @@ import { WindowCard } from './WindowCard';
  * CardGrid 组件
  * 以网格布局显示所有窗口卡片
  */
-export function CardGrid() {
+export const CardGrid = React.memo(() => {
   const windows = useWindowStore((state) => state.windows);
   const setActiveWindow = useWindowStore((state) => state.setActiveWindow);
 
-  const handleCardClick = (windowId: string) => {
+  const handleCardClick = useCallback((windowId: string) => {
     setActiveWindow(windowId);
     // TODO: Story 5-2 将实现切换到终端视图
     console.log('切换到窗口:', windowId);
-  };
+  }, [setActiveWindow]);
 
-  const handleContextMenu = (e: React.MouseEvent, windowId: string) => {
+  const handleContextMenu = useCallback((e: React.MouseEvent, windowId: string) => {
     e.preventDefault();
     // TODO: Story 2.4 的右键菜单将在这里集成
     console.log('打开右键菜单:', windowId);
-  };
+  }, []);
 
   if (windows.length === 0) {
     return null; // EmptyState 会处理空状态
@@ -38,4 +38,6 @@ export function CardGrid() {
       ))}
     </div>
   );
-}
+});
+
+CardGrid.displayName = 'CardGrid';

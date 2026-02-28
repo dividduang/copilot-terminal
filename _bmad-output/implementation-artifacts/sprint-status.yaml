@@ -55,7 +55,7 @@ development_status:
   epic-2-retrospective: optional
 
   epic-3: in-progress
-  3-1-window-card-component: review
+  3-1-window-card-component: done
   3-2-responsive-card-grid-layout: ready-for-dev
   3-3-status-bar: ready-for-dev
   3-4-empty-state-and-new-window-entry: ready-for-dev

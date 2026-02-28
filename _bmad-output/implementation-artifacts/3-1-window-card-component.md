@@ -1,6 +1,6 @@
 # Story 3.1: 窗口卡片组件（WindowCard）
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -374,6 +374,29 @@ Claude Sonnet 4.6
 - 创建了 CardGrid 集成测试 (4 个测试用例)
 - 所有测试通过
 - 测试覆盖：渲染、状态色、交互状态、键盘导航、无障碍、Tooltip
+
+### Senior Developer Review (AI)
+
+**审查日期**: 2026-02-28
+**审查结果**: ✅ Approved with fixes applied
+**审查模型**: Claude Sonnet 4.6
+
+**发现的问题**: 9 个 (4 High, 3 Medium, 2 Low)
+**已修复**: 7 个 (4 High, 3 Medium)
+**待处理**: 2 个 (2 Low - 非阻塞性问题)
+
+**已修复的问题**:
+1. ✅ [HIGH] 优化 statusHelpers.ts - 将 map 对象移到函数外部作为常量，避免重复创建
+2. ✅ [HIGH] 添加 WindowCard.displayName 用于 React DevTools
+3. ✅ [HIGH] 改进错误处理 - date-fns 格式化失败时记录错误日志
+4. ✅ [HIGH] 修正顶部线条高度 - 使用 `h-[4px]` 替代 `h-1`，更明确的尺寸规范
+5. ✅ [MEDIUM] CardGrid 使用 React.memo 优化性能
+6. ✅ [MEDIUM] CardGrid 回调函数使用 useCallback 包裹，避免子组件不必要的重渲染
+7. ✅ [MEDIUM] Tooltip 添加 Portal，防止被父容器裁剪
+
+**待处理的低优先级问题** (不影响功能，可在后续优化):
+- [LOW] statusHelpers 函数可添加默认值处理未知状态
+- [LOW] 测试可增加 Tooltip Portal 渲染位置验证
 
 ### File List
 
