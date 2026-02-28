@@ -3,12 +3,17 @@ import * as ScrollArea from '@radix-ui/react-scroll-area';
 import { useWindowStore } from '../stores/windowStore';
 import { sortWindows } from '../utils/sortWindows';
 import { WindowCard } from './WindowCard';
+import { NewWindowCard } from './NewWindowCard';
+
+interface CardGridProps {
+  onCreateWindow?: () => void;
+}
 
 /**
  * CardGrid 组件
  * 以响应式 CSS Grid 网格布局显示所有窗口卡片
  */
-export const CardGrid = React.memo(() => {
+export const CardGrid = React.memo<CardGridProps>(({ onCreateWindow }) => {
   const windows = useWindowStore((state) => state.windows);
   const setActiveWindow = useWindowStore((state) => state.setActiveWindow);
 
@@ -30,7 +35,7 @@ export const CardGrid = React.memo(() => {
   }, []);
 
   if (windows.length === 0) {
-    return null; // EmptyState 由 Story 3.4 实现
+    return null;
   }
 
   return (
@@ -48,6 +53,7 @@ export const CardGrid = React.memo(() => {
               onContextMenu={(e) => handleContextMenu(e, window.id)}
             />
           ))}
+          <NewWindowCard onClick={onCreateWindow ?? (() => {})} />
         </div>
       </ScrollArea.Viewport>
       <ScrollArea.Scrollbar

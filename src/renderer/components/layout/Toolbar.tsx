@@ -1,18 +1,26 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from '../ui/Button';
 import { CreateWindowDialog } from '../CreateWindowDialog';
 import { StatusBar } from '../StatusBar';
+import { useWindowStore } from '../../stores/windowStore';
 
 interface ToolbarProps {
   appName?: string;
   version?: string;
+  onCreateWindow?: () => void;
+  isDialogOpen?: boolean;
+  onDialogChange?: (open: boolean) => void;
 }
 
 export function Toolbar({
   appName = 'ausome-terminal',
-  version = '0.1.0'
+  version = '0.1.0',
+  onCreateWindow,
+  isDialogOpen = false,
+  onDialogChange,
 }: ToolbarProps) {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const windows = useWindowStore((state) => state.windows);
+  const showNewWindowButton = windows.length > 0;
 
   return (
     <>
@@ -27,21 +35,23 @@ export function Toolbar({
           </span>
         </div>
 
-        {/* 右侧：状态统计栏 + 新建窗口按钮 */}
+        {/* 右侧：状态统计栏 + 新建窗口按钮（仅在有窗口时显示） */}
         <div className="flex items-center gap-3">
           <StatusBar />
-          <Button
-            variant="primary"
-            onClick={() => setIsDialogOpen(true)}
-          >
-            + 新建窗口
-          </Button>
+          {showNewWindowButton && (
+            <Button
+              variant="primary"
+              onClick={onCreateWindow}
+            >
+              + 新建窗口
+            </Button>
+          )}
         </div>
       </header>
 
       <CreateWindowDialog
         open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
+        onOpenChange={onDialogChange ?? (() => {})}
       />
     </>
   );

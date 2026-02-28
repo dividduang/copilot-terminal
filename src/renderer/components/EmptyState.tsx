@@ -5,7 +5,7 @@ interface EmptyStateProps {
   onCreateWindow?: () => void;
 }
 
-export function EmptyState({ onCreateWindow }: EmptyStateProps) {
+export const EmptyState = React.memo<EmptyStateProps>(({ onCreateWindow }) => {
   return (
     <div className="flex flex-col items-center justify-center h-full">
       {/* 引导文案 */}
@@ -23,4 +23,6 @@ export function EmptyState({ onCreateWindow }: EmptyStateProps) {
       </Button>
     </div>
   );
-}
+});
+
+EmptyState.displayName = 'EmptyState';

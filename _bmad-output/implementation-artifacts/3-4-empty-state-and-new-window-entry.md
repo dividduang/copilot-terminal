@@ -1,6 +1,6 @@
 # Story 3.4: 空状态与新建窗口入口
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -271,10 +271,24 @@ src/
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+claude-sonnet-4-6
 
 ### Debug Log References
 
 ### Completion Notes List
 
+- NewWindowCard 新建，虚线边框占位卡片，h-40 与 WindowCard 一致，支持键盘导航
+- CardGrid 修改：接受 onCreateWindow prop，网格末尾追加 NewWindowCard
+- Toolbar 修改：接受 onCreateWindow/isDialogOpen/onDialogChange props，仅在 windows.length > 0 时显示"+ 新建窗口"按钮
+- App.tsx 修改：统一管理 isDialogOpen 状态，向下传递 onCreateWindow 回调
+- 所有测试通过：193 passed / 21 test files
+
 ### File List
+
+- src/renderer/components/NewWindowCard.tsx (新建)
+- src/renderer/components/CardGrid.tsx (修改)
+- src/renderer/components/layout/Toolbar.tsx (修改)
+- src/renderer/App.tsx (修改)
+- src/renderer/components/__tests__/NewWindowCard.test.tsx (新建)
+- src/renderer/components/__tests__/CardGrid.test.tsx (修改)
+- src/renderer/components/layout/__tests__/Toolbar.test.tsx (修改)

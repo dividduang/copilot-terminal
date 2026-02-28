@@ -48,6 +48,7 @@ describe('CardGrid', () => {
 
     render(<CardGrid />);
 
+    // getAllByRole('button') includes NewWindowCard at the end; check first 3
     const cards = screen.getAllByRole('button');
     expect(cards[0]).toHaveAttribute('aria-label', expect.stringContaining('New Window'));
     expect(cards[1]).toHaveAttribute('aria-label', expect.stringContaining('Mid Window'));
@@ -83,8 +84,9 @@ describe('CardGrid', () => {
 
     render(<CardGrid />);
 
+    // 16 WindowCards + 1 NewWindowCard = 17 buttons
     const cards = screen.getAllByRole('button');
-    expect(cards).toHaveLength(16);
+    expect(cards).toHaveLength(17);
     expect(screen.getByTestId('card-grid-scroll-root')).toBeInTheDocument();
   });
 
@@ -96,8 +98,35 @@ describe('CardGrid', () => {
     const user = userEvent.setup();
     render(<CardGrid />);
 
-    await user.click(screen.getByRole('button'));
+    // Click the WindowCard (first button), not the NewWindowCard
+    const windowCard = screen.getByRole('button', { name: /Clickable Window/ });
+    await user.click(windowCard);
     expect(useWindowStore.getState().activeWindowId).toBe('win-1');
+  });
+
+  // NewWindowCard is rendered at the end of the grid
+  it('renders NewWindowCard at the end of the grid when windows exist', () => {
+    useWindowStore.getState().addWindow(makeWindow({ id: '1', name: 'Window 1' }));
+    render(<CardGrid />);
+    expect(screen.getByTestId('new-window-card')).toBeInTheDocument();
+  });
+
+  // NewWindowCard calls onCreateWindow
+  it('calls onCreateWindow when NewWindowCard is clicked', async () => {
+    const user = userEvent.setup();
+    const handleCreate = vi.fn();
+    useWindowStore.getState().addWindow(makeWindow({ id: '1' }));
+
+    render(<CardGrid onCreateWindow={handleCreate} />);
+
+    await user.click(screen.getByRole('button', { name: '新建窗口' }));
+    expect(handleCreate).toHaveBeenCalledTimes(1);
+  });
+
+  // NewWindowCard not shown when empty
+  it('does not render NewWindowCard when windows array is empty', () => {
+    render(<CardGrid />);
+    expect(screen.queryByTestId('new-window-card')).not.toBeInTheDocument();
   });
 
   // Different statuses render correctly

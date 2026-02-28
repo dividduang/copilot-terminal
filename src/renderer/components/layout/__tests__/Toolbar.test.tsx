@@ -1,8 +1,26 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Toolbar } from '../Toolbar';
+import { useWindowStore } from '../../../stores/windowStore';
+import { Window, WindowStatus } from '../../../types/window';
+
+const makeWindow = (overrides: Partial<Window> & { id: string }): Window => ({
+  name: `Window ${overrides.id}`,
+  workingDirectory: `/path/${overrides.id}`,
+  command: 'claude',
+  status: WindowStatus.Running,
+  pid: 1000,
+  createdAt: '2024-01-01T10:00:00Z',
+  lastActiveAt: '2024-01-01T10:00:00Z',
+  ...overrides,
+});
 
 describe('Toolbar', () => {
+  beforeEach(() => {
+    useWindowStore.setState({ windows: [], activeWindowId: null });
+  });
+
   it('should render with default app name and version', () => {
     render(<Toolbar />);
 
@@ -58,8 +76,26 @@ describe('Toolbar', () => {
     expect(statusBar).toBeInTheDocument();
   });
 
-  it('should render new window button', () => {
+  // AC4: button only shown when windows.length > 0
+  it('should not render new window button when no windows exist', () => {
+    render(<Toolbar />);
+    expect(screen.queryByText('+ 新建窗口')).not.toBeInTheDocument();
+  });
+
+  it('should render new window button when windows exist', () => {
+    useWindowStore.getState().addWindow(makeWindow({ id: '1' }));
     render(<Toolbar />);
     expect(screen.getByText('+ 新建窗口')).toBeInTheDocument();
+  });
+
+  it('should call onCreateWindow when new window button is clicked', async () => {
+    const user = userEvent.setup();
+    const handleCreate = vi.fn();
+    useWindowStore.getState().addWindow(makeWindow({ id: '1' }));
+
+    render(<Toolbar onCreateWindow={handleCreate} />);
+
+    await user.click(screen.getByText('+ 新建窗口'));
+    expect(handleCreate).toHaveBeenCalledTimes(1);
   });
 });
