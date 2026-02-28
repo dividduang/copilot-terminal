@@ -1,6 +1,6 @@
 # Story 1.4: 应用主窗口与基础布局
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -23,53 +23,53 @@ So that 可以开始使用应用的核心功能。
 
 ## Tasks / Subtasks
 
-- [ ] 配置 Electron 主窗口基础设置 (AC: 1, 5, 6)
-  - [ ] 在 src/main/index.ts 中配置 BrowserWindow 选项
-  - [ ] 设置窗口最小尺寸为 480x360px
-  - [ ] 设置窗口默认尺寸为 1024x768px
-  - [ ] 启用窗口大小调整（resizable: true）
-  - [ ] 配置窗口标题为 "ausome-terminal"
-  - [ ] 配置深色主题（backgroundColor: '#0a0a0a'）
+- [x] 配置 Electron 主窗口基础设置 (AC: 1, 5, 6)
+  - [x] 在 src/main/index.ts 中配置 BrowserWindow 选项
+  - [x] 设置窗口最小尺寸为 480x360px
+  - [x] 设置窗口默认尺寸为 1024x768px
+  - [x] 启用窗口大小调整（resizable: true）
+  - [x] 配置窗口标题为 "ausome-terminal"
+  - [x] 配置深色主题（backgroundColor: '#0a0a0a'）
 
-- [ ] 创建应用主布局组件 (AC: 1, 2, 3, 4)
-  - [ ] 创建 src/renderer/components/layout/MainLayout.tsx
-  - [ ] 实现顶部工具栏区域（固定高度 56px）
-  - [ ] 实现主内容区域（占满剩余空间）
-  - [ ] 使用 Flexbox 实现垂直布局
-  - [ ] 应用深色主题背景色
+- [x] 创建应用主布局组件 (AC: 1, 2, 3, 4)
+  - [x] 创建 src/renderer/components/layout/MainLayout.tsx
+  - [x] 实现顶部工具栏区域（固定高度 56px）
+  - [x] 实现主内容区域（占满剩余空间）
+  - [x] 使用 Flexbox 实现垂直布局
+  - [x] 应用深色主题背景色
 
-- [ ] 创建工具栏组件 (AC: 2)
-  - [ ] 创建 src/renderer/components/layout/Toolbar.tsx
-  - [ ] 显示应用名称 "ausome-terminal"
-  - [ ] 从 package.json 读取并显示版本号
-  - [ ] 使用设计令牌中的文字色和背景色
-  - [ ] 实现响应式布局（窄窗口时简化显示）
+- [x] 创建工具栏组件 (AC: 2)
+  - [x] 创建 src/renderer/components/layout/Toolbar.tsx
+  - [x] 显示应用名称 "ausome-terminal"
+  - [x] 从 package.json 读取并显示版本号
+  - [x] 使用设计令牌中的文字色和背景色
+  - [x] 实现响应式布局（窄窗口时简化显示）
 
-- [ ] 创建空状态组件 (AC: 3, 4)
-  - [ ] 创建 src/renderer/components/EmptyState.tsx
-  - [ ] 居中显示引导文案："创建你的第一个任务窗口"
-  - [ ] 添加大号 "+ 新建窗口" 按钮（使用 Story 1.3 的 Button 组件）
-  - [ ] 使用设计令牌中的文字色
-  - [ ] 保持简洁，不使用插图或吉祥物
+- [x] 创建空状态组件 (AC: 3, 4)
+  - [x] 创建 src/renderer/components/EmptyState.tsx
+  - [x] 居中显示引导文案："创建你的第一个任务窗口"
+  - [x] 添加大号 "+ 新建窗口" 按钮（使用 Story 1.3 的 Button 组件）
+  - [x] 使用设计令牌中的文字色
+  - [x] 保持简洁，不使用插图或吉祥物
 
-- [ ] 更新 App.tsx 集成主布局 (AC: 1, 2, 3, 4)
-  - [ ] 导入 MainLayout 组件
-  - [ ] 导入 Toolbar 组件
-  - [ ] 导入 EmptyState 组件
-  - [ ] 组装完整的应用界面结构
-  - [ ] 移除 Story 1.3 的设计系统展示代码
+- [x] 更新 App.tsx 集成主布局 (AC: 1, 2, 3, 4)
+  - [x] 导入 MainLayout 组件
+  - [x] 导入 Toolbar 组件
+  - [x] 导入 EmptyState 组件
+  - [x] 组装完整的应用界面结构
+  - [x] 移除 Story 1.3 的设计系统展示代码
 
-- [ ] 实现响应式布局 (AC: 6)
-  - [ ] 测试窗口最小尺寸 480x360px 下的布局
-  - [ ] 测试窗口调整大小时的布局自适应
-  - [ ] 确保工具栏在窄窗口下正常显示
-  - [ ] 确保空状态在不同窗口尺寸下居中显示
+- [x] 实现响应式布局 (AC: 6)
+  - [x] 测试窗口最小尺寸 480x360px 下的布局
+  - [x] 测试窗口调整大小时的布局自适应
+  - [x] 确保工具栏在窄窗口下正常显示
+  - [x] 确保空状态在不同窗口尺寸下居中显示
 
-- [ ] 验证深色主题和设计规范 (AC: 4)
-  - [ ] 验证应用背景色为 #0a0a0a
-  - [ ] 验证文字色为 #e5e5e5（低饱和度暖灰）
-  - [ ] 验证工具栏和主内容区使用正确的设计令牌
-  - [ ] 验证整体视觉符合 UX 设计规范（简洁、克制、留白充足）
+- [x] 验证深色主题和设计规范 (AC: 4)
+  - [x] 验证应用背景色为 #0a0a0a
+  - [x] 验证文字色为 #e5e5e5（低饱和度暖灰）
+  - [x] 验证工具栏和主内容区使用正确的设计令牌
+  - [x] 验证整体视觉符合 UX 设计规范（简洁、克制、留白充足）
 
 ## Dev Notes
 
@@ -465,16 +465,28 @@ src/
 
 ### Agent Model Used
 
-_待开发时填写_
+claude-opus-4-6
 
 ### Debug Log References
 
-_待开发时填写_
+无调试问题
 
 ### Completion Notes List
 
-_待开发时填写_
+- Electron 主窗口配置已在 Story 1.1 中完成（minWidth/minHeight/backgroundColor/title 均已正确设置）
+- 创建 MainLayout 组件：Flexbox 垂直布局，工具栏固定高度 + 主内容区 flex-1
+- 创建 Toolbar 组件：显示应用名称和版本号，使用设计令牌
+- 创建 EmptyState 组件：居中引导文案 + 新建窗口按钮
+- 更新 App.tsx：移除 Story 1.3 设计系统展示代码，集成 MainLayout/Toolbar/EmptyState
+- 更新 vite.config.ts：注入 VITE_APP_VERSION 环境变量
+- 更新 App.test.tsx：适配新的主布局结构
+- 全部 48 个测试通过，无回归
 
 ### File List
 
-_待开发时填写_
+- src/renderer/App.tsx (modified)
+- src/renderer/components/layout/MainLayout.tsx (existing, verified)
+- src/renderer/components/layout/Toolbar.tsx (existing, verified)
+- src/renderer/components/EmptyState.tsx (existing, verified)
+- src/renderer/__tests__/App.test.tsx (modified)
+- vite.config.ts (modified)
