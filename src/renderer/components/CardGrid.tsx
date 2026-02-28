@@ -4,6 +4,7 @@ import { useWindowStore } from '../stores/windowStore';
 import { sortWindows } from '../utils/sortWindows';
 import { WindowCard } from './WindowCard';
 import { NewWindowCard } from './NewWindowCard';
+import { WindowContextMenu } from './WindowContextMenu';
 import { Window } from '../types/window';
 
 interface CardGridProps {
@@ -18,6 +19,7 @@ interface CardGridProps {
 export const CardGrid = React.memo<CardGridProps>(({ onCreateWindow, onEnterTerminal }) => {
   const windows = useWindowStore((state) => state.windows);
   const setActiveWindow = useWindowStore((state) => state.setActiveWindow);
+  const removeWindow = useWindowStore((state) => state.removeWindow);
 
   // 按 lastActiveAt 降序排序，缓存结果避免每次渲染都排序
   const sortedWindows = useMemo(() => sortWindows(windows, 'lastActiveAt'), [windows]);
@@ -30,11 +32,28 @@ export const CardGrid = React.memo<CardGridProps>(({ onCreateWindow, onEnterTerm
     [setActiveWindow, onEnterTerminal]
   );
 
-  const handleContextMenu = useCallback((e: React.MouseEvent, windowId: string) => {
-    e.preventDefault();
-    // TODO: Story 2.4 的右键菜单将在这里集成
-    console.log('打开右键菜单:', windowId);
-  }, []);
+  const handleCloseWindow = useCallback(async (windowId: string) => {
+    const window = windows.find(w => w.id === windowId);
+    if (window && window.pid && window.electronAPI) {
+      try {
+        await window.electronAPI.closeWindow(windowId);
+      } catch (error) {
+        console.error('Failed to close window:', error);
+      }
+    }
+  }, [windows]);
+
+  const handleDeleteWindow = useCallback(async (windowId: string) => {
+    const window = windows.find(w => w.id === windowId);
+    if (window && window.electronAPI) {
+      try {
+        await window.electronAPI.deleteWindow(windowId);
+        removeWindow(windowId);
+      } catch (error) {
+        console.error('Failed to delete window:', error);
+      }
+    }
+  }, [windows, removeWindow]);
 
   if (windows.length === 0) {
     return null;
@@ -48,12 +67,16 @@ export const CardGrid = React.memo<CardGridProps>(({ onCreateWindow, onEnterTerm
           className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3 p-6"
         >
           {sortedWindows.map((window) => (
-            <WindowCard
+            <WindowContextMenu
               key={window.id}
-              window={window}
-              onClick={() => handleCardClick(window)}
-              onContextMenu={(e) => handleContextMenu(e, window.id)}
-            />
+              onClose={() => handleCloseWindow(window.id)}
+              onDelete={() => handleDeleteWindow(window.id)}
+            >
+              <WindowCard
+                window={window}
+                onClick={() => handleCardClick(window)}
+              />
+            </WindowContextMenu>
           ))}
           <NewWindowCard onClick={onCreateWindow ?? (() => {})} />
         </div>

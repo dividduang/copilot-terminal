@@ -239,9 +239,10 @@ function registerIPCHandlers() {
         throw new Error('终端进程启动失败');
       }
 
-      // 使用独立计数器生成窗口编号
-      windowCounter++;
-      const defaultName = `窗口 #${windowCounter}`;
+      // 从工作目录路径中提取最后一个文件夹名作为默认窗口名
+      const pathParts = config.workingDirectory.replace(/[\\\/]+$/, '').split(/[\\\/]/);
+      const folderName = pathParts[pathParts.length - 1] || 'Terminal';
+      const defaultName = folderName;
 
       // 返回符合 Window 接口的对象
       const window = {

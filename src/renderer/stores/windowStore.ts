@@ -2,15 +2,25 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { Window, WindowStatus } from '../types/window';
 
+// 全局标志：是否启用自动保存
+let autoSaveEnabled = true;
+
 /**
  * 触发自动保存
  * 通过 IPC 事件通知主进程触发保存
  * @param windows 当前窗口列表
  */
 function triggerAutoSave(windows: Window[]): void {
-  if (window.electronAPI) {
+  if (autoSaveEnabled && window.electronAPI) {
     window.electronAPI.triggerAutoSave(windows);
   }
+}
+
+/**
+ * 设置自动保存开关
+ */
+export function setAutoSaveEnabled(enabled: boolean): void {
+  autoSaveEnabled = enabled;
 }
 
 /**

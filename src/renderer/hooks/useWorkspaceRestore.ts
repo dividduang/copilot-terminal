@@ -1,5 +1,5 @@
 import { useEffect, useCallback } from 'react';
-import { useWindowStore } from '../stores/windowStore';
+import { useWindowStore, setAutoSaveEnabled } from '../stores/windowStore';
 import { Window, WindowStatus } from '../types/window';
 import { Workspace } from '../../main/types/workspace';
 
@@ -34,6 +34,9 @@ export const useWorkspaceRestore = () => {
   const handleWorkspaceLoaded = useCallback((event: unknown, workspace: Workspace) => {
     console.log(`[useWorkspaceRestore] Workspace loaded with ${workspace.windows.length} windows`);
 
+    // 禁用自动保存，避免恢复过程中的临时状态被保存
+    setAutoSaveEnabled(false);
+
     // 先清空现有窗口，避免重复
     clearWindows();
 
@@ -46,6 +49,12 @@ export const useWorkspaceRestore = () => {
       };
       addWindow(restoringWindow);
     }
+
+    // 恢复完成后，延迟启用自动保存（等待所有窗口状态更新完成）
+    setTimeout(() => {
+      setAutoSaveEnabled(true);
+      console.log('[useWorkspaceRestore] Auto-save re-enabled');
+    }, 2000);
   }, [addWindow, clearWindows]);
 
   /**

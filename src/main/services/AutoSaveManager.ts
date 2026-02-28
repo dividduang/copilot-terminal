@@ -91,8 +91,18 @@ export class AutoSaveManagerImpl implements IAutoSaveManager {
     try {
       const workspace = this.getWorkspace?.();
       if (workspace && this.workspaceManager) {
-        await this.workspaceManager.saveWorkspace(workspace);
-        console.log(`[AutoSave] Workspace saved successfully at ${new Date().toISOString()}`);
+        // 去重：根据窗口 ID 去重，保留最新的窗口状态
+        const uniqueWindows = Array.from(
+          new Map(workspace.windows.map(w => [w.id, w])).values()
+        );
+
+        const deduplicatedWorkspace = {
+          ...workspace,
+          windows: uniqueWindows,
+        };
+
+        await this.workspaceManager.saveWorkspace(deduplicatedWorkspace);
+        console.log(`[AutoSave] Workspace saved successfully at ${new Date().toISOString()} (${uniqueWindows.length} windows)`);
       }
     } catch (error) {
       // 保存失败时记录错误日志，不影响应用运行
