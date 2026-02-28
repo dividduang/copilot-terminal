@@ -1,6 +1,6 @@
 # Story 3.2: 响应式卡片网格布局（CardGrid）
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -256,10 +256,22 @@ src/
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+claude-sonnet-4-6
 
 ### Debug Log References
 
 ### Completion Notes List
 
+- CardGrid 重写为使用 CSS Grid `repeat(auto-fill, minmax(280px, 1fr))` + Radix UI ScrollArea
+- sortWindows 工具函数创建于 `src/renderer/utils/sortWindows.ts`，支持按 `lastActiveAt` 或 `createdAt` 降序排序
+- useMemo 缓存排序结果，避免每次渲染重排
+- test-setup.ts 添加 ResizeObserver mock，修复 Radix UI ScrollArea 在 jsdom 中的兼容性
+- 所有 8 个 CardGrid 测试和 6 个 sortWindows 测试通过
+
 ### File List
+
+- `src/renderer/components/CardGrid.tsx` - 修改
+- `src/renderer/utils/sortWindows.ts` - 新建
+- `src/renderer/components/__tests__/CardGrid.test.tsx` - 修改
+- `src/renderer/utils/__tests__/sortWindows.test.ts` - 新建
+- `src/renderer/test-setup.ts` - 修改（添加 ResizeObserver mock）

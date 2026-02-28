@@ -70,7 +70,8 @@ describe('WindowContextMenu', () => {
     const closeItem = screen.getByText('关闭窗口')
     const deleteItem = screen.getByText('删除窗口')
 
-    // 第一个菜单项应该获得焦点
+    // Radix UI focuses the menu container first; ArrowDown moves focus to first item
+    await user.keyboard('{ArrowDown}')
     expect(closeItem).toHaveFocus()
 
     // 按下箭头键导航到第二个菜单项
