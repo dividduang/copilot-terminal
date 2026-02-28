@@ -1,10 +1,40 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
+import { existsSync, accessSync, constants } from 'fs';
+import { randomUUID } from 'crypto';
+import { execSync } from 'child_process';
 import { ProcessManager } from './services/ProcessManager';
 import { TerminalConfig } from './types/process';
+import { WindowStatus } from '../renderer/types/window';
 
 let mainWindow: BrowserWindow | null = null;
 let processManager: ProcessManager | null = null;
+let windowCounter = 0; // 用于生成唯一的窗口编号
+
+// 获取默认 shell，带回退逻辑
+function getDefaultShell(): string {
+  if (process.platform === 'win32') {
+    // 检查 pwsh.exe 是否存在
+    try {
+      execSync('where pwsh.exe', { stdio: 'ignore' });
+      return 'pwsh.exe';
+    } catch {
+      // 回退到 powershell.exe
+      try {
+        execSync('where powershell.exe', { stdio: 'ignore' });
+        return 'powershell.exe';
+      } catch {
+        // 最后回退到 cmd.exe
+        return 'cmd.exe';
+      }
+    }
+  } else if (process.platform === 'darwin') {
+    return 'zsh';
+  } else {
+    // Linux
+    return 'bash';
+  }
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -63,6 +93,69 @@ function registerIPCHandlers() {
   // 基础 IPC 通信验证
   ipcMain.handle('ping', () => 'pong');
 
+  // 创建窗口
+  ipcMain.handle('create-window', async (_event, config: { name?: string; workingDirectory: string; command?: string }) => {
+    try {
+      if (!processManager) {
+        throw new Error('进程管理器未初始化，请重启应用');
+      }
+
+      // 验证工作目录存在且可访问
+      if (!existsSync(config.workingDirectory)) {
+        throw new Error('工作目录不存在');
+      }
+
+      try {
+        accessSync(config.workingDirectory, constants.R_OK | constants.X_OK);
+      } catch {
+        throw new Error('工作目录无访问权限');
+      }
+
+      // 获取默认 shell
+      const defaultShell = getDefaultShell();
+      const command = config.command || defaultShell;
+
+      // 创建终端进程
+      const handle = await processManager.spawnTerminal({
+        workingDirectory: config.workingDirectory,
+        command: command,
+      });
+
+      // 验证进程启动成功
+      if (!handle.pid || handle.pid <= 0) {
+        throw new Error('终端进程启动失败');
+      }
+
+      // 生成 UUID 作为窗口 ID
+      const windowId = randomUUID();
+
+      // 使用独立计数器生成窗口编号
+      windowCounter++;
+      const defaultName = `窗口 #${windowCounter}`;
+
+      // 返回符合 Window 接口的对象
+      const window = {
+        id: windowId,
+        name: config.name || defaultName,
+        workingDirectory: config.workingDirectory,
+        command: command,
+        status: WindowStatus.Running as WindowStatus,
+        pid: handle.pid,
+        createdAt: new Date().toISOString(),
+        lastActiveAt: new Date().toISOString(),
+      };
+
+      return window;
+    } catch (error) {
+      const errorMessage = (error as Error).message;
+      // 不在生产环境记录敏感路径信息
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to create window:', error);
+      }
+      throw new Error(errorMessage);
+    }
+  });
+
   // 创建终端进程
   ipcMain.handle('create-terminal', async (_event, config: TerminalConfig) => {
     try {
@@ -112,6 +205,51 @@ function registerIPCHandlers() {
       return { success: true, data: processes };
     } catch (error) {
       return { success: false, error: (error as Error).message };
+    }
+  });
+  
+  // 验证路径（包含权限检查）
+  ipcMain.handle('validate-path', async (_event, pathToValidate: string) => {
+    try {
+      // 检查路径是否存在
+      if (!existsSync(pathToValidate)) {
+        return false;
+      }
+
+      // 检查是否有读取和执行权限
+      try {
+        accessSync(pathToValidate, constants.R_OK | constants.X_OK);
+        return true;
+      } catch {
+        return false;
+      }
+    } catch (error) {
+      return false;
+    }
+  });
+
+  // 选择目录
+  ipcMain.handle('select-directory', async () => {
+    try {
+      if (!mainWindow) {
+        throw new Error('Main window not available');
+      }
+
+      const result = await dialog.showOpenDialog(mainWindow, {
+        properties: ['openDirectory'],
+      });
+
+      if (result.canceled || result.filePaths.length === 0) {
+        return null;
+      }
+
+      return result.filePaths[0];
+    } catch (error) {
+      // 不记录敏感路径信息到控制台
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to select directory:', error);
+      }
+      return null;
     }
   });
 }
