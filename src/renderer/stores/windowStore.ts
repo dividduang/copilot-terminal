@@ -26,6 +26,7 @@ interface WindowStore {
   removeWindow: (id: string) => void;
   updateWindowStatus: (id: string, status: WindowStatus) => void;
   setActiveWindow: (id: string | null) => void;
+  clearWindows: () => void; // 清空所有窗口（用于工作区恢复）
 
   // 辅助方法
   getWindowById: (id: string) => Window | undefined;
@@ -93,6 +94,15 @@ export const useWindowStore = create<WindowStore>()(
       // 触发自动保存，传递最新的窗口列表
       const windows = get().windows;
       triggerAutoSave(windows);
+    },
+
+    // 清空所有窗口（用于工作区恢复）
+    clearWindows: () => {
+      set((state) => {
+        state.windows = [];
+        state.activeWindowId = null;
+      });
+      // 不触发自动保存，因为这是恢复过程的一部分
     },
 
     // 根据 ID 查找窗口

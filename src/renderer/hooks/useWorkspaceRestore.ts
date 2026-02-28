@@ -24,6 +24,7 @@ interface RestoreResult {
  */
 export const useWorkspaceRestore = () => {
   const addWindow = useWindowStore((state) => state.addWindow);
+  const clearWindows = useWindowStore((state) => state.clearWindows);
   const updateWindowStatus = useWindowStore((state) => state.updateWindowStatus);
 
   /**
@@ -32,6 +33,9 @@ export const useWorkspaceRestore = () => {
    */
   const handleWorkspaceLoaded = useCallback((event: unknown, workspace: Workspace) => {
     console.log(`[useWorkspaceRestore] Workspace loaded with ${workspace.windows.length} windows`);
+
+    // 先清空现有窗口，避免重复
+    clearWindows();
 
     // 立即渲染所有窗口的骨架屏
     for (const window of workspace.windows) {
@@ -42,7 +46,7 @@ export const useWorkspaceRestore = () => {
       };
       addWindow(restoringWindow);
     }
-  }, [addWindow]);
+  }, [addWindow, clearWindows]);
 
   /**
    * 处理窗口恢复完成事件
