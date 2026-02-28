@@ -1,4 +1,5 @@
 import { TerminalWindow } from './types/window'
+import { Workspace } from '../main/types/workspace'
 
 export interface ElectronAPI {
   ping: () => Promise<string>
@@ -36,6 +37,12 @@ export interface ElectronAPI {
   switchToUnifiedView: () => Promise<void>
   onViewChanged: (callback: (event: unknown, payload: { view: 'unified' | 'terminal'; windowId?: string }) => void) => void
   offViewChanged: (callback: (event: unknown, payload: { view: 'unified' | 'terminal'; windowId?: string }) => void) => void
+
+  // Workspace management
+  saveWorkspace: (windows: TerminalWindow[]) => Promise<{ success: boolean; error?: string }>
+  loadWorkspace: () => Promise<{ success: boolean; data?: Workspace; error?: string }>
+  onWorkspaceLoaded: (callback: (event: unknown, workspace: Workspace) => void) => void
+  offWorkspaceLoaded: (callback: (event: unknown, workspace: Workspace) => void) => void
 }
 
 declare global {

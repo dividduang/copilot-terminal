@@ -49,4 +49,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   offViewChanged: (callback: (event: unknown, payload: { view: 'unified' | 'terminal'; windowId?: string }) => void) => {
     ipcRenderer.removeListener('view-changed', callback);
   },
+
+  // Workspace management
+  saveWorkspace: (windows: unknown[]) =>
+    ipcRenderer.invoke('save-workspace', windows),
+  loadWorkspace: () =>
+    ipcRenderer.invoke('load-workspace'),
+  onWorkspaceLoaded: (callback: (event: unknown, workspace: unknown) => void) => {
+    ipcRenderer.on('workspace-loaded', callback);
+  },
+  offWorkspaceLoaded: (callback: (event: unknown, workspace: unknown) => void) => {
+    ipcRenderer.removeListener('workspace-loaded', callback);
+  },
 });

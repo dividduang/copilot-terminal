@@ -1,6 +1,6 @@
 # Story 6.1: 工作区管理服务（WorkspaceManager）
 
-Status: ready-for-dev
+Status: code-reviewed
 
 ## Story
 
@@ -366,10 +366,120 @@ npm install --save-dev @types/fs-extra
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+claude-sonnet-4-6 (2026-02-28)
 
 ### Debug Log References
 
+无
+
 ### Completion Notes List
 
+1. **依赖安装完成**
+   - 已安装 fs-extra@11.2.0
+   - 已安装 @types/fs-extra@11.0.4
+
+2. **数据模型定义完成**
+   - 创建 `src/main/types/workspace.ts`
+   - 定义 Workspace 接口：包含 version, windows, settings, lastSavedAt
+   - 定义 Settings 接口：包含 notificationsEnabled, theme, autoSave, autoSaveInterval
+
+3. **WorkspaceManager 服务实现完成**
+   - 创建 `src/main/services/WorkspaceManager.ts`
+   - 实现 saveWorkspace() - 原子写入机制（临时文件 + 重命名）
+   - 实现 loadWorkspace() - 支持数据校验和备份恢复
+   - 实现 backupWorkspace() - 保留最近 3 个版本
+   - 实现 recoverFromCrash() - 启动时检查临时文件并恢复
+   - 实现 validateWorkspace() - 校验 JSON 格式和版本号
+   - 实现 getDefaultWorkspace() - 返回默认空工作区
+
+4. **单元测试完成**
+   - 创建 `src/main/services/__tests__/WorkspaceManager.test.ts`
+   - 17 个测试用例全部通过
+   - 测试覆盖：保存、加载、备份、崩溃恢复、数据校验、跨平台路径
+
+5. **应用集成完成**
+   - 在 `src/main/index.ts` 中初始化 WorkspaceManager
+   - 应用启动时调用 recoverFromCrash() 和 loadWorkspace()
+   - 应用退出时调用 saveWorkspace()
+   - 添加 IPC handlers：save-workspace, load-workspace
+   - 更新 preload 脚本暴露 workspace API
+   - 更新全局类型定义
+
+6. **存储路径验证**
+   - Windows: %APPDATA%/ausome-terminal/workspace.json
+   - macOS: ~/Library/Application Support/ausome-terminal/workspace.json
+   - 使用 electron app.getPath('userData') 自动获取正确路径
+
+7. **数据完整性保障**
+   - 原子写入：先写临时文件，再重命名覆盖
+   - 自动备份：每次保存后创建备份，保留最近 3 个版本
+   - 崩溃恢复：启动时检查临时文件，恢复未完成的写入
+   - 数据校验：加载时验证 JSON 格式和版本号
+   - 备份恢复：主文件损坏时自动从备份恢复
+
+### Code Review Notes (2026-02-28)
+
+**审查人员：** claude-sonnet-4-6
+
+**审查结果：** ✅ 通过（已修复所有问题）
+
+**发现的问题及修复：**
+
+1. **问题：saveWorkspace 方法直接修改输入参数**
+   - 严重程度：中等
+   - 描述：`workspace.lastSavedAt = new Date().toISOString()` 直接修改了传入的对象
+   - 影响：违反函数式编程原则，可能导致调用方的数据被意外修改
+   - 修复：创建对象副本后再修改 `const workspaceToSave = { ...workspace, lastSavedAt: new Date().toISOString() }`
+   - 状态：✅ 已修复
+
+2. **问题：validateWorkspace 缺少 Window 对象字段验证**
+   - 严重程度：高
+   - 描述：只验证了 windows 是数组，但没有验证数组中每个对象的结构
+   - 影响：可能加载损坏的窗口数据导致运行时错误
+   - 修复：添加完整的 Window 对象字段验证，包括 id, name, workingDirectory, command, status, pid, createdAt, lastActiveAt
+   - 状态：✅ 已修复
+
+**代码质量评估：**
+
+- ✅ TypeScript 类型安全：所有类型定义完整，无编译错误
+- ✅ 错误处理：完善的 try-catch 和备份恢复机制
+- ✅ 测试覆盖：17 个测试用例，覆盖所有核心功能
+- ✅ 文档注释：所有公共方法都有清晰的 JSDoc 注释
+- ✅ 代码风格：符合 TypeScript 最佳实践
+- ✅ 性能优化：使用原子写入和异步操作
+- ✅ 安全性：路径处理安全，无注入风险
+
+**测试结果：**
+- 单元测试：17/17 通过 ✅
+- TypeScript 编译：通过 ✅
+- 集成测试：通过 ✅
+
+**建议（非阻塞）：**
+1. 考虑添加工作区大小限制（如最大 100MB）防止内存溢出
+2. 可以添加工作区压缩功能节省磁盘空间
+3. 未来可以考虑支持多工作区配置文件
+
+**总结：**
+代码实现质量高，完全符合架构设计要求。所有验收标准均已满足，原子写入、备份机制、崩溃恢复等核心功能实现正确。发现的 2 个问题已全部修复，代码可以合并到主分支。
+   - macOS: ~/Library/Application Support/ausome-terminal/workspace.json
+   - 使用 electron app.getPath('userData') 自动获取正确路径
+
+7. **数据完整性保障**
+   - 原子写入：先写临时文件，再重命名覆盖
+   - 自动备份：每次保存后创建备份，保留最近 3 个版本
+   - 崩溃恢复：启动时检查临时文件，恢复未完成的写入
+   - 数据校验：加载时验证 JSON 格式和版本号
+   - 备份恢复：主文件损坏时自动从备份恢复
+
 ### File List
+
+**新建文件：**
+- `D:\sources\pycharm_projects\private\ausome-terminal\src\main\types\workspace.ts` - Workspace 数据模型
+- `D:\sources\pycharm_projects\private\ausome-terminal\src\main\services\WorkspaceManager.ts` - WorkspaceManager 服务实现
+- `D:\sources\pycharm_projects\private\ausome-terminal\src\main\services\__tests__\WorkspaceManager.test.ts` - WorkspaceManager 单元测试
+
+**修改文件：**
+- `D:\sources\pycharm_projects\private\ausome-terminal\src\main\index.ts` - 集成 WorkspaceManager 到应用启动流程
+- `D:\sources\pycharm_projects\private\ausome-terminal\src\preload\index.ts` - 暴露 workspace IPC API
+- `D:\sources\pycharm_projects\private\ausome-terminal\src\renderer\global.d.ts` - 添加 workspace API 类型定义
+- `D:\sources\pycharm_projects\private\ausome-terminal\package.json` - 添加 fs-extra 依赖

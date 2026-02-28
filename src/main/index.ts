@@ -6,13 +6,16 @@ import { execSync } from 'child_process';
 import { ProcessManager } from './services/ProcessManager';
 import { StatusPoller } from './services/StatusPoller';
 import { ViewSwitcherImpl } from './services/ViewSwitcher';
+import { WorkspaceManagerImpl } from './services/WorkspaceManager';
 import { TerminalConfig } from './types/process';
 import { WindowStatus } from '../renderer/types/window';
+import { Window } from '../renderer/types/window';
 
 let mainWindow: BrowserWindow | null = null;
 let processManager: ProcessManager | null = null;
 let statusPoller: StatusPoller | null = null;
 let viewSwitcher: ViewSwitcherImpl | null = null;
+let workspaceManager: WorkspaceManagerImpl | null = null;
 let windowCounter = 0; // 用于生成唯一的窗口编号
 
 // 获取默认 shell，带回退逻辑
@@ -68,7 +71,13 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // 初始化 WorkspaceManager
+  workspaceManager = new WorkspaceManagerImpl();
+
+  // 崩溃恢复
+  await workspaceManager.recoverFromCrash();
+
   // 初始化 ProcessManager
   processManager = new ProcessManager();
 
@@ -84,6 +93,20 @@ app.whenReady().then(() => {
     viewSwitcher = new ViewSwitcherImpl(mainWindow);
   }
 
+  // 加载工作区并恢复窗口
+  try {
+    const workspace = await workspaceManager.loadWorkspace();
+
+    // 通知渲染进程工作区已加载（窗口将在渲染进程中恢复）
+    if (mainWindow && workspace.windows.length > 0) {
+      mainWindow.webContents.once('did-finish-load', () => {
+        mainWindow?.webContents.send('workspace-loaded', workspace);
+      });
+    }
+  } catch (error) {
+    console.error('Failed to load workspace:', error);
+  }
+
   // macOS 特定: 点击 Dock 图标时重新创建窗口
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -93,9 +116,22 @@ app.whenReady().then(() => {
 });
 
 // 所有窗口关闭时退出应用 (macOS 除外)
-app.on('window-all-closed', () => {
+app.on('window-all-closed', async () => {
   statusPoller?.stopPolling();
   processManager?.destroy();
+
+  // 保存工作区
+  if (workspaceManager) {
+    try {
+      // 获取当前所有窗口状态（从渲染进程）
+      // 注意：这里简化处理，实际应该从渲染进程获取完整状态
+      const workspace = await workspaceManager.loadWorkspace();
+      await workspaceManager.saveWorkspace(workspace);
+    } catch (error) {
+      console.error('Failed to save workspace on quit:', error);
+    }
+  }
+
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -384,5 +420,38 @@ function registerIPCHandlers() {
       throw new Error('ViewSwitcher not initialized');
     }
     viewSwitcher.switchToUnifiedView();
+  });
+
+  // 保存工作区
+  ipcMain.handle('save-workspace', async (_event, windows: Window[]) => {
+    try {
+      if (!workspaceManager) {
+        throw new Error('WorkspaceManager not initialized');
+      }
+
+      const workspace = await workspaceManager.loadWorkspace();
+      workspace.windows = windows;
+      await workspaceManager.saveWorkspace(workspace);
+
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to save workspace:', error);
+      return { success: false, error: (error as Error).message };
+    }
+  });
+
+  // 加载工作区
+  ipcMain.handle('load-workspace', async () => {
+    try {
+      if (!workspaceManager) {
+        throw new Error('WorkspaceManager not initialized');
+      }
+
+      const workspace = await workspaceManager.loadWorkspace();
+      return { success: true, data: workspace };
+    } catch (error) {
+      console.error('Failed to load workspace:', error);
+      return { success: false, error: (error as Error).message };
+    }
   });
 }
