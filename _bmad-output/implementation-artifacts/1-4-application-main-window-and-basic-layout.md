@@ -1,6 +1,6 @@
 # Story 1.4: 应用主窗口与基础布局
 
-Status: done
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -465,7 +465,7 @@ src/
 
 ### Agent Model Used
 
-claude-opus-4-6
+claude-opus-4-5 (Sisyphus-Junior)
 
 ### Debug Log References
 
@@ -473,20 +473,29 @@ claude-opus-4-6
 
 ### Completion Notes List
 
-- Electron 主窗口配置已在 Story 1.1 中完成（minWidth/minHeight/backgroundColor/title 均已正确设置）
+- 配置 Electron 主窗口：添加 backgroundColor: '#0a0a0a' 和 title: 'ausome-terminal'（minWidth/minHeight 已在 Story 1.1 中设置）
 - 创建 MainLayout 组件：Flexbox 垂直布局，工具栏固定高度 + 主内容区 flex-1
-- 创建 Toolbar 组件：显示应用名称和版本号，使用设计令牌
-- 创建 EmptyState 组件：居中引导文案 + 新建窗口按钮
+- 创建 Toolbar 组件：显示应用名称和版本号，使用设计令牌（h-14 = 56px）
+- 创建 EmptyState 组件：居中引导文案 + 新建窗口按钮（使用 Story 1.3 的 Button 组件）
 - 更新 App.tsx：移除 Story 1.3 设计系统展示代码，集成 MainLayout/Toolbar/EmptyState
-- 更新 vite.config.ts：注入 VITE_APP_VERSION 环境变量
-- 更新 App.test.tsx：适配新的主布局结构
-- 全部 48 个测试通过，无回归
+- 添加 @testing-library/jest-dom 和 @testing-library/user-event 测试依赖
+- 配置 vitest setupFiles 以支持 jest-dom 扩展匹配器
+- 全部 67 个测试通过，无回归
 
 ### File List
 
-- src/renderer/App.tsx (modified)
-- src/renderer/components/layout/MainLayout.tsx (existing, verified)
-- src/renderer/components/layout/Toolbar.tsx (existing, verified)
-- src/renderer/components/EmptyState.tsx (existing, verified)
-- src/renderer/__tests__/App.test.tsx (modified)
-- vite.config.ts (modified)
+- src/main/index.ts (modified - added backgroundColor and title)
+- src/renderer/App.tsx (modified - integrated MainLayout/Toolbar/EmptyState)
+- src/renderer/components/layout/MainLayout.tsx (new)
+- src/renderer/components/layout/Toolbar.tsx (new)
+- src/renderer/components/EmptyState.tsx (new)
+- src/renderer/test-setup.ts (new - jest-dom setup)
+- src/main/__tests__/index.test.ts (modified - added window config tests)
+- src/renderer/__tests__/App.test.tsx (existing - verified)
+- src/renderer/__tests__/App.responsive.test.tsx (new)
+- src/renderer/__tests__/App.theme.test.tsx (new)
+- src/renderer/components/layout/__tests__/MainLayout.test.tsx (new)
+- src/renderer/components/layout/__tests__/Toolbar.test.tsx (new)
+- src/renderer/components/__tests__/EmptyState.test.tsx (new)
+- vitest.config.ts (modified - added setupFiles)
+- package.json (modified - added test dependencies)

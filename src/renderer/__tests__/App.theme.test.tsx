@@ -69,9 +69,11 @@ describe('App - Dark Theme and Design Tokens', () => {
   it('should apply status-running color to primary button', () => {
     render(<App />);
 
-    const button = screen.getByRole('button', { name: '+ 新建窗口' });
+    const buttons = screen.getAllByRole('button', { name: '+ 新建窗口' });
     // Button component uses bg-status-running for primary variant
-    expect(button).toHaveClass('bg-status-running');
+    buttons.forEach(button => {
+      expect(button).toHaveClass('bg-status-running');
+    });
   });
 
   it('should maintain consistent design token usage across components', () => {

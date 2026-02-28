@@ -42,45 +42,45 @@ So that 前端可以响应式地展示和更新窗口信息。
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: 安装 Zustand 依赖 (AC: 1)
-  - [ ] 1.1 安装 zustand@4.x 核心库
-  - [ ] 1.2 验证依赖安装成功
-  - [ ] 1.3 确认 Zustand 与 React 18.x 兼容
+- [x] Task 1: 安装 Zustand 依赖 (AC: 1)
+  - [x] 1.1 安装 zustand@4.x 核心库
+  - [x] 1.2 验证依赖安装成功
+  - [x] 1.3 确认 Zustand 与 React 18.x 兼容
 
-- [ ] Task 2: 定义窗口相关类型 (AC: 2)
-  - [ ] 2.1 创建 `src/renderer/types/window.ts`
-  - [ ] 2.2 定义 Window 接口（id, name, workingDirectory, command, status, pid, createdAt, lastActiveAt）
-  - [ ] 2.3 定义 WindowStatus 枚举（running, waiting, completed, error, restoring）
-  - [ ] 2.4 导出所有类型供其他模块使用
+- [x] Task 2: 定义窗口相关类型 (AC: 2)
+  - [x] 2.1 创建 `src/renderer/types/window.ts`
+  - [x] 2.2 定义 Window 接口（id, name, workingDirectory, command, status, pid, createdAt, lastActiveAt）
+  - [x] 2.3 定义 WindowStatus 枚举（running, waiting, completed, error, restoring）
+  - [x] 2.4 导出所有类型供其他模块使用
 
-- [ ] Task 3: 实现 Zustand 窗口状态 Store (AC: 1, 3, 4, 5, 6, 7)
-  - [ ] 3.1 创建 `src/renderer/stores/windowStore.ts`
-  - [ ] 3.2 定义 WindowStore 接口（windows, activeWindowId, actions）
-  - [ ] 3.3 实现 addWindow 方法 - 添加新窗口到 windows 数组
-  - [ ] 3.4 实现 removeWindow 方法 - 从 windows 数组中删除指定窗口
-  - [ ] 3.5 实现 updateWindowStatus 方法 - 更新指定窗口的状态
-  - [ ] 3.6 实现 setActiveWindow 方法 - 设置当前活跃窗口 ID
-  - [ ] 3.7 实现 getWindowById 辅助方法 - 根据 ID 查找窗口
-  - [ ] 3.8 实现 getWindowsByStatus 辅助方法 - 根据状态筛选窗口
-  - [ ] 3.9 使用 immer 中间件确保不可变更新
-  - [ ] 3.10 添加 TypeScript 类型推导支持
+- [x] Task 3: 实现 Zustand 窗口状态 Store (AC: 1, 3, 4, 5, 6, 7)
+  - [x] 3.1 创建 `src/renderer/stores/windowStore.ts`
+  - [x] 3.2 定义 WindowStore 接口（windows, activeWindowId, actions）
+  - [x] 3.3 实现 addWindow 方法 - 添加新窗口到 windows 数组
+  - [x] 3.4 实现 removeWindow 方法 - 从 windows 数组中删除指定窗口
+  - [x] 3.5 实现 updateWindowStatus 方法 - 更新指定窗口的状态
+  - [x] 3.6 实现 setActiveWindow 方法 - 设置当前活跃窗口 ID
+  - [x] 3.7 实现 getWindowById 辅助方法 - 根据 ID 查找窗口
+  - [x] 3.8 实现 getWindowsByStatus 辅助方法 - 根据状态筛选窗口
+  - [x] 3.9 使用 immer 中间件确保不可变更新
+  - [x] 3.10 添加 TypeScript 类型推导支持
 
-- [ ] Task 4: 实现 Store Selectors (AC: 7)
-  - [ ] 4.1 创建 `src/renderer/stores/selectors.ts`
-  - [ ] 4.2 实现 selectAllWindows selector - 获取所有窗口
-  - [ ] 4.3 实现 selectActiveWindow selector - 获取当前活跃窗口
-  - [ ] 4.4 实现 selectWindowsByStatus selector - 按状态筛选窗口
-  - [ ] 4.5 实现 selectWindowCount selector - 获取窗口总数
-  - [ ] 4.6 实现 selectStatusCounts selector - 获取各状态窗口数量统计
+- [x] Task 4: 实现 Store Selectors (AC: 7)
+  - [x] 4.1 创建 `src/renderer/stores/selectors.ts`
+  - [x] 4.2 实现 selectAllWindows selector - 获取所有窗口
+  - [x] 4.3 实现 selectActiveWindow selector - 获取当前活跃窗口
+  - [x] 4.4 实现 selectWindowsByStatus selector - 按状态筛选窗口
+  - [x] 4.5 实现 selectWindowCount selector - 获取窗口总数
+  - [x] 4.6 实现 selectStatusCounts selector - 获取各状态窗口数量统计
 
-- [ ] Task 5: 编写单元测试 (AC: 1-7)
-  - [ ] 5.1 创建 `src/renderer/stores/__tests__/windowStore.test.ts`
-  - [ ] 5.2 测试 addWindow 方法 - 验证窗口正确添加
-  - [ ] 5.3 测试 removeWindow 方法 - 验证窗口正确删除
-  - [ ] 5.4 测试 updateWindowStatus 方法 - 验证状态正确更新
-  - [ ] 5.5 测试 setActiveWindow 方法 - 验证活跃窗口正确设置
-  - [ ] 5.6 测试 store 订阅机制 - 验证状态变化触发重渲染
-  - [ ] 5.7 测试边界情况 - 删除不存在的窗口、更新不存在的窗口等
+- [x] Task 5: 编写单元测试 (AC: 1-7)
+  - [x] 5.1 创建 `src/renderer/stores/__tests__/windowStore.test.ts`
+  - [x] 5.2 测试 addWindow 方法 - 验证窗口正确添加
+  - [x] 5.3 测试 removeWindow 方法 - 验证窗口正确删除
+  - [x] 5.4 测试 updateWindowStatus 方法 - 验证状态正确更新
+  - [x] 5.5 测试 setActiveWindow 方法 - 验证活跃窗口正确设置
+  - [x] 5.6 测试 store 订阅机制 - 验证状态变化触发重渲染
+  - [x] 5.7 测试边界情况 - 删除不存在的窗口、更新不存在的窗口等
 
 - [ ] Task 6: 创建示例组件验证 Store 集成 (AC: 7)
   - [ ] 6.1 创建 `src/renderer/components/WindowList.tsx` 示例组件

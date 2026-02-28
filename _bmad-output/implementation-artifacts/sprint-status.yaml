@@ -50,7 +50,7 @@ development_status:
   epic-2: in-progress
   2-1-process-management-service-infrastructure: ready-for-dev
   2-2-create-new-task-window: review
-  2-3-window-list-state-management: ready-for-dev
+  2-3-window-list-state-management: in-progress
   2-4-close-and-delete-window: ready-for-dev
   epic-2-retrospective: optional
 
