@@ -5,6 +5,18 @@ import { IProcessManager, TerminalConfig, ProcessHandle, ProcessInfo, ProcessSta
 import { StatusDetectorImpl, IStatusDetector } from './StatusDetector';
 import { WindowStatus } from '../../renderer/types/window';
 
+// 尝试导入 node-pty，如果失败则使用 mock
+let pty: any;
+try {
+  pty = require('@homebridge/node-pty-prebuilt-multiarch');
+} catch {
+  try {
+    pty = require('node-pty');
+  } catch {
+    pty = null;
+  }
+}
+
 /**
  * ProcessManager - 终端进程管理服务
  * 
@@ -223,9 +235,15 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
   }
 
   /**
-   * 创建 mock PTY (临时实现，待 node-pty 可用后替换)
+   * 创建终端 PTY 进程
    */
   private createMockPty(pid: number, config: TerminalConfig): any {
+    // 如果 node-pty 可用，使用真实实现
+    if (pty) {
+      return this.createRealPty(config);
+    }
+
+    // 否则使用 mock 实现
     const dataCallbacks: Array<(data: string) => void> = [];
     const exitCallbacks: Array<(exitCode: number) => void> = [];
 
@@ -262,5 +280,24 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
         this.killProcess(pid);
       },
     };
+  }
+
+  /**
+   * 创建真实的 PTY 进程（使用 node-pty）
+   */
+  private createRealPty(config: TerminalConfig): any {
+    const shell = this.getDefaultShell();
+    const command = config.command || shell;
+
+    // 创建真实的 PTY 进程
+    const ptyProcess = pty.spawn(shell, [], {
+      name: 'xterm-256color',
+      cols: 80,
+      rows: 30,
+      cwd: config.workingDirectory,
+      env: process.env,
+    });
+
+    return ptyProcess;
   }
 }
