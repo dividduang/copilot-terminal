@@ -1,6 +1,6 @@
 # Story 1.3: UI 设计系统基础
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

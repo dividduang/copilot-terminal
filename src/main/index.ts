@@ -9,6 +9,8 @@ function createWindow() {
     height: 768,
     minWidth: 480,
     minHeight: 360,
+    backgroundColor: '#0a0a0a',
+    title: 'ausome-terminal',
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,      // 安全要求
