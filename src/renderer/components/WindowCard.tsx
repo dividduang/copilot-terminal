@@ -2,8 +2,8 @@ import React, { useMemo, useCallback } from 'react';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { FolderOpen, Trash2 } from 'lucide-react';
-import { Window } from '../types/window';
+import { FolderOpen, Trash2, Play, Pause, Loader2, Archive, ArchiveRestore } from 'lucide-react';
+import { Window, WindowStatus } from '../types/window';
 import { getStatusColor, getStatusLabel } from '../utils/statusHelpers';
 
 interface WindowCardProps {
@@ -11,6 +11,10 @@ interface WindowCardProps {
   onClick?: () => void;
   onOpenFolder?: () => void;
   onDelete?: () => void;
+  onStart?: () => void;
+  onPause?: () => void;
+  onArchive?: () => void;
+  onUnarchive?: () => void;
 }
 
 /**
@@ -20,7 +24,7 @@ interface WindowCardProps {
  */
 function truncatePath(path: string): string {
   // 统一使用正斜杠分割路径
-  const normalizedPath = path.replace(/\/g, '/');
+  const normalizedPath = path.replace(/\\/g, '/');
   const segments = normalizedPath.split('/').filter(s => s.length > 0);
 
   // 检测是否是 Windows 路径（包含盘符）
@@ -54,7 +58,7 @@ function truncatePath(path: string): string {
 
   if (isWindowsPath) {
     // Windows 路径：保持反斜杠格式
-    return `${prefix.replace(/\//g, '\\')}\...\${suffix.replace(/\//g, '\\')}`;
+    return `${prefix.replace(/\//g, '\\\\')}\\...\\${suffix.replace(/\//g, '\\\\')}`;
   } else {
     // Unix 路径：使用正斜杠
     return `${prefix}/.../${suffix}`;
@@ -69,7 +73,11 @@ export const WindowCard = React.memo<WindowCardProps>(({
   window,
   onClick,
   onOpenFolder,
-  onDelete
+  onDelete,
+  onStart,
+  onPause,
+  onArchive,
+  onUnarchive
 }) => {
   // 缓存状态色和标签
   const statusColor = useMemo(() => getStatusColor(window.status), [window.status]);
@@ -191,23 +199,159 @@ export const WindowCard = React.memo<WindowCardProps>(({
       </div>
 
       {/* 底部按钮栏 */}
-      <div className="flex items-center gap-2 px-4 py-3 bg-[rgb(var(--secondary))] border-t border-[rgb(var(--border))] flex-shrink-0">
-        <button
-          onClick={(e) => handleButtonClick(e, onOpenFolder || (() => {}))}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-[rgb(var(--foreground))] bg-[rgb(var(--card))] rounded hover:bg-[rgb(var(--accent))] transition-colors focus:outline-none focus:ring-2 focus:ring-[rgb(var(--ring))]"
-          aria-label="打开文件夹"
-        >
-          <FolderOpen size={14} />
-          <span>打开文件夹</span>
-        </button>
-        <button
-          onClick={(e) => handleButtonClick(e, onDelete || (() => {}))}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-[rgb(var(--error))] bg-[rgb(var(--card))] rounded hover:bg-[rgb(var(--accent))] transition-colors focus:outline-none focus:ring-2 focus:ring-[rgb(var(--error))]"
-          aria-label="删除窗口"
-        >
-          <Trash2 size={14} />
-          <span>删除</span>
-        </button>
+      <div className="flex items-center gap-1.5 px-4 py-3 bg-[rgb(var(--secondary))] border-t border-[rgb(var(--border))] flex-shrink-0">
+        {/* 启动/暂停按钮 */}
+        {window.status === WindowStatus.Paused && (
+          <Tooltip.Provider>
+            <Tooltip.Root delayDuration={300}>
+              <Tooltip.Trigger asChild>
+                <button
+                  onClick={(e) => handleButtonClick(e, onStart || (() => {}))}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-[rgb(var(--primary))] bg-[rgb(var(--card))] rounded hover:bg-[rgb(var(--accent))] transition-colors focus:outline-none focus:ring-2 focus:ring-[rgb(var(--ring))] font-semibold whitespace-nowrap"
+                  aria-label="启动窗口"
+                >
+                  <Play size={14} />
+                  <span>启动</span>
+                </button>
+              </Tooltip.Trigger>
+              <Tooltip.Portal>
+                <Tooltip.Content
+                  className="bg-[rgb(var(--card))] text-[rgb(var(--foreground))] px-2 py-1 rounded text-xs z-50 shadow-xl border border-[rgb(var(--border))]"
+                  sideOffset={5}
+                >
+                  启动窗口
+                </Tooltip.Content>
+              </Tooltip.Portal>
+            </Tooltip.Root>
+          </Tooltip.Provider>
+        )}
+        {window.status === WindowStatus.Restoring && (
+          <button
+            disabled
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-[rgb(var(--muted-foreground))] bg-[rgb(var(--card))] rounded cursor-not-allowed opacity-60 whitespace-nowrap"
+            aria-label="启动中"
+          >
+            <Loader2 size={14} className="animate-spin" />
+            <span>启动中</span>
+          </button>
+        )}
+        {(window.status === WindowStatus.Running || window.status === WindowStatus.WaitingForInput) && (
+          <Tooltip.Provider>
+            <Tooltip.Root delayDuration={300}>
+              <Tooltip.Trigger asChild>
+                <button
+                  onClick={(e) => handleButtonClick(e, onPause || (() => {}))}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-[rgb(var(--foreground))] bg-[rgb(var(--card))] rounded hover:bg-[rgb(var(--accent))] transition-colors focus:outline-none focus:ring-2 focus:ring-[rgb(var(--ring))] whitespace-nowrap"
+                  aria-label="暂停窗口"
+                >
+                  <Pause size={14} />
+                  <span>暂停</span>
+                </button>
+              </Tooltip.Trigger>
+              <Tooltip.Portal>
+                <Tooltip.Content
+                  className="bg-[rgb(var(--card))] text-[rgb(var(--foreground))] px-2 py-1 rounded text-xs z-50 shadow-xl border border-[rgb(var(--border))]"
+                  sideOffset={5}
+                >
+                  暂停窗口
+                </Tooltip.Content>
+              </Tooltip.Portal>
+            </Tooltip.Root>
+          </Tooltip.Provider>
+        )}
+
+        {/* 图标按钮组 */}
+        <div className="flex items-center gap-1.5 ml-auto">
+          <Tooltip.Provider>
+            <Tooltip.Root delayDuration={300}>
+              <Tooltip.Trigger asChild>
+                <button
+                  onClick={(e) => handleButtonClick(e, onOpenFolder || (() => {}))}
+                  className="flex items-center justify-center w-8 h-8 text-[rgb(var(--foreground))] bg-[rgb(var(--card))] rounded hover:bg-[rgb(var(--accent))] transition-colors focus:outline-none focus:ring-2 focus:ring-[rgb(var(--ring))]"
+                  aria-label="打开文件夹"
+                >
+                  <FolderOpen size={16} />
+                </button>
+              </Tooltip.Trigger>
+              <Tooltip.Portal>
+                <Tooltip.Content
+                  className="bg-[rgb(var(--card))] text-[rgb(var(--foreground))] px-2 py-1 rounded text-xs z-50 shadow-xl border border-[rgb(var(--border))]"
+                  sideOffset={5}
+                >
+                  打开文件夹
+                </Tooltip.Content>
+              </Tooltip.Portal>
+            </Tooltip.Root>
+          </Tooltip.Provider>
+
+          {!window.archived ? (
+            <Tooltip.Provider>
+              <Tooltip.Root delayDuration={300}>
+                <Tooltip.Trigger asChild>
+                  <button
+                    onClick={(e) => handleButtonClick(e, onArchive || (() => {}))}
+                    className="flex items-center justify-center w-8 h-8 text-[rgb(var(--foreground))] bg-[rgb(var(--card))] rounded hover:bg-[rgb(var(--accent))] transition-colors focus:outline-none focus:ring-2 focus:ring-[rgb(var(--ring))]"
+                    aria-label="归档窗口"
+                  >
+                    <Archive size={16} />
+                  </button>
+                </Tooltip.Trigger>
+                <Tooltip.Portal>
+                  <Tooltip.Content
+                    className="bg-[rgb(var(--card))] text-[rgb(var(--foreground))] px-2 py-1 rounded text-xs z-50 shadow-xl border border-[rgb(var(--border))]"
+                    sideOffset={5}
+                  >
+                    归档
+                  </Tooltip.Content>
+                </Tooltip.Portal>
+              </Tooltip.Root>
+            </Tooltip.Provider>
+          ) : (
+            <Tooltip.Provider>
+              <Tooltip.Root delayDuration={300}>
+                <Tooltip.Trigger asChild>
+                  <button
+                    onClick={(e) => handleButtonClick(e, onUnarchive || (() => {}))}
+                    className="flex items-center justify-center w-8 h-8 text-[rgb(var(--primary))] bg-[rgb(var(--card))] rounded hover:bg-[rgb(var(--accent))] transition-colors focus:outline-none focus:ring-2 focus:ring-[rgb(var(--ring))]"
+                    aria-label="取消归档"
+                  >
+                    <ArchiveRestore size={16} />
+                  </button>
+                </Tooltip.Trigger>
+                <Tooltip.Portal>
+                  <Tooltip.Content
+                    className="bg-[rgb(var(--card))] text-[rgb(var(--foreground))] px-2 py-1 rounded text-xs z-50 shadow-xl border border-[rgb(var(--border))]"
+                    sideOffset={5}
+                  >
+                    取消归档
+                  </Tooltip.Content>
+                </Tooltip.Portal>
+              </Tooltip.Root>
+            </Tooltip.Provider>
+          )}
+
+          <Tooltip.Provider>
+            <Tooltip.Root delayDuration={300}>
+              <Tooltip.Trigger asChild>
+                <button
+                  onClick={(e) => handleButtonClick(e, onDelete || (() => {}))}
+                  className="flex items-center justify-center w-8 h-8 text-[rgb(var(--error))] bg-[rgb(var(--card))] rounded hover:bg-[rgb(var(--accent))] transition-colors focus:outline-none focus:ring-2 focus:ring-[rgb(var(--error))]"
+                  aria-label="删除窗口"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </Tooltip.Trigger>
+              <Tooltip.Portal>
+                <Tooltip.Content
+                  className="bg-[rgb(var(--card))] text-[rgb(var(--foreground))] px-2 py-1 rounded text-xs z-50 shadow-xl border border-[rgb(var(--border))]"
+                  sideOffset={5}
+                >
+                  删除
+                </Tooltip.Content>
+              </Tooltip.Portal>
+            </Tooltip.Root>
+          </Tooltip.Provider>
+        </div>
       </div>
     </div>
   );

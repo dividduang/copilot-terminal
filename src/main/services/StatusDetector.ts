@@ -1,4 +1,3 @@
-import pidusage from 'pidusage';
 import { WindowStatus } from '../../renderer/types/window';
 
 /**
@@ -25,8 +24,6 @@ export interface IStatusDetector {
 export class StatusDetectorImpl implements IStatusDetector {
   /** 最后一次 PTY 输出时间戳 (pid -> ms) */
   private lastOutputTime = new Map<number, number>();
-  /** 缓存的 CPU 使用率 (pid -> %) */
-  private cpuUsage = new Map<number, number>();
   /** 进程退出码 (pid -> exitCode) */
   private exitCodes = new Map<number, number>();
   /** 当前已知状态缓存 (pid -> WindowStatus) */
@@ -52,28 +49,16 @@ export class StatusDetectorImpl implements IStatusDetector {
       return exitCode === 0 ? WindowStatus.Completed : WindowStatus.Error;
     }
 
-    // 获取 CPU 使用率
-    let cpu = 0;
-    try {
-      const stats = await pidusage(pid);
-      cpu = stats.cpu;
-      this.cpuUsage.set(pid, cpu);
-    } catch {
-      // pidusage 失败时使用缓存值
-      cpu = this.cpuUsage.get(pid) ?? 0;
-    }
-
     // 计算距上次输出的时间
     const lastOutput = this.lastOutputTime.get(pid) ?? 0;
-    const timeSinceOutput = Date.now() - lastOutput;
+    const timeSinceOutput = lastOutput > 0 ? Date.now() - lastOutput : Infinity;
 
-    // 运行中：CPU > 1% 或（最近 2s 内有输出 且 CPU > 0.1%）
-    // 这样可以区分：shell 提示符输出（CPU 低）vs 命令执行输出（CPU 高）
-    if (cpu > 1.0 || (timeSinceOutput < 2000 && cpu > 0.1)) {
+    // 运行中：最近 2s 内有输出
+    if (timeSinceOutput < 2000) {
       return WindowStatus.Running;
     }
 
-    // 等待输入：进程存活 + CPU 低 + 无最近输出
+    // 等待输入：进程存活 + 无最近输出
     return WindowStatus.WaitingForInput;
   }
 
@@ -105,7 +90,6 @@ export class StatusDetectorImpl implements IStatusDetector {
   untrackPid(pid: number): void {
     this.trackedPids.delete(pid);
     this.lastOutputTime.delete(pid);
-    this.cpuUsage.delete(pid);
     this.exitCodes.delete(pid);
     this.statusCache.delete(pid);
   }
@@ -154,7 +138,6 @@ export class StatusDetectorImpl implements IStatusDetector {
     this.stopPolling();
     this.trackedPids.clear();
     this.lastOutputTime.clear();
-    this.cpuUsage.clear();
     this.exitCodes.clear();
     this.statusCache.clear();
     this.subscribers = [];

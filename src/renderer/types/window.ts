@@ -7,7 +7,8 @@ export enum WindowStatus {
   WaitingForInput = 'waiting',   // 等待输入
   Completed = 'completed',       // 已完成
   Error = 'error',               // 出错
-  Restoring = 'restoring'        // 恢复中（启动时）
+  Restoring = 'restoring',       // 恢复中（启动时）
+  Paused = 'paused'              // 暂停（未启动）
 }
 
 /**
@@ -25,6 +26,7 @@ export interface Window {
   lastActiveAt: string;          // 最后活跃时间
   model?: string;                // 使用的 AI 模型（如 "Claude Opus 4.6"）
   lastOutput?: string;           // 最新输出摘要（前 100 字符）
+  archived?: boolean;            // 是否已归档
 }
 
 /**

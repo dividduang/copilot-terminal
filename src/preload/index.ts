@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Window management
   closeWindow: (windowId: string) => ipcRenderer.invoke('close-window', { windowId }),
   deleteWindow: (windowId: string) => ipcRenderer.invoke('delete-window', { windowId }),
+  startWindow: (config: { windowId: string; name: string; workingDirectory: string; command: string }) =>
+    ipcRenderer.invoke('start-window', config),
 
   // File system
   validatePath: (path: string) => ipcRenderer.invoke('validate-path', path),
@@ -68,6 +70,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Auto-save
   triggerAutoSave: (windows?: unknown[]) =>
     ipcRenderer.send('trigger-auto-save', windows),
+
+  // 通知主进程渲染完成
+  notifyRendererReady: () => ipcRenderer.send('renderer-ready'),
 
   // Workspace restore
   onWindowRestored: (callback: (event: unknown, result: unknown) => void) => {

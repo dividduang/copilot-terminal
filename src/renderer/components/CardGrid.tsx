@@ -4,7 +4,7 @@ import { useWindowStore } from '../stores/windowStore';
 import { sortWindows } from '../utils/sortWindows';
 import { WindowCard } from './WindowCard';
 import { NewWindowCard } from './NewWindowCard';
-import { Window } from '../types/window';
+import { Window, WindowStatus } from '../types/window';
 
 interface CardGridProps {
   onCreateWindow?: () => void;
@@ -19,17 +19,106 @@ export const CardGrid = React.memo<CardGridProps>(({ onCreateWindow, onEnterTerm
   const windows = useWindowStore((state) => state.windows);
   const setActiveWindow = useWindowStore((state) => state.setActiveWindow);
   const removeWindow = useWindowStore((state) => state.removeWindow);
+  const updateWindow = useWindowStore((state) => state.updateWindow);
+  const archiveWindow = useWindowStore((state) => state.archiveWindow);
+
+  // 只显示未归档的窗口
+  const activeWindows = useMemo(() => windows.filter(w => !w.archived), [windows]);
 
   // 按 lastActiveAt 降序排序，缓存结果避免每次渲染都排序
-  const sortedWindows = useMemo(() => sortWindows(windows, 'lastActiveAt'), [windows]);
+  const sortedWindows = useMemo(() => sortWindows(activeWindows, 'lastActiveAt'), [activeWindows]);
 
   const handleCardClick = useCallback(
-    (win: Window) => {
+    async (win: Window) => {
+      // 如果窗口是暂停状态，先启动窗口
+      if (win.status === WindowStatus.Paused) {
+        try {
+          // 更新状态为 Restoring
+          updateWindow(win.id, { status: WindowStatus.Restoring });
+
+          // 启动窗口
+          const result = await window.electronAPI.startWindow({
+            windowId: win.id,
+            name: win.name,
+            workingDirectory: win.workingDirectory,
+            command: win.command,
+          });
+
+          // 更新窗口信息
+          updateWindow(win.id, {
+            pid: result.pid,
+            status: result.status,
+          });
+
+          // 等待一小段时间让终端初始化
+          await new Promise(resolve => setTimeout(resolve, 300));
+        } catch (error) {
+          console.error('Failed to start window:', error);
+          updateWindow(win.id, { status: WindowStatus.Paused });
+          return;
+        }
+      }
+
+      // 进入终端视图
       setActiveWindow(win.id);
       onEnterTerminal?.(win);
     },
-    [setActiveWindow, onEnterTerminal]
+    [setActiveWindow, onEnterTerminal, updateWindow]
   );
+
+  const handleStartWindow = useCallback(async (win: Window) => {
+    try {
+      // 更新状态为 Restoring
+      updateWindow(win.id, { status: WindowStatus.Restoring });
+
+      // 启动窗口（不进入终端视图）
+      const result = await window.electronAPI.startWindow({
+        windowId: win.id,
+        name: win.name,
+        workingDirectory: win.workingDirectory,
+        command: win.command,
+      });
+
+      // 更新窗口信息
+      updateWindow(win.id, {
+        pid: result.pid,
+        status: result.status,
+      });
+    } catch (error) {
+      console.error('Failed to start window:', error);
+      // 启动失败，恢复为暂停状态
+      updateWindow(win.id, { status: WindowStatus.Paused });
+    }
+  }, [updateWindow]);
+
+  const handlePauseWindow = useCallback(async (win: Window) => {
+    try {
+      if (win.pid) {
+        // 关闭窗口（终止 PTY 进程）
+        await window.electronAPI.closeWindow(win.id);
+        // 更新状态为暂停
+        updateWindow(win.id, {
+          status: WindowStatus.Paused,
+          pid: null
+        });
+      }
+    } catch (error) {
+      console.error('Failed to pause window:', error);
+    }
+  }, [updateWindow]);
+
+  const handleArchiveWindow = useCallback(async (win: Window) => {
+    try {
+      // 如果窗口正在运行，先暂停
+      if (win.pid) {
+        await window.electronAPI.closeWindow(win.id);
+      }
+      // 归档窗口
+      archiveWindow(win.id);
+    } catch (error) {
+      console.error('Failed to archive window:', error);
+    }
+  }, [archiveWindow]);
 
   const handleCloseWindow = useCallback(async (windowId: string) => {
     try {
@@ -56,7 +145,7 @@ export const CardGrid = React.memo<CardGridProps>(({ onCreateWindow, onEnterTerm
     }
   }, []);
 
-  if (windows.length === 0) {
+  if (activeWindows.length === 0) {
     return null;
   }
 
@@ -65,7 +154,7 @@ export const CardGrid = React.memo<CardGridProps>(({ onCreateWindow, onEnterTerm
       <ScrollArea.Viewport className="h-full w-full">
         <div
           data-testid="card-grid"
-          className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4 p-8"
+          className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 p-8"
         >
           {sortedWindows.map((win) => (
             <WindowCard
@@ -74,6 +163,9 @@ export const CardGrid = React.memo<CardGridProps>(({ onCreateWindow, onEnterTerm
               onClick={() => handleCardClick(win)}
               onOpenFolder={() => handleOpenFolder(win.workingDirectory)}
               onDelete={() => handleDeleteWindow(win.id)}
+              onStart={() => handleStartWindow(win)}
+              onPause={() => handlePauseWindow(win)}
+              onArchive={() => handleArchiveWindow(win)}
             />
           ))}
           <NewWindowCard onClick={onCreateWindow ?? (() => {})} />

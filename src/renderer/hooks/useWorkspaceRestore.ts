@@ -29,7 +29,7 @@ export const useWorkspaceRestore = () => {
 
   /**
    * 处理工作区加载事件
-   * 立即渲染所有窗口的骨架屏（状态：Restoring）
+   * 立即渲染所有窗口为暂停状态（不启动 PTY 进程）
    */
   const handleWorkspaceLoaded = useCallback((event: unknown, workspace: Workspace) => {
     console.log(`[useWorkspaceRestore] Workspace loaded with ${workspace.windows.length} windows`);
@@ -40,21 +40,21 @@ export const useWorkspaceRestore = () => {
     // 先清空现有窗口，避免重复
     clearWindows();
 
-    // 立即渲染所有窗口的骨架屏
+    // 将所有窗口设置为暂停状态（不启动 PTY 进程）
     for (const window of workspace.windows) {
-      // 将状态设置为 Restoring，显示骨架屏
-      const restoringWindow: Window = {
+      const pausedWindow: Window = {
         ...window,
-        status: WindowStatus.Restoring,
+        status: WindowStatus.Paused,
+        pid: null, // 暂停状态下没有 PID
       };
-      addWindow(restoringWindow);
+      addWindow(pausedWindow);
     }
 
-    // 恢复完成后，延迟启用自动保存（等待所有窗口状态更新完成）
+    // 立即启用自动保存
     setTimeout(() => {
       setAutoSaveEnabled(true);
-      console.log('[useWorkspaceRestore] Auto-save re-enabled');
-    }, 2000);
+      console.log('[useWorkspaceRestore] Auto-save enabled, windows in paused state');
+    }, 500);
   }, [addWindow, clearWindows]);
 
   /**

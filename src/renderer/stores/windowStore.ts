@@ -35,12 +35,17 @@ interface WindowStore {
   addWindow: (window: Window) => void;
   removeWindow: (id: string) => void;
   updateWindowStatus: (id: string, status: WindowStatus) => void;
+  updateWindow: (id: string, updates: Partial<Window>) => void;
+  archiveWindow: (id: string) => void;
+  unarchiveWindow: (id: string) => void;
   setActiveWindow: (id: string | null) => void;
   clearWindows: () => void; // 清空所有窗口（用于工作区恢复）
 
   // 辅助方法
   getWindowById: (id: string) => Window | undefined;
   getWindowsByStatus: (status: WindowStatus) => Window[];
+  getActiveWindows: () => Window[]; // 获取未归档的窗口
+  getArchivedWindows: () => Window[]; // 获取已归档的窗口
 }
 
 /**
@@ -90,6 +95,52 @@ export const useWindowStore = create<WindowStore>()(
       triggerAutoSave(windows);
     },
 
+    // 更新窗口（支持更新多个属性）
+    updateWindow: (id, updates) => {
+      set((state) => {
+        const window = state.windows.find(w => w.id === id);
+        if (window) {
+          Object.assign(window, updates);
+          window.lastActiveAt = new Date().toISOString();
+        }
+      });
+      // 触发自动保存，传递最新的窗口列表
+      const windows = get().windows;
+      triggerAutoSave(windows);
+    },
+
+    // 归档窗口
+    archiveWindow: (id) => {
+      set((state) => {
+        const window = state.windows.find(w => w.id === id);
+        if (window) {
+          window.archived = true;
+          window.lastActiveAt = new Date().toISOString();
+        }
+        // 如果归档的是当前活跃窗口，清除活跃状态
+        if (state.activeWindowId === id) {
+          state.activeWindowId = null;
+        }
+      });
+      // 触发自动保存
+      const windows = get().windows;
+      triggerAutoSave(windows);
+    },
+
+    // 取消归档窗口
+    unarchiveWindow: (id) => {
+      set((state) => {
+        const window = state.windows.find(w => w.id === id);
+        if (window) {
+          window.archived = false;
+          window.lastActiveAt = new Date().toISOString();
+        }
+      });
+      // 触发自动保存
+      const windows = get().windows;
+      triggerAutoSave(windows);
+    },
+
     // 设置活跃窗口
     setActiveWindow: (id) => {
       set((state) => {
@@ -123,6 +174,16 @@ export const useWindowStore = create<WindowStore>()(
     // 根据状态筛选窗口
     getWindowsByStatus: (status) => {
       return get().windows.filter(w => w.status === status);
+    },
+
+    // 获取未归档的窗口
+    getActiveWindows: () => {
+      return get().windows.filter(w => !w.archived);
+    },
+
+    // 获取已归档的窗口
+    getArchivedWindows: () => {
+      return get().windows.filter(w => w.archived);
     },
   }))
 );

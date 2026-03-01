@@ -3,6 +3,7 @@ import { MainLayout } from './components/layout/MainLayout';
 import { Sidebar } from './components/layout/Sidebar';
 import { EmptyState } from './components/EmptyState';
 import { CardGrid } from './components/CardGrid';
+import { ArchivedView } from './components/ArchivedView';
 import { TerminalView } from './components/TerminalView';
 import { ViewSwitchError } from './components/ViewSwitchError';
 import { useWindowStore } from './stores/windowStore';
@@ -15,9 +16,18 @@ function App() {
   const windows = useWindowStore((state) => state.windows);
   const updateWindowStatus = useWindowStore((state) => state.updateWindowStatus);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [currentTab, setCurrentTab] = useState<'active' | 'archived'>('active');
 
   // 工作区恢复
   useWorkspaceRestore();
+
+  // 通知主进程渲染完成（延迟确保主题和样式完全应用）
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      window.electronAPI.notifyRendererReady();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
 
   const {
     currentView,
@@ -49,41 +59,64 @@ function App() {
     switchToTerminalView(win.id);
   }, [switchToTerminalView]);
 
+  const handleTabChange = useCallback((tab: 'active' | 'archived') => {
+    setCurrentTab(tab);
+  }, []);
+
   // 获取当前活跃窗口
   const activeWindow = windows.find((w) => w.id === activeWindowId);
-
-  // 终端视图：全屏覆盖
-  if (currentView === 'terminal' && activeWindow) {
-    return (
-      <>
-        <TerminalView
-          window={activeWindow}
-          onReturn={switchToUnifiedView}
-        />
-        {error && <ViewSwitchError message={error} />}
-      </>
-    );
-  }
+  const activeWindows = windows.filter(w => !w.archived);
 
   return (
     <>
-      <MainLayout
-        sidebar={
-          <Sidebar
-            appName="Ausome Terminal"
-            version="0.1.0"
-            onCreateWindow={handleCreateWindow}
-            isDialogOpen={isDialogOpen}
-            onDialogChange={handleDialogChange}
+      {/* 统一视图 */}
+      <div style={{ display: currentView === 'unified' ? 'block' : 'none' }}>
+        <MainLayout
+          sidebar={
+            <Sidebar
+              appName="Ausome Terminal"
+              version="0.1.0"
+              onCreateWindow={handleCreateWindow}
+              isDialogOpen={isDialogOpen}
+              onDialogChange={handleDialogChange}
+              currentTab={currentTab}
+              onTabChange={handleTabChange}
+            />
+          }
+        >
+          {currentTab === 'active' ? (
+            activeWindows.length === 0 ? (
+              <EmptyState onCreateWindow={handleCreateWindow} />
+            ) : (
+              <CardGrid onCreateWindow={handleCreateWindow} onEnterTerminal={handleEnterTerminal} />
+            )
+          ) : (
+            <ArchivedView onEnterTerminal={handleEnterTerminal} />
+          )}
+        </MainLayout>
+      </div>
+
+      {/* 终端视图：为每个窗口保持一个 TerminalView 实例 */}
+      {windows.map((win) => (
+        <div
+          key={win.id}
+          style={{
+            display: currentView === 'terminal' && activeWindowId === win.id ? 'block' : 'none',
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 1000,
+          }}
+        >
+          <TerminalView
+            window={win}
+            onReturn={switchToUnifiedView}
           />
-        }
-      >
-        {windows.length === 0 ? (
-          <EmptyState onCreateWindow={handleCreateWindow} />
-        ) : (
-          <CardGrid onCreateWindow={handleCreateWindow} onEnterTerminal={handleEnterTerminal} />
-        )}
-      </MainLayout>
+        </div>
+      ))}
+
       {error && <ViewSwitchError message={error} />}
     </>
   );

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, globalShortcut } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, globalShortcut, Menu } from 'electron';
 import path from 'path';
 import { existsSync, accessSync, constants } from 'fs';
 import { randomUUID } from 'crypto';
@@ -28,22 +28,19 @@ let currentWorkspace: Workspace | null = null; // 缓存当前工作区状态
 const ptyOutputCache = new Map<string, string[]>();
 const MAX_CACHE_SIZE = 1000; // 每个窗口最多缓存 1000 条输出
 
+// 退出标志，防止重复执行退出逻辑
+let isQuitting = false;
+
 // 获取默认 shell，带回退逻辑
 function getDefaultShell(): string {
   if (process.platform === 'win32') {
-    // 检查 pwsh.exe 是否存在
+    // 检查 pwsh.exe 是否存在（PowerShell 7+）
     try {
       execSync('where pwsh.exe', { stdio: 'ignore' });
       return 'pwsh.exe';
     } catch {
-      // 回退到 powershell.exe
-      try {
-        execSync('where powershell.exe', { stdio: 'ignore' });
-        return 'powershell.exe';
-      } catch {
-        // 最后回退到 cmd.exe
-        return 'cmd.exe';
-      }
+      // 直接回退到 cmd.exe，不使用旧版 powershell.exe
+      return 'cmd.exe';
     }
   } else if (process.platform === 'darwin') {
     return 'zsh';
@@ -61,11 +58,47 @@ function createWindow() {
     minHeight: 360,
     backgroundColor: '#0a0a0a',
     title: 'ausome-terminal',
+    show: false, // 创建时不显示，等待渲染进程通知
+    frame: true,
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
-      contextIsolation: true,      // 安全要求
-      nodeIntegration: false,       // 安全要求
+      contextIsolation: true,
+      nodeIntegration: false,
+      backgroundThrottling: false,
     },
+  });
+
+  // 移除菜单栏，但保留窗口控制按钮
+  Menu.setApplicationMenu(null);
+
+  // 🎯 等待渲染进程明确通知"我准备好了"
+  // 使用淡入效果掩盖任何系统级的白色闪烁
+  ipcMain.once('renderer-ready', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      // 1. 先设置窗口为完全透明
+      mainWindow.setOpacity(0);
+
+      // 2. 最大化并显示窗口（此时是透明的，用户看不到）
+      mainWindow.maximize();
+      mainWindow.show();
+
+      // 3. 延迟 50ms 后开始淡入（确保内容完全渲染）
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          // 使用平滑的淡入动画（约 160ms）
+          let opacity = 0;
+          const fadeInterval = setInterval(() => {
+            opacity += 0.05;
+            if (opacity >= 1) {
+              mainWindow?.setOpacity(1);
+              clearInterval(fadeInterval);
+            } else {
+              mainWindow?.setOpacity(opacity);
+            }
+          }, 8); // 每 8ms 增加 0.05
+        }
+      }, 50);
+    }
   });
 
   // 开发环境加载 dev server,生产环境加载打包文件
@@ -90,6 +123,43 @@ function createWindow() {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+  });
+
+  // 窗口关闭前保存工作区
+  mainWindow.on('close', async (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
+      isQuitting = true;
+
+      try {
+        // 立即保存工作区
+        if (autoSaveManager && currentWorkspace) {
+          await autoSaveManager.saveImmediately();
+        }
+
+        // 停止自动保存
+        autoSaveManager?.stopAutoSave();
+
+        // 清理资源
+        statusPoller?.stopPolling();
+        processManager?.destroy();
+
+        // 等待一小段时间让进程清理完成
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } catch (error) {
+        console.error('Error during cleanup:', error);
+      }
+
+      // 销毁窗口
+      if (mainWindow) {
+        mainWindow.destroy();
+      }
+
+      // 强制退出
+      setTimeout(() => {
+        process.exit(0);
+      }, 500);
+    }
   });
 }
 
@@ -134,31 +204,12 @@ app.whenReady().then(async () => {
       });
     }
 
-    // 恢复工作区窗口
+    // 恢复工作区窗口（不自动启动 PTY 进程）
     if (mainWindow && workspace.windows.length > 0) {
       mainWindow.webContents.once('did-finish-load', async () => {
-        // 通知渲染进程工作区已加载（立即渲染骨架屏）
+        // 通知渲染进程工作区已加载（显示为暂停状态，不启动进程）
         mainWindow?.webContents.send('workspace-loaded', workspace);
-
-        // 并行启动所有终端进程
-        if (workspaceRestorer) {
-          try {
-            const results = await workspaceRestorer.restoreWorkspace(workspace);
-
-            // 将恢复的窗口添加到 StatusPoller
-            for (const result of results) {
-              if (result.pid && result.status === 'restoring') {
-                statusPoller?.addWindow(result.windowId, result.pid);
-              }
-            }
-          } catch (error) {
-            console.error('[Main] Failed to restore workspace:', error);
-            // 通知渲染进程恢复失败
-            mainWindow?.webContents.send('workspace-restore-error', {
-              error: error instanceof Error ? error.message : String(error),
-            });
-          }
-        }
+        console.log('[Main] Workspace loaded, windows in paused state (not auto-started)');
       });
     }
   } catch (error) {
@@ -179,31 +230,6 @@ app.whenReady().then(async () => {
       createWindow();
     }
   });
-});
-
-// 应用退出前保存工作区
-app.on('before-quit', async (event) => {
-  // 阻止默认退出行为，等待保存完成
-  event.preventDefault();
-
-  // 立即保存工作区
-  if (autoSaveManager && currentWorkspace) {
-    try {
-      await autoSaveManager.saveImmediately();
-    } catch (error) {
-      console.error('Failed to save workspace on quit:', error);
-    }
-  }
-
-  // 停止自动保存
-  autoSaveManager?.stopAutoSave();
-
-  // 清理资源
-  statusPoller?.stopPolling();
-  processManager?.destroy();
-
-  // 允许应用退出
-  app.exit(0);
 });
 
 // 所有窗口关闭时退出应用 (macOS 除外)
@@ -302,6 +328,77 @@ function registerIPCHandlers() {
       // 不在生产环境记录敏感路径信息
       if (process.env.NODE_ENV === 'development') {
         console.error('Failed to create window:', error);
+      }
+      throw new Error(errorMessage);
+    }
+  });
+
+  // 启动暂停的窗口（恢复 PTY 进程）
+  ipcMain.handle('start-window', async (_event, { windowId, name, workingDirectory, command }: { windowId: string; name: string; workingDirectory: string; command: string }) => {
+    try {
+      if (!processManager) {
+        throw new Error('进程管理器未初始化，请重启应用');
+      }
+
+      // 验证工作目录存在且可访问
+      if (!existsSync(workingDirectory)) {
+        throw new Error('工作目录不存在');
+      }
+
+      try {
+        accessSync(workingDirectory, constants.R_OK | constants.X_OK);
+      } catch {
+        throw new Error('工作目录无访问权限');
+      }
+
+      // 获取默认 shell
+      const defaultShell = getDefaultShell();
+      const shellCommand = command || defaultShell;
+
+      // 创建终端进程
+      const handle = await processManager.spawnTerminal({
+        workingDirectory: workingDirectory,
+        command: shellCommand,
+        windowId: windowId,
+      });
+
+      // 验证进程启动成功
+      if (!handle.pid || handle.pid <= 0) {
+        throw new Error('终端进程启动失败');
+      }
+
+      // 将窗口添加到 StatusPoller
+      statusPoller?.addWindow(windowId, handle.pid);
+
+      // 初始化输出缓存
+      ptyOutputCache.set(windowId, []);
+
+      // 订阅 PTY 数据，推送到渲染进程并缓存
+      processManager.subscribePtyData(handle.pid, (data: string) => {
+        // 缓存输出
+        const cache = ptyOutputCache.get(windowId);
+        if (cache) {
+          cache.push(data);
+          // 限制缓存大小
+          if (cache.length > MAX_CACHE_SIZE) {
+            cache.shift();
+          }
+        }
+
+        // 推送到渲染进程
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('pty-data', { windowId, data });
+        }
+      });
+
+      return {
+        pid: handle.pid,
+        status: WindowStatus.WaitingForInput,
+      };
+    } catch (error) {
+      const errorMessage = (error as Error).message;
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to start window:', error);
       }
       throw new Error(errorMessage);
     }

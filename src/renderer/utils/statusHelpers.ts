@@ -8,7 +8,8 @@ const STATUS_COLOR_MAP: Record<WindowStatus, string> = {
   [WindowStatus.WaitingForInput]: 'bg-amber-500',
   [WindowStatus.Completed]: 'bg-green-500',
   [WindowStatus.Error]: 'bg-red-500',
-  [WindowStatus.Restoring]: 'bg-gray-500'
+  [WindowStatus.Restoring]: 'bg-gray-500',
+  [WindowStatus.Paused]: 'bg-gray-400'
 };
 
 /**
@@ -19,7 +20,8 @@ const STATUS_TEXT_COLOR_MAP: Record<WindowStatus, string> = {
   [WindowStatus.WaitingForInput]: 'text-amber-500',
   [WindowStatus.Completed]: 'text-green-500',
   [WindowStatus.Error]: 'text-red-500',
-  [WindowStatus.Restoring]: 'text-gray-500'
+  [WindowStatus.Restoring]: 'text-gray-500',
+  [WindowStatus.Paused]: 'text-gray-400'
 };
 
 /**
@@ -30,7 +32,8 @@ const STATUS_LABEL_MAP: Record<WindowStatus, string> = {
   [WindowStatus.WaitingForInput]: '等待输入',
   [WindowStatus.Completed]: '已完成',
   [WindowStatus.Error]: '出错',
-  [WindowStatus.Restoring]: '恢复中'
+  [WindowStatus.Restoring]: '恢复中',
+  [WindowStatus.Paused]: '已暂停'
 };
 
 /**

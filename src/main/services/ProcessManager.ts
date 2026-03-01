@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events';
 import { platform } from 'os';
 import { existsSync } from 'fs';
+import { execSync } from 'child_process';
 import { IProcessManager, TerminalConfig, ProcessHandle, ProcessInfo, ProcessStatus } from '../types/process';
 import { StatusDetectorImpl, IStatusDetector } from './StatusDetector';
 import { WindowStatus } from '../../renderer/types/window';
@@ -112,7 +113,21 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
       throw new Error(`Process already exited: ${pid}`);
     }
 
-    // Mock process termination
+    // 实际终止 PTY 进程（node-pty 会自动终止子进程树）
+    const ptyProcess = this.ptys.get(pid);
+    if (ptyProcess && typeof ptyProcess.kill === 'function') {
+      try {
+        // 使用 SIGTERM 信号温和地终止进程
+        ptyProcess.kill('SIGTERM');
+      } catch (error) {
+        // 忽略错误，因为进程可能已经退出
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`PTY process ${pid} already exited or kill failed`);
+        }
+      }
+    }
+
+    // 更新进程状态
     processInfo.status = ProcessStatus.Exited;
     processInfo.exitCode = 0;
 
@@ -207,18 +222,25 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
    * 销毁 ProcessManager，释放资源
    */
   destroy(): void {
-    // 终止所有 PTY 进程
+    // 先停止状态检测器，避免在清理过程中触发检测
+    this.statusDetector.destroy();
+
+    // 终止所有 PTY 进程（node-pty 会自动终止子进程树）
     for (const [pid, pty] of this.ptys.entries()) {
       try {
         if (pty && typeof pty.kill === 'function') {
-          pty.kill();
+          // Windows 上使用 SIGKILL 强制终止，其他平台使用 SIGTERM
+          const signal = process.platform === 'win32' ? 'SIGKILL' : 'SIGTERM';
+          pty.kill(signal);
         }
       } catch (error) {
-        console.error(`Failed to kill PTY process ${pid}:`, error);
+        // 忽略错误，因为进程可能已经退出
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`PTY process ${pid} already exited or kill failed`);
+        }
       }
     }
 
-    this.statusDetector.destroy();
     this.processes.clear();
     this.ptys.clear();
   }
@@ -230,19 +252,14 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     const currentPlatform = platform();
 
     if (currentPlatform === 'win32') {
-      // Windows: 优先 pwsh.exe (PowerShell 7+), 降级到 cmd.exe
-      const pwshPaths = [
-        'C:\\Program Files\\PowerShell\\7\\pwsh.exe',
-        'C:\\Program Files (x86)\\PowerShell\\7\\pwsh.exe',
-      ];
-
-      for (const path of pwshPaths) {
-        if (existsSync(path)) {
-          return path;
-        }
+      // Windows: 使用 where 命令查找 pwsh.exe (PowerShell 7+)
+      try {
+        execSync('where pwsh.exe', { stdio: 'ignore' });
+        return 'pwsh.exe';
+      } catch {
+        // 回退到 cmd.exe，不使用旧版 powershell.exe
+        return 'cmd.exe';
       }
-
-      return 'cmd.exe';  // Fallback
     } else if (currentPlatform === 'darwin') {
       // macOS: 优先 zsh, 降级到 bash
       if (existsSync('/bin/zsh')) {

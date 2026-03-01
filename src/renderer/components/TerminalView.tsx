@@ -44,20 +44,31 @@ export const TerminalView: React.FC<TerminalViewProps> = ({ window: terminalWind
     const fitAddon = new FitAddon();
     terminal.loadAddon(fitAddon);
     terminal.open(terminalContainerRef.current);
-    fitAddon.fit();
 
     terminalRef.current = terminal;
     fitAddonRef.current = fitAddon;
 
-    // 加载历史输出
-    window.electronAPI?.getPtyHistory(terminalWindow.id).then((history) => {
-      if (history && history.length > 0) {
-        for (const data of history) {
-          terminal.write(data);
+    // 等待容器渲染完成后调整尺寸
+    requestAnimationFrame(() => {
+      if (!fitAddonRef.current || !terminalRef.current) return;
+
+      // 调整终端尺寸以适应容器
+      fitAddonRef.current.fit();
+      const { cols, rows } = terminalRef.current;
+
+      // 同步尺寸到 PTY
+      window.electronAPI?.ptyResize(terminalWindow.id, cols, rows);
+
+      // 加载历史输出
+      window.electronAPI?.getPtyHistory(terminalWindow.id).then((history) => {
+        if (history && history.length > 0 && terminalRef.current) {
+          for (const data of history) {
+            terminalRef.current.write(data);
+          }
         }
-      }
-    }).catch(() => {
-      // 忽略错误，继续正常流程
+      }).catch(() => {
+        // 忽略错误，继续正常流程
+      });
     });
 
     // 划选复制：选中文本自动复制到剪贴板

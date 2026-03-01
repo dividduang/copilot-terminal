@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Settings, Terminal, HelpCircle } from 'lucide-react';
+import { Plus, Settings, Terminal, HelpCircle, Archive } from 'lucide-react';
 import { StatusBar } from '../StatusBar';
 import { CreateWindowDialog } from '../CreateWindowDialog';
 import { useWindowStore } from '../../stores/windowStore';
@@ -10,6 +10,8 @@ interface SidebarProps {
   onCreateWindow?: () => void;
   isDialogOpen?: boolean;
   onDialogChange?: (open: boolean) => void;
+  currentTab?: 'active' | 'archived';
+  onTabChange?: (tab: 'active' | 'archived') => void;
 }
 
 export function Sidebar({
@@ -18,8 +20,12 @@ export function Sidebar({
   onCreateWindow,
   isDialogOpen = false,
   onDialogChange,
+  currentTab = 'active',
+  onTabChange,
 }: SidebarProps) {
   const windows = useWindowStore((state) => state.windows);
+  const activeWindows = windows.filter(w => !w.archived);
+  const archivedWindows = windows.filter(w => w.archived);
 
   return (
     <>
@@ -38,15 +44,37 @@ export function Sidebar({
 
         {/* Main content area */}
         <div className="flex-1 px-4 py-4 overflow-y-auto">
-          {/* Active terminals count */}
-          {windows.length > 0 && (
-            <div className="px-4 py-3 rounded-lg bg-[rgb(var(--card))] border border-[rgb(var(--border))]">
-              <div className="text-xs text-[rgb(var(--muted-foreground))]">活跃终端</div>
-              <div className="text-2xl font-bold text-[rgb(var(--foreground))] mt-1">
-                {windows.length}
-              </div>
-            </div>
-          )}
+          {/* Tab buttons */}
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => onTabChange?.('active')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
+                currentTab === 'active'
+                  ? 'bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))] font-medium'
+                  : 'text-[rgb(var(--foreground))] hover:bg-[rgb(var(--accent))]'
+              }`}
+            >
+              <Terminal className="h-4 w-4" />
+              <span>活跃终端</span>
+              {activeWindows.length > 0 && (
+                <span className="ml-auto text-xs">{activeWindows.length}</span>
+              )}
+            </button>
+            <button
+              onClick={() => onTabChange?.('archived')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
+                currentTab === 'archived'
+                  ? 'bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))] font-medium'
+                  : 'text-[rgb(var(--foreground))] hover:bg-[rgb(var(--accent))]'
+              }`}
+            >
+              <Archive className="h-4 w-4" />
+              <span>归档终端</span>
+              {archivedWindows.length > 0 && (
+                <span className="ml-auto text-xs">{archivedWindows.length}</span>
+              )}
+            </button>
+          </div>
         </div>
 
         <div className="h-px bg-[rgb(var(--border))]" />
