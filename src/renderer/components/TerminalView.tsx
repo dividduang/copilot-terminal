@@ -81,6 +81,12 @@ export const TerminalView: React.FC<TerminalViewProps> = ({ window: terminalWind
 
     // 用户输入 → PTY
     terminal.onData((data: string) => {
+      // 拦截 ESC 键（ASCII 码 27，或 \x1b）
+      if (data === '\x1b' || data.charCodeAt(0) === 27) {
+        // ESC 键返回主界面
+        onReturn();
+        return;
+      }
       window.electronAPI?.ptyWrite(terminalWindow.id, data);
     });
 
@@ -101,7 +107,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({ window: terminalWind
       terminalRef.current = null;
       fitAddonRef.current = null;
     };
-  }, [terminalWindow.id]);
+  }, [terminalWindow.id, onReturn]);
 
   // 右键粘贴
   const handleContextMenu = useCallback((e: React.MouseEvent) => {

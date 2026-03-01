@@ -31,6 +31,9 @@ const MAX_CACHE_SIZE = 1000; // 每个窗口最多缓存 1000 条输出
 // 退出标志，防止重复执行退出逻辑
 let isQuitting = false;
 
+// 当前视图状态：unified 或 terminal
+let currentView: 'unified' | 'terminal' = 'unified';
+
 // 获取默认 shell，带回退逻辑
 function getDefaultShell(): string {
   if (process.platform === 'win32') {
@@ -125,8 +128,17 @@ function createWindow() {
     mainWindow = null;
   });
 
-  // 窗口关闭前保存工作区
+  // 窗口关闭前处理
   mainWindow.on('close', async (event) => {
+    // 如果在终端视图，返回统一视图而不是关闭窗口
+    if (currentView === 'terminal' && !isQuitting) {
+      event.preventDefault();
+      mainWindow?.webContents.send('view-changed', { view: 'unified' });
+      currentView = 'unified';
+      return;
+    }
+
+    // 在统一视图或已经在退出流程中，执行正常关闭
     if (!isQuitting) {
       event.preventDefault();
       isQuitting = true;
@@ -629,6 +641,7 @@ function registerIPCHandlers() {
     if (!viewSwitcher) {
       throw new Error('ViewSwitcher not initialized');
     }
+    currentView = 'terminal';
     viewSwitcher.switchToTerminalView(windowId);
   });
 
@@ -637,6 +650,7 @@ function registerIPCHandlers() {
     if (!viewSwitcher) {
       throw new Error('ViewSwitcher not initialized');
     }
+    currentView = 'unified';
     viewSwitcher.switchToUnifiedView();
   });
 
