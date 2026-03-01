@@ -65,7 +65,7 @@ export const CardGrid = React.memo<CardGridProps>(({ onCreateWindow, onEnterTerm
       <ScrollArea.Viewport className="h-full w-full">
         <div
           data-testid="card-grid"
-          className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3 p-6"
+          className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4 p-8"
         >
           {sortedWindows.map((win) => (
             <WindowCard
@@ -81,9 +81,9 @@ export const CardGrid = React.memo<CardGridProps>(({ onCreateWindow, onEnterTerm
       </ScrollArea.Viewport>
       <ScrollArea.Scrollbar
         orientation="vertical"
-        className="flex w-2 touch-none select-none bg-zinc-900 p-0.5 transition-colors"
+        className="flex w-2.5 touch-none select-none bg-transparent p-0.5 transition-colors hover:bg-zinc-800/50"
       >
-        <ScrollArea.Thumb className="relative flex-1 rounded-full bg-zinc-700" />
+        <ScrollArea.Thumb className="relative flex-1 rounded-full bg-zinc-700 hover:bg-zinc-600 transition-colors" />
       </ScrollArea.Scrollbar>
     </ScrollArea.Root>
   );

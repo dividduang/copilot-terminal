@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { MainLayout } from './components/layout/MainLayout';
-import { Toolbar } from './components/layout/Toolbar';
+import { Sidebar } from './components/layout/Sidebar';
 import { EmptyState } from './components/EmptyState';
 import { CardGrid } from './components/CardGrid';
 import { TerminalView } from './components/TerminalView';
@@ -68,9 +68,9 @@ function App() {
   return (
     <>
       <MainLayout
-        toolbar={
-          <Toolbar
-            appName="ausome-terminal"
+        sidebar={
+          <Sidebar
+            appName="Ausome Terminal"
             version="0.1.0"
             onCreateWindow={handleCreateWindow}
             isDialogOpen={isDialogOpen}

@@ -2,11 +2,10 @@ import React, { useMemo } from 'react';
 import { Activity, Pause, CheckCircle, XCircle } from 'lucide-react';
 import { useWindowStore } from '../stores/windowStore';
 import { WindowStatus } from '../types/window';
-import { getStatusTextColor } from '../utils/statusHelpers';
 
 /**
  * StatusBar 组件
- * 在工具栏中显示各状态的窗口数量统计
+ * 在侧边栏中显示各状态的窗口数量统计
  */
 export const StatusBar = React.memo(function StatusBar() {
   const windows = useWindowStore((state) => state.windows);
@@ -26,67 +25,60 @@ export const StatusBar = React.memo(function StatusBar() {
     [statusCounts]
   );
 
-  const runningColor = getStatusTextColor(WindowStatus.Running);
-  const waitingColor = getStatusTextColor(WindowStatus.WaitingForInput);
-  const completedColor = getStatusTextColor(WindowStatus.Completed);
-  const errorColor = getStatusTextColor(WindowStatus.Error);
-
   return (
     <div
       aria-live="polite"
       aria-label={ariaLabel}
-      className="flex items-center"
+      className="space-y-2"
     >
-      {/* 标准模式（>= 640px）：文字标签 + 数字 */}
-      <div className="hidden sm:flex items-center space-x-1">
-        <span className="text-sm text-zinc-400">运行中</span>
-        <span className={`text-sm font-semibold ${runningColor}`}>
+      {/* 运行中 */}
+      <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800">
+        <div className="flex items-center gap-2">
+          <Activity className="w-4 h-4 text-green-400" aria-hidden="true" />
+          <span className="text-xs text-zinc-400">运行中</span>
+        </div>
+        <span className="text-sm font-semibold text-green-400">
           {statusCounts.running}
-        </span>
-        <span className="text-zinc-500 mx-2">·</span>
-        <span className="text-sm text-zinc-400">等待输入</span>
-        <span className={`text-sm font-semibold ${waitingColor}`}>
-          {statusCounts.waiting}
-        </span>
-        <span className="text-zinc-500 mx-2">·</span>
-        <span className="text-sm text-zinc-400">已完成</span>
-        <span className={`text-sm font-semibold ${completedColor}`}>
-          {statusCounts.completed}
-        </span>
-        <span className="text-zinc-500 mx-2">·</span>
-        <span className="text-sm text-zinc-400">出错</span>
-        <span className={`text-sm font-semibold ${errorColor}`}>
-          {statusCounts.error}
         </span>
       </div>
 
-      {/* 简化模式（< 640px）：图标 + 数字 */}
-      <div className="flex sm:hidden items-center space-x-3">
-        <div className="flex items-center space-x-1">
-          <Activity className={`w-4 h-4 ${runningColor}`} aria-hidden="true" />
-          <span className={`text-sm font-semibold ${runningColor}`}>
-            {statusCounts.running}
-          </span>
+      {/* 等待输入 */}
+      <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800">
+        <div className="flex items-center gap-2">
+          <Pause className="w-4 h-4 text-blue-400" aria-hidden="true" />
+          <span className="text-xs text-zinc-400">等待输入</span>
         </div>
-        <div className="flex items-center space-x-1">
-          <Pause className={`w-4 h-4 ${waitingColor}`} aria-hidden="true" />
-          <span className={`text-sm font-semibold ${waitingColor}`}>
-            {statusCounts.waiting}
-          </span>
-        </div>
-        <div className="flex items-center space-x-1">
-          <CheckCircle className={`w-4 h-4 ${completedColor}`} aria-hidden="true" />
-          <span className={`text-sm font-semibold ${completedColor}`}>
+        <span className="text-sm font-semibold text-blue-400">
+          {statusCounts.waiting}
+        </span>
+      </div>
+
+      {/* 已完成 */}
+      {statusCounts.completed > 0 && (
+        <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-zinc-400" aria-hidden="true" />
+            <span className="text-xs text-zinc-400">已完成</span>
+          </div>
+          <span className="text-sm font-semibold text-zinc-400">
             {statusCounts.completed}
           </span>
         </div>
-        <div className="flex items-center space-x-1">
-          <XCircle className={`w-4 h-4 ${errorColor}`} aria-hidden="true" />
-          <span className={`text-sm font-semibold ${errorColor}`}>
+      )}
+
+      {/* 出错 */}
+      {statusCounts.error > 0 && (
+        <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800">
+          <div className="flex items-center gap-2">
+            <XCircle className="w-4 h-4 text-red-400" aria-hidden="true" />
+            <span className="text-xs text-zinc-400">出错</span>
+          </div>
+          <span className="text-sm font-semibold text-red-400">
             {statusCounts.error}
           </span>
         </div>
-      </div>
+      )}
     </div>
   );
 });
+

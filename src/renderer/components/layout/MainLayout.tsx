@@ -1,20 +1,22 @@
 import React from 'react';
 
 interface MainLayoutProps {
-  toolbar: React.ReactNode;
+  sidebar?: React.ReactNode;
   children: React.ReactNode;
 }
 
-export function MainLayout({ toolbar, children }: MainLayoutProps) {
+export function MainLayout({ sidebar, children }: MainLayoutProps) {
   return (
-    <div className="flex flex-col h-screen bg-bg-app">
-      {/* 工具栏区域 - 固定高度 */}
-      <div className="flex-shrink-0">
-        {toolbar}
-      </div>
+    <div className="flex h-screen bg-zinc-900">
+      {/* 侧边栏区域 - 固定宽度 */}
+      {sidebar && (
+        <div className="flex-shrink-0">
+          {sidebar}
+        </div>
+      )}
 
       {/* 主内容区 - 占满剩余空间 */}
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto bg-zinc-900">
         {children}
       </main>
     </div>

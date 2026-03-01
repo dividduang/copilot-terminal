@@ -112,12 +112,12 @@ export const WindowCard = React.memo<WindowCardProps>(({
       onClick={onClick}
       onKeyDown={handleKeyDown}
       aria-label={ariaLabel}
-      className="min-w-[280px] h-48 bg-zinc-800 rounded-lg overflow-hidden cursor-pointer transition-colors hover:bg-zinc-750 active:bg-zinc-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex flex-col"
+      className="min-w-[280px] h-48 bg-zinc-800/50 backdrop-blur-sm rounded-xl overflow-hidden cursor-pointer transition-all duration-200 hover:bg-zinc-800/70 hover:scale-[1.02] hover:shadow-xl hover:shadow-black/20 active:scale-[0.98] focus:outline-none focus:ring-2 focus:ring-blue-500/50 flex flex-col border border-zinc-700/50"
     >
       {/* 圆弧形彩色顶部线条 (4px 高度) */}
       <div
         data-testid="status-bar"
-        className={`h-[4px] rounded-t-lg ${statusColor}`}
+        className={`h-[3px] ${statusColor}`}
       />
 
       {/* 卡片内容 - 占据剩余空间 */}
@@ -127,7 +127,7 @@ export const WindowCard = React.memo<WindowCardProps>(({
           <h3 className="text-base font-semibold text-zinc-100 truncate flex-1">
             {window.name}
           </h3>
-          <span className="text-xs text-zinc-400 ml-2 flex-shrink-0">
+          <span className="text-xs text-zinc-400 ml-2 flex-shrink-0 px-2 py-0.5 rounded-full bg-zinc-900/50">
             {statusLabel}
           </span>
         </div>
@@ -145,7 +145,7 @@ export const WindowCard = React.memo<WindowCardProps>(({
             </Tooltip.Trigger>
             <Tooltip.Portal>
               <Tooltip.Content
-                className="bg-zinc-900 text-zinc-100 px-2 py-1 rounded text-sm max-w-md break-all z-50"
+                className="bg-zinc-900 text-zinc-100 px-3 py-2 rounded-lg text-sm max-w-md break-all z-50 shadow-xl border border-zinc-700"
                 sideOffset={5}
               >
                 {window.workingDirectory}
@@ -155,7 +155,7 @@ export const WindowCard = React.memo<WindowCardProps>(({
         </Tooltip.Provider>
 
         {/* 分割线 */}
-        <div className="border-t border-zinc-700" />
+        <div className="border-t border-zinc-700/50" />
 
         {/* 第三行：最新输出摘要 */}
         <p className="text-sm text-zinc-400 truncate flex-1">
@@ -164,20 +164,20 @@ export const WindowCard = React.memo<WindowCardProps>(({
 
         {/* 第四行：最后活跃时间 */}
         <div className="flex items-center justify-between">
-          <span className="text-xs text-zinc-400 truncate flex-1">
+          <span className="text-xs text-zinc-500 truncate flex-1">
             {window.model || '未知模型'}
           </span>
-          <span className="text-xs text-zinc-400 ml-2 flex-shrink-0">
+          <span className="text-xs text-zinc-500 ml-2 flex-shrink-0">
             {formattedTime}
           </span>
         </div>
       </div>
 
       {/* 底部按钮栏 */}
-      <div className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border-t border-zinc-700">
+      <div className="flex items-center gap-2 px-4 py-2.5 bg-zinc-900/50 border-t border-zinc-700/50">
         <button
           onClick={(e) => handleButtonClick(e, onOpenFolder || (() => {}))}
-          className="flex items-center gap-1 px-3 py-1.5 text-xs text-zinc-300 bg-zinc-800 rounded hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-zinc-300 bg-zinc-800/50 rounded-lg hover:bg-zinc-700/50 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
           aria-label="打开文件夹"
         >
           <FolderOpen size={14} />
@@ -185,7 +185,7 @@ export const WindowCard = React.memo<WindowCardProps>(({
         </button>
         <button
           onClick={(e) => handleButtonClick(e, onDelete || (() => {}))}
-          className="flex items-center gap-1 px-3 py-1.5 text-xs text-red-400 bg-zinc-800 rounded hover:bg-zinc-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-red-400 bg-zinc-800/50 rounded-lg hover:bg-red-900/30 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-red-500/50"
           aria-label="删除窗口"
         >
           <Trash2 size={14} />
