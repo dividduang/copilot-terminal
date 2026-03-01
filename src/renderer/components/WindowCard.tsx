@@ -14,23 +14,34 @@ interface WindowCardProps {
 }
 
 /**
- * 智能截断路径，保留前后部分，中间用...替代
+ * 智能截断路径，保留完整的文件夹名称，中间用...替代
  * @param path 完整路径
- * @param maxLength 最大显示长度
+ * @param maxSegments 最大显示的路径段数（前后各保留的段数）
  */
-function truncatePath(path: string, maxLength: number = 35): string {
-  if (path.length <= maxLength) {
+function truncatePath(path: string, maxSegments: number = 3): string {
+  // 统一使用正斜杠分割路径
+  const normalizedPath = path.replace(/\\/g, '/');
+  const segments = normalizedPath.split('/').filter(s => s.length > 0);
+
+  // 如果路径段数不超过限制，直接返回
+  if (segments.length <= maxSegments * 2) {
     return path;
   }
 
-  // 计算前后保留的字符数
-  const prefixLength = Math.floor(maxLength * 0.4);
-  const suffixLength = Math.floor(maxLength * 0.4);
+  // 保留前 maxSegments 段和后 maxSegments 段
+  const prefix = segments.slice(0, maxSegments).join('/');
+  const suffix = segments.slice(-maxSegments).join('/');
 
-  const prefix = path.substring(0, prefixLength);
-  const suffix = path.substring(path.length - suffixLength);
+  // 检测是否是 Windows 路径（包含盘符）
+  const isWindowsPath = /^[A-Za-z]:/.test(path);
 
-  return `${prefix}...${suffix}`;
+  if (isWindowsPath) {
+    // Windows 路径：保持反斜杠格式
+    return `${prefix.replace(/\//g, '\\')}\\...\\${suffix.replace(/\//g, '\\')}`;
+  } else {
+    // Unix 路径：使用正斜杠
+    return `${prefix}/.../${suffix}`;
+  }
 }
 
 /**

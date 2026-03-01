@@ -24,6 +24,10 @@ let workspaceRestorer: WorkspaceRestorerImpl | null = null;
 let windowCounter = 0; // 用于生成唯一的窗口编号
 let currentWorkspace: Workspace | null = null; // 缓存当前工作区状态
 
+// PTY 输出缓存：windowId -> 输出历史数组
+const ptyOutputCache = new Map<string, string[]>();
+const MAX_CACHE_SIZE = 1000; // 每个窗口最多缓存 1000 条输出
+
 // 获取默认 shell，带回退逻辑
 function getDefaultShell(): string {
   if (process.platform === 'win32') {
@@ -259,8 +263,22 @@ function registerIPCHandlers() {
       // 将新窗口添加到 StatusPoller
       statusPoller?.addWindow(windowId, handle.pid);
 
-      // 订阅 PTY 数据，推送到渲染进程
+      // 初始化输出缓存
+      ptyOutputCache.set(windowId, []);
+
+      // 订阅 PTY 数据，推送到渲染进程并缓存
       processManager.subscribePtyData(handle.pid, (data: string) => {
+        // 缓存输出
+        const cache = ptyOutputCache.get(windowId);
+        if (cache) {
+          cache.push(data);
+          // 限制缓存大小
+          if (cache.length > MAX_CACHE_SIZE) {
+            cache.shift();
+          }
+        }
+
+        // 推送到渲染进程
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('pty-data', { windowId, data });
         }
@@ -395,6 +413,10 @@ function registerIPCHandlers() {
           }
         }
       }
+
+      // 清理 PTY 输出缓存
+      ptyOutputCache.delete(windowId);
+
       // TODO: 移除窗口配置（Story 6.x 工作区持久化时实现）
       // 从 StatusPoller 移除窗口
       statusPoller?.removeWindow(windowId);
@@ -452,6 +474,19 @@ function registerIPCHandlers() {
       if (process.env.NODE_ENV === 'development') {
         console.error('Failed to resize PTY:', error);
       }
+    }
+  });
+
+  // 获取 PTY 历史输出
+  ipcMain.handle('get-pty-history', async (_event, { windowId }: { windowId: string }) => {
+    try {
+      const cache = ptyOutputCache.get(windowId);
+      return cache || [];
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to get PTY history:', error);
+      }
+      return [];
     }
   });
 

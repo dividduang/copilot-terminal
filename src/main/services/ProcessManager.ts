@@ -207,6 +207,17 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
    * 销毁 ProcessManager，释放资源
    */
   destroy(): void {
+    // 终止所有 PTY 进程
+    for (const [pid, pty] of this.ptys.entries()) {
+      try {
+        if (pty && typeof pty.kill === 'function') {
+          pty.kill();
+        }
+      } catch (error) {
+        console.error(`Failed to kill PTY process ${pid}:`, error);
+      }
+    }
+
     this.statusDetector.destroy();
     this.processes.clear();
     this.ptys.clear();

@@ -67,12 +67,13 @@ export class StatusDetectorImpl implements IStatusDetector {
     const lastOutput = this.lastOutputTime.get(pid) ?? 0;
     const timeSinceOutput = Date.now() - lastOutput;
 
-    // 运行中：CPU > 1% 或最近 5s 内有输出
-    if (cpu > 1.0 || timeSinceOutput < 5000) {
+    // 运行中：CPU > 1% 或（最近 2s 内有输出 且 CPU > 0.1%）
+    // 这样可以区分：shell 提示符输出（CPU 低）vs 命令执行输出（CPU 高）
+    if (cpu > 1.0 || (timeSinceOutput < 2000 && cpu > 0.1)) {
       return WindowStatus.Running;
     }
 
-    // 等待输入：进程存活 + CPU < 1% + 最近 5s 无输出
+    // 等待输入：进程存活 + CPU 低 + 无最近输出
     return WindowStatus.WaitingForInput;
   }
 
@@ -92,9 +93,10 @@ export class StatusDetectorImpl implements IStatusDetector {
    */
   trackPid(pid: number): void {
     this.trackedPids.add(pid);
-    // 初始状态设为 Running（进程刚创建）
-    this.statusCache.set(pid, WindowStatus.Running);
-    this.lastOutputTime.set(pid, Date.now());
+    // 初始状态设为 WaitingForInput（shell 启动后等待用户输入）
+    // 如果进程正在执行任务，会在下次轮询时更新为 Running
+    this.statusCache.set(pid, WindowStatus.WaitingForInput);
+    // 不设置 lastOutputTime，让第一次检测来判断状态
   }
 
   /**

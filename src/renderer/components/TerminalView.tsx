@@ -49,6 +49,17 @@ export const TerminalView: React.FC<TerminalViewProps> = ({ window: terminalWind
     terminalRef.current = terminal;
     fitAddonRef.current = fitAddon;
 
+    // 加载历史输出
+    window.electronAPI?.getPtyHistory(terminalWindow.id).then((history) => {
+      if (history && history.length > 0) {
+        for (const data of history) {
+          terminal.write(data);
+        }
+      }
+    }).catch(() => {
+      // 忽略错误，继续正常流程
+    });
+
     // 划选复制：选中文本自动复制到剪贴板
     terminal.onSelectionChange(() => {
       const selection = terminal.getSelection();

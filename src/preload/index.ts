@@ -32,6 +32,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('pty-write', { windowId, data }),
   ptyResize: (windowId: string, cols: number, rows: number) =>
     ipcRenderer.invoke('pty-resize', { windowId, cols, rows }),
+  getPtyHistory: (windowId: string) =>
+    ipcRenderer.invoke('get-pty-history', { windowId }),
   onPtyData: (callback: (event: unknown, payload: { windowId: string; data: string }) => void) => {
     ipcRenderer.on('pty-data', callback);
   },

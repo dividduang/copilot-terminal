@@ -30,6 +30,7 @@ export interface ElectronAPI {
   // PTY I/O
   ptyWrite: (windowId: string, data: string) => Promise<void>
   ptyResize: (windowId: string, cols: number, rows: number) => Promise<void>
+  getPtyHistory: (windowId: string) => Promise<string[]>
   onPtyData: (callback: (event: unknown, payload: { windowId: string; data: string }) => void) => void
   offPtyData: (callback: (event: unknown, payload: { windowId: string; data: string }) => void) => void
 
