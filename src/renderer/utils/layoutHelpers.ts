@@ -231,6 +231,11 @@ export function getAggregatedStatus(layout: LayoutNode): WindowStatus {
     return WindowStatus.Running;
   }
 
+  // 如果有任何窗格在启动中，则窗口状态为启动中
+  if (panes.some(p => p.status === WindowStatus.Restoring)) {
+    return WindowStatus.Restoring;
+  }
+
   // 如果有任何窗格在等待输入，则窗口状态为等待输入
   if (panes.some(p => p.status === WindowStatus.WaitingForInput)) {
     return WindowStatus.WaitingForInput;
