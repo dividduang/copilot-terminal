@@ -438,7 +438,7 @@ function registerIPCHandlers() {
   });
 
   // 启动暂停的窗口（恢复 PTY 进程）
-  ipcMain.handle('start-window', async (_event, { windowId, name, workingDirectory, command }: { windowId: string; name: string; workingDirectory: string; command: string }) => {
+  ipcMain.handle('start-window', async (_event, { windowId, paneId, name, workingDirectory, command }: { windowId: string; paneId?: string; name: string; workingDirectory: string; command: string }) => {
     try {
       if (!processManager) {
         throw new Error('进程管理器未初始化，请重启应用');
@@ -464,6 +464,7 @@ function registerIPCHandlers() {
         workingDirectory: workingDirectory,
         command: shellCommand,
         windowId: windowId,
+        paneId: paneId,
       });
 
       // 验证进程启动成功
@@ -474,8 +475,10 @@ function registerIPCHandlers() {
       // 将窗口添加到 StatusPoller
       statusPoller?.addWindow(windowId, handle.pid);
 
-      // 初始化输出缓存
-      ptyOutputCache.set(windowId, []);
+      // 初始化输出缓存（如果还没有）
+      if (!ptyOutputCache.has(windowId)) {
+        ptyOutputCache.set(windowId, []);
+      }
 
       // 订阅 PTY 数据，推送到渲染进程并缓存
       const unsubscribe = processManager.subscribePtyData(handle.pid, (data: string) => {
@@ -489,14 +492,15 @@ function registerIPCHandlers() {
           }
         }
 
-        // 推送到渲染进程
+        // 推送到渲染进程（包含 paneId）
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('pty-data', { windowId, data });
+          mainWindow.webContents.send('pty-data', { windowId, paneId, data });
         }
       });
 
-      // 保存清理函数
-      ptyDataUnsubscribers.set(windowId, unsubscribe);
+      // 保存清理函数（使用 windowId-paneId 作为键）
+      const key = paneId ? `${windowId}-${paneId}` : windowId;
+      ptyDataUnsubscribers.set(key, unsubscribe);
 
       return {
         pid: handle.pid,

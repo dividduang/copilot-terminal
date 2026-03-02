@@ -14,7 +14,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Window management
   closeWindow: (windowId: string) => ipcRenderer.invoke('close-window', { windowId }),
   deleteWindow: (windowId: string) => ipcRenderer.invoke('delete-window', { windowId }),
-  startWindow: (config: { windowId: string; name: string; workingDirectory: string; command: string }) =>
+  startWindow: (config: { windowId: string; paneId?: string; name: string; workingDirectory: string; command: string }) =>
     ipcRenderer.invoke('start-window', config),
 
   // File system

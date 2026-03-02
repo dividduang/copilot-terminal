@@ -1,13 +1,14 @@
 import { useCallback } from 'react';
 import { useWindowStore } from '../stores/windowStore';
 import { WindowStatus } from '../types/window';
+import { getAllPanes, getAggregatedStatus } from '../utils/layoutHelpers';
 
 /**
  * 窗口切换 Hook
  * 统一处理窗口切换逻辑：如果窗口是暂停状态，先启动再切换
  */
 export function useWindowSwitcher(onSwitchView: (windowId: string) => void) {
-  const { getWindowById, updateWindow, setActiveWindow } = useWindowStore();
+  const { getWindowById, updatePane, setActiveWindow } = useWindowStore();
 
   const switchToWindow = useCallback(async (windowId: string) => {
     const win = getWindowById(windowId);
@@ -16,31 +17,43 @@ export function useWindowSwitcher(onSwitchView: (windowId: string) => void) {
       return;
     }
 
-    // 如果窗口是暂停状态，先启动
-    if (win.status === WindowStatus.Paused) {
+    // 获取窗口的聚合状态和所有窗格
+    const aggregatedStatus = getAggregatedStatus(win.layout);
+    const panes = getAllPanes(win.layout);
+
+    // 如果窗口是暂停状态，启动所有窗格
+    if (aggregatedStatus === WindowStatus.Paused) {
       try {
-        // 更新状态为 Restoring
-        updateWindow(win.id, { status: WindowStatus.Restoring });
+        // 更新所有窗格状态为 Restoring
+        for (const pane of panes) {
+          updatePane(win.id, pane.id, { status: WindowStatus.Restoring });
+        }
 
-        // 启动窗口
-        const result = await window.electronAPI.startWindow({
-          windowId: win.id,
-          name: win.name,
-          workingDirectory: win.workingDirectory,
-          command: win.command,
-        });
+        // 启动所有窗格
+        for (const pane of panes) {
+          const result = await window.electronAPI.startWindow({
+            windowId: win.id,
+            paneId: pane.id,
+            name: win.name,
+            workingDirectory: pane.cwd,
+            command: pane.command,
+          });
 
-        // 更新窗口信息
-        updateWindow(win.id, {
-          pid: result.pid,
-          status: result.status,
-        });
+          // 更新窗格信息
+          updatePane(win.id, pane.id, {
+            pid: result.pid,
+            status: result.status,
+          });
+        }
 
         // 等待一小段时间让终端初始化
         await new Promise(resolve => setTimeout(resolve, 300));
       } catch (error) {
         console.error('Failed to start window:', error);
-        updateWindow(win.id, { status: WindowStatus.Paused });
+        // 恢复所有窗格状态为 Paused
+        for (const pane of panes) {
+          updatePane(win.id, pane.id, { status: WindowStatus.Paused });
+        }
         return;
       }
     }
@@ -48,7 +61,7 @@ export function useWindowSwitcher(onSwitchView: (windowId: string) => void) {
     // 切换到终端视图
     setActiveWindow(win.id);
     onSwitchView(win.id);
-  }, [getWindowById, updateWindow, setActiveWindow, onSwitchView]);
+  }, [getWindowById, updatePane, setActiveWindow, onSwitchView]);
 
   return { switchToWindow };
 }
