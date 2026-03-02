@@ -100,8 +100,9 @@ export const TerminalView: React.FC<TerminalViewProps> = ({ window: terminalWind
         cursor: '#e0e0e0',
         selectionBackground: '#0087ff',
       },
-      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-      fontSize: 13,
+      fontFamily: '"Cascadia Mono", "Cascadia Code", Consolas, "Courier New", monospace',
+      fontSize: 16,
+      lineHeight: 1.2,
       cursorBlink: true,
       allowTransparency: false,
     });
@@ -319,7 +320,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({ window: terminalWind
           <div
             ref={terminalContainerRef}
             onContextMenu={handleContextMenu}
-            className="flex-1 overflow-hidden"
+            className="flex-1 overflow-hidden px-4 py-2"
             data-testid="terminal-container"
             style={{ minHeight: 0 }}
           />
