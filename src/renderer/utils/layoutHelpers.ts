@@ -1,0 +1,275 @@
+import { v4 as uuidv4 } from 'uuid';
+import {
+  Window,
+  LegacyWindow,
+  LayoutNode,
+  PaneNode,
+  SplitNode,
+  Pane,
+  WindowStatus,
+} from '../types/window';
+
+/**
+ * 从旧版 Window 迁移到新版 Window
+ */
+export function migrateLegacyWindow(legacy: LegacyWindow): Window {
+  const paneId = uuidv4();
+  const pane: Pane = {
+    id: paneId,
+    cwd: legacy.workingDirectory,
+    command: legacy.command,
+    status: legacy.status,
+    pid: legacy.pid,
+    lastOutput: legacy.lastOutput,
+  };
+
+  const layout: PaneNode = {
+    type: 'pane',
+    id: paneId,
+    pane,
+  };
+
+  return {
+    id: legacy.id,
+    name: legacy.name,
+    layout,
+    activePaneId: paneId,
+    createdAt: legacy.createdAt,
+    lastActiveAt: legacy.lastActiveAt,
+    archived: legacy.archived,
+  };
+}
+
+/**
+ * 创建单窗格的 Window
+ */
+export function createSinglePaneWindow(
+  name: string,
+  cwd: string,
+  command: string
+): Window {
+  const windowId = uuidv4();
+  const paneId = uuidv4();
+
+  const pane: Pane = {
+    id: paneId,
+    cwd,
+    command,
+    status: WindowStatus.Paused,
+    pid: null,
+  };
+
+  const layout: PaneNode = {
+    type: 'pane',
+    id: paneId,
+    pane,
+  };
+
+  return {
+    id: windowId,
+    name,
+    layout,
+    activePaneId: paneId,
+    createdAt: new Date().toISOString(),
+    lastActiveAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * 在布局树中查找窗格节点
+ */
+export function findPaneNode(
+  layout: LayoutNode,
+  paneId: string
+): PaneNode | null {
+  if (layout.type === 'pane') {
+    return layout.id === paneId ? layout : null;
+  }
+
+  // SplitNode: 递归查找子节点
+  for (const child of layout.children) {
+    const found = findPaneNode(child, paneId);
+    if (found) return found;
+  }
+
+  return null;
+}
+
+/**
+ * 获取布局树中的所有窗格
+ */
+export function getAllPanes(layout: LayoutNode): Pane[] {
+  if (layout.type === 'pane') {
+    return [layout.pane];
+  }
+
+  // SplitNode: 递归收集所有子节点的窗格
+  return layout.children.flatMap(child => getAllPanes(child));
+}
+
+/**
+ * 拆分窗格（在指定窗格位置创建拆分）
+ */
+export function splitPane(
+  layout: LayoutNode,
+  targetPaneId: string,
+  direction: 'horizontal' | 'vertical',
+  newPane: Pane
+): LayoutNode | null {
+  if (layout.type === 'pane') {
+    if (layout.id === targetPaneId) {
+      // 找到目标窗格，创建拆分节点
+      const newPaneNode: PaneNode = {
+        type: 'pane',
+        id: newPane.id,
+        pane: newPane,
+      };
+
+      const splitNode: SplitNode = {
+        type: 'split',
+        direction,
+        sizes: [0.5, 0.5], // 默认均分
+        children: [layout, newPaneNode],
+      };
+
+      return splitNode;
+    }
+    return layout;
+  }
+
+  // SplitNode: 递归处理子节点
+  const newChildren = layout.children.map(child =>
+    splitPane(child, targetPaneId, direction, newPane)
+  );
+
+  // 检查是否有子节点被修改
+  const hasChanges = newChildren.some((child, i) => child !== layout.children[i]);
+  if (!hasChanges) return layout;
+
+  return {
+    ...layout,
+    children: newChildren.filter((child): child is LayoutNode => child !== null),
+  };
+}
+
+/**
+ * 关闭窗格（从布局树中移除）
+ */
+export function closePane(
+  layout: LayoutNode,
+  paneId: string
+): LayoutNode | null {
+  if (layout.type === 'pane') {
+    // 如果是要关闭的窗格，返回 null
+    return layout.id === paneId ? null : layout;
+  }
+
+  // SplitNode: 递归处理子节点
+  const newChildren = layout.children
+    .map(child => closePane(child, paneId))
+    .filter((child): child is LayoutNode => child !== null);
+
+  // 如果只剩一个子节点，提升它（消除不必要的拆分层级）
+  if (newChildren.length === 1) {
+    return newChildren[0];
+  }
+
+  // 如果没有子节点了，返回 null
+  if (newChildren.length === 0) {
+    return null;
+  }
+
+  // 重新计算大小比例
+  const totalSize = newChildren.length;
+  const newSizes = newChildren.map(() => 1 / totalSize);
+
+  return {
+    ...layout,
+    children: newChildren,
+    sizes: newSizes,
+  };
+}
+
+/**
+ * 更新布局树中的窗格数据
+ */
+export function updatePaneInLayout(
+  layout: LayoutNode,
+  paneId: string,
+  updates: Partial<Pane>
+): LayoutNode {
+  if (layout.type === 'pane') {
+    if (layout.id === paneId) {
+      return {
+        ...layout,
+        pane: {
+          ...layout.pane,
+          ...updates,
+        },
+      };
+    }
+    return layout;
+  }
+
+  // SplitNode: 递归更新子节点
+  return {
+    ...layout,
+    children: layout.children.map(child =>
+      updatePaneInLayout(child, paneId, updates)
+    ),
+  };
+}
+
+/**
+ * 获取窗口的聚合状态（基于所有窗格的状态）
+ */
+export function getAggregatedStatus(layout: LayoutNode): WindowStatus {
+  const panes = getAllPanes(layout);
+
+  // 如果有任何窗格在运行，则窗口状态为运行中
+  if (panes.some(p => p.status === WindowStatus.Running)) {
+    return WindowStatus.Running;
+  }
+
+  // 如果有任何窗格在等待输入，则窗口状态为等待输入
+  if (panes.some(p => p.status === WindowStatus.WaitingForInput)) {
+    return WindowStatus.WaitingForInput;
+  }
+
+  // 如果有任何窗格出错，则窗口状态为出错
+  if (panes.some(p => p.status === WindowStatus.Error)) {
+    return WindowStatus.Error;
+  }
+
+  // 如果所有窗格都已完成，则窗口状态为已完成
+  if (panes.every(p => p.status === WindowStatus.Completed)) {
+    return WindowStatus.Completed;
+  }
+
+  // 如果所有窗格都暂停，则窗口状态为暂停
+  if (panes.every(p => p.status === WindowStatus.Paused)) {
+    return WindowStatus.Paused;
+  }
+
+  // 默认返回暂停
+  return WindowStatus.Paused;
+}
+
+/**
+ * 计算布局树的深度
+ */
+export function getLayoutDepth(layout: LayoutNode): number {
+  if (layout.type === 'pane') {
+    return 1;
+  }
+
+  const childDepths = layout.children.map(child => getLayoutDepth(child));
+  return 1 + Math.max(...childDepths);
+}
+
+/**
+ * 获取布局树中的窗格数量
+ */
+export function getPaneCount(layout: LayoutNode): number {
+  return getAllPanes(layout).length;
+}

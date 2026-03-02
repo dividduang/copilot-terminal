@@ -1,6 +1,13 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { Window, WindowStatus } from '../types/window';
+import { Window, WindowStatus, Pane, LayoutNode } from '../types/window';
+import {
+  splitPane as splitPaneInLayout,
+  closePane as closePaneInLayout,
+  updatePaneInLayout,
+  getAllPanes,
+  findPaneNode,
+} from '../utils/layoutHelpers';
 
 // 全局标志：是否启用自动保存
 let autoSaveEnabled = true;
@@ -37,12 +44,17 @@ interface WindowStore {
   // Actions
   addWindow: (window: Window) => void;
   removeWindow: (id: string) => void;
-  updateWindowStatus: (id: string, status: WindowStatus) => void;
   updateWindow: (id: string, updates: Partial<Window>) => void;
   archiveWindow: (id: string) => void;
   unarchiveWindow: (id: string) => void;
   setActiveWindow: (id: string | null) => void;
   clearWindows: () => void; // 清空所有窗口（用于工作区恢复）
+
+  // Pane 相关
+  updatePane: (windowId: string, paneId: string, updates: Partial<Pane>) => void;
+  splitPaneInWindow: (windowId: string, targetPaneId: string, direction: 'horizontal' | 'vertical', newPane: Pane) => void;
+  closePaneInWindow: (windowId: string, paneId: string) => void;
+  setActivePane: (windowId: string, paneId: string) => void;
 
   // MRU 相关
   updateMRU: (windowId: string) => void;
@@ -54,7 +66,7 @@ interface WindowStore {
 
   // 辅助方法
   getWindowById: (id: string) => Window | undefined;
-  getWindowsByStatus: (status: WindowStatus) => Window[];
+  getPaneById: (windowId: string, paneId: string) => Pane | undefined;
   getActiveWindows: () => Window[]; // 获取未归档的窗口
   getArchivedWindows: () => Window[]; // 获取已归档的窗口
 }
@@ -99,20 +111,6 @@ export const useWindowStore = create<WindowStore>()(
       triggerAutoSave(windows);
     },
 
-    // 更新窗口状态
-    updateWindowStatus: (id, status) => {
-      set((state) => {
-        const window = state.windows.find(w => w.id === id);
-        if (window) {
-          window.status = status;
-          window.lastActiveAt = new Date().toISOString();
-        }
-      });
-      // 触发自动保存，传递最新的窗口列表
-      const windows = get().windows;
-      triggerAutoSave(windows);
-    },
-
     // 更新窗口（支持更新多个属性）
     updateWindow: (id, updates) => {
       set((state) => {
@@ -123,6 +121,74 @@ export const useWindowStore = create<WindowStore>()(
         }
       });
       // 触发自动保存，传递最新的窗口列表
+      const windows = get().windows;
+      triggerAutoSave(windows);
+    },
+
+    // 更新窗格
+    updatePane: (windowId, paneId, updates) => {
+      set((state) => {
+        const window = state.windows.find(w => w.id === windowId);
+        if (window) {
+          window.layout = updatePaneInLayout(window.layout, paneId, updates);
+          window.lastActiveAt = new Date().toISOString();
+        }
+      });
+      // 触发自动保存
+      const windows = get().windows;
+      triggerAutoSave(windows);
+    },
+
+    // 拆分窗格
+    splitPaneInWindow: (windowId, targetPaneId, direction, newPane) => {
+      set((state) => {
+        const window = state.windows.find(w => w.id === windowId);
+        if (window) {
+          const newLayout = splitPaneInLayout(window.layout, targetPaneId, direction, newPane);
+          if (newLayout) {
+            window.layout = newLayout;
+            window.activePaneId = newPane.id; // 激活新窗格
+            window.lastActiveAt = new Date().toISOString();
+          }
+        }
+      });
+      // 触发自动保存
+      const windows = get().windows;
+      triggerAutoSave(windows);
+    },
+
+    // 关闭窗格
+    closePaneInWindow: (windowId, paneId) => {
+      set((state) => {
+        const window = state.windows.find(w => w.id === windowId);
+        if (window) {
+          const newLayout = closePaneInLayout(window.layout, paneId);
+          if (newLayout) {
+            window.layout = newLayout;
+            // 如果关闭的是当前激活的窗格，切换到第一个窗格
+            if (window.activePaneId === paneId) {
+              const panes = getAllPanes(newLayout);
+              window.activePaneId = panes[0]?.id || '';
+            }
+            window.lastActiveAt = new Date().toISOString();
+          }
+        }
+      });
+      // 触发自动保存
+      const windows = get().windows;
+      triggerAutoSave(windows);
+    },
+
+    // 设置激活的窗格
+    setActivePane: (windowId, paneId) => {
+      set((state) => {
+        const window = state.windows.find(w => w.id === windowId);
+        if (window) {
+          window.activePaneId = paneId;
+          window.lastActiveAt = new Date().toISOString();
+        }
+      });
+      // 触发自动保存
       const windows = get().windows;
       triggerAutoSave(windows);
     },
@@ -222,9 +288,12 @@ export const useWindowStore = create<WindowStore>()(
       return get().windows.find(w => w.id === id);
     },
 
-    // 根据状态筛选窗口
-    getWindowsByStatus: (status) => {
-      return get().windows.filter(w => w.status === status);
+    // 根据 ID 查找窗格
+    getPaneById: (windowId, paneId) => {
+      const window = get().windows.find(w => w.id === windowId);
+      if (!window) return undefined;
+      const paneNode = findPaneNode(window.layout, paneId);
+      return paneNode?.pane;
     },
 
     // 获取未归档的窗口
