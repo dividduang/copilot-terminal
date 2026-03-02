@@ -5,6 +5,7 @@ import { zhCN } from 'date-fns/locale';
 import { FolderOpen, Trash2, Play, Pause, Loader2, Archive, ArchiveRestore } from 'lucide-react';
 import { Window, WindowStatus } from '../types/window';
 import { getStatusColor, getStatusLabel } from '../utils/statusHelpers';
+import { getAllPanes, getAggregatedStatus, getPaneCount } from '../utils/layoutHelpers';
 
 interface WindowCardProps {
   window: Window;
@@ -79,9 +80,17 @@ export const WindowCard = React.memo<WindowCardProps>(({
   onArchive,
   onUnarchive
 }) => {
+  // 获取窗口的聚合状态和窗格信息
+  const aggregatedStatus = useMemo(() => getAggregatedStatus(window.layout), [window.layout]);
+  const paneCount = useMemo(() => getPaneCount(window.layout), [window.layout]);
+  const panes = useMemo(() => getAllPanes(window.layout), [window.layout]);
+
+  // 获取第一个窗格的工作目录作为显示
+  const workingDirectory = useMemo(() => panes[0]?.cwd || '', [panes]);
+
   // 缓存状态色和标签
-  const statusColor = useMemo(() => getStatusColor(window.status), [window.status]);
-  const statusLabel = useMemo(() => getStatusLabel(window.status), [window.status]);
+  const statusColor = useMemo(() => getStatusColor(aggregatedStatus), [aggregatedStatus]);
+  const statusLabel = useMemo(() => getStatusLabel(aggregatedStatus), [aggregatedStatus]);
 
   // 缓存格式化的时间
   const formattedTime = useMemo(() => {
@@ -100,14 +109,14 @@ export const WindowCard = React.memo<WindowCardProps>(({
 
   // 缓存截断后的路径
   const truncatedPath = useMemo(
-    () => truncatePath(window.workingDirectory),
-    [window.workingDirectory]
+    () => workingDirectory ? truncatePath(workingDirectory) : '',
+    [workingDirectory]
   );
 
   // 缓存 aria-label
   const ariaLabel = useMemo(
-    () => `${window.name}, 状态: ${statusLabel}, 工作目录: ${window.workingDirectory}`,
-    [window.name, statusLabel, window.workingDirectory]
+    () => `${window.name}, 状态: ${statusLabel}, 工作目录: ${workingDirectory}, ${paneCount} 个窗格`,
+    [window.name, statusLabel, workingDirectory, paneCount]
   );
 
   // 稳定的键盘事件处理
@@ -140,7 +149,7 @@ export const WindowCard = React.memo<WindowCardProps>(({
       className="min-w-[280px] h-56 bg-[rgb(var(--card))] rounded-lg overflow-hidden cursor-pointer transition-all duration-200 ease-out hover:bg-[rgb(var(--card))]/80 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] active:bg-[rgb(var(--accent))]/30 active:shadow-inner outline-none focus:outline-none focus:ring-0 focus:border-[rgb(var(--border))] flex flex-col border border-[rgb(var(--border))] relative"
     >
       {/* 启动中加载遮罩 */}
-      {window.status === WindowStatus.Restoring && (
+      {aggregatedStatus === WindowStatus.Restoring && (
         <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-10 flex flex-col items-center justify-center gap-3 rounded-lg transition-opacity duration-200">
           <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
           <div className="text-white text-sm font-medium">正在启动终端...</div>
@@ -156,11 +165,18 @@ export const WindowCard = React.memo<WindowCardProps>(({
 
       {/* 卡片内容 - 占据剩余空间 */}
       <div className="flex-1 p-4 space-y-2 flex flex-col min-h-0">
-        {/* 第一行：窗口名称 + 状态标签 */}
+        {/* 第一行：窗口名称 + 窗格数量 + 状态标签 */}
         <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold text-[rgb(var(--foreground))] truncate flex-1">
-            {window.name}
-          </h3>
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <h3 className="text-base font-semibold text-[rgb(var(--foreground))] truncate">
+              {window.name}
+            </h3>
+            {paneCount > 1 && (
+              <span className="text-xs text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded flex-shrink-0">
+                {paneCount} 个窗格
+              </span>
+            )}
+          </div>
           <span className="text-xs text-[rgb(var(--muted-foreground))] ml-2 flex-shrink-0">
             {statusLabel}
           </span>
@@ -182,7 +198,7 @@ export const WindowCard = React.memo<WindowCardProps>(({
                 className="bg-[rgb(var(--card))] text-[rgb(var(--foreground))] px-3 py-2 rounded-lg text-sm max-w-md break-all z-50 shadow-xl border border-[rgb(var(--border))]"
                 sideOffset={5}
               >
-                {window.workingDirectory}
+                {workingDirectory}
               </Tooltip.Content>
             </Tooltip.Portal>
           </Tooltip.Root>
