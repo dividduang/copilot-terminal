@@ -137,8 +137,17 @@ export const WindowCard = React.memo<WindowCardProps>(({
       onClick={onClick}
       onKeyDown={handleKeyDown}
       aria-label={ariaLabel}
-      className="min-w-[280px] h-56 bg-[rgb(var(--card))] rounded-lg overflow-hidden cursor-pointer transition-all duration-200 ease-out hover:bg-[rgb(var(--card))]/80 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] active:bg-[rgb(var(--accent))]/30 active:shadow-inner outline-none focus:outline-none focus:ring-0 focus:border-[rgb(var(--border))] flex flex-col border border-[rgb(var(--border))]"
+      className="min-w-[280px] h-56 bg-[rgb(var(--card))] rounded-lg overflow-hidden cursor-pointer transition-all duration-200 ease-out hover:bg-[rgb(var(--card))]/80 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] active:bg-[rgb(var(--accent))]/30 active:shadow-inner outline-none focus:outline-none focus:ring-0 focus:border-[rgb(var(--border))] flex flex-col border border-[rgb(var(--border))] relative"
     >
+      {/* 启动中加载遮罩 */}
+      {window.status === WindowStatus.Restoring && (
+        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-10 flex flex-col items-center justify-center gap-3 rounded-lg transition-opacity duration-200">
+          <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+          <div className="text-white text-sm font-medium">正在启动终端...</div>
+          <div className="text-zinc-400 text-xs">请稍候</div>
+        </div>
+      )}
+
       {/* 圆弧形彩色顶部线条 (4px 高度) */}
       <div
         data-testid="status-bar"
