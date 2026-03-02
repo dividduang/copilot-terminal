@@ -29,6 +29,7 @@ try {
 export class ProcessManager extends EventEmitter implements IProcessManager {
   private processes: Map<number, ProcessInfo>;
   private ptys: Map<number, any>;
+  private ptyDisposables: Map<number, Array<{ dispose: () => void }>>;
   private nextPid: number;
   private statusDetector: IStatusDetector;
 
@@ -36,6 +37,7 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     super();
     this.processes = new Map();
     this.ptys = new Map();
+    this.ptyDisposables = new Map();
     this.nextPid = 1000;  // Start from 1000 for mock PIDs
     this.statusDetector = new StatusDetectorImpl();
     this.statusDetector.startPolling();
@@ -82,14 +84,25 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     // Start tracking this PID before registering listeners (avoids race condition)
     this.statusDetector.trackPid(pid);
 
-    // Register PTY listeners for status detection
-    ptyProcess.onData((data: string) => {
+    // Register PTY listeners for status detection and save disposables
+    const disposables: Array<{ dispose: () => void }> = [];
+
+    const onDataDisposable = ptyProcess.onData((data: string) => {
       this.statusDetector.onPtyData(pid, data);
     });
+    if (onDataDisposable && typeof onDataDisposable.dispose === 'function') {
+      disposables.push(onDataDisposable);
+    }
 
-    ptyProcess.onExit((exitCode: number) => {
+    const onExitDisposable = ptyProcess.onExit((exitCode: number) => {
       this.statusDetector.onProcessExit(pid, exitCode);
     });
+    if (onExitDisposable && typeof onExitDisposable.dispose === 'function') {
+      disposables.push(onExitDisposable);
+    }
+
+    // Save disposables for cleanup
+    this.ptyDisposables.set(pid, disposables);
 
     // Emit process-created event
     this.emit('process-created', processInfo);
@@ -111,6 +124,19 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
 
     if (processInfo.status === ProcessStatus.Exited) {
       throw new Error(`Process already exited: ${pid}`);
+    }
+
+    // 清理 PTY 事件监听器
+    const disposables = this.ptyDisposables.get(pid);
+    if (disposables) {
+      disposables.forEach(d => {
+        try {
+          d.dispose();
+        } catch (error) {
+          // 忽略清理错误
+        }
+      });
+      this.ptyDisposables.delete(pid);
     }
 
     // 实际终止 PTY 进程（node-pty 会自动终止子进程树）
@@ -230,6 +256,18 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     // 先停止状态检测器，避免在清理过程中触发检测
     this.statusDetector.destroy();
 
+    // 清理所有 PTY 事件监听器
+    for (const [pid, disposables] of this.ptyDisposables.entries()) {
+      disposables.forEach(d => {
+        try {
+          d.dispose();
+        } catch (error) {
+          // 忽略清理错误
+        }
+      });
+    }
+    this.ptyDisposables.clear();
+
     // 收集所有需要终止的 PTY 进程
     const killPromises: Promise<void>[] = [];
 
@@ -237,11 +275,6 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
       if (pty && typeof pty.kill === 'function') {
         const killPromise = new Promise<void>((resolve) => {
           try {
-            // 监听进程退出事件
-            const exitHandler = () => {
-              resolve();
-            };
-
             // 设置超时，防止永久等待
             const timeout = setTimeout(() => {
               resolve();
@@ -249,7 +282,7 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
             timeout.unref(); // 不阻止进程退出
 
             // 监听退出事件
-            pty.onExit(() => {
+            const onExitDisposable = pty.onExit(() => {
               clearTimeout(timeout);
               resolve();
             });
@@ -257,6 +290,17 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
             // Windows 上使用 SIGKILL 强制终止，其他平台使用 SIGTERM
             const signal = process.platform === 'win32' ? 'SIGKILL' : 'SIGTERM';
             pty.kill(signal);
+
+            // 清理 onExit 监听器
+            if (onExitDisposable && typeof onExitDisposable.dispose === 'function') {
+              setTimeout(() => {
+                try {
+                  onExitDisposable.dispose();
+                } catch (error) {
+                  // 忽略
+                }
+              }, 600);
+            }
           } catch (error) {
             // 忽略错误，因为进程可能已经退出
             if (process.env.NODE_ENV === 'development') {
