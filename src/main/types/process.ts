@@ -5,6 +5,7 @@ export interface TerminalConfig {
   env?: Record<string, string>;
   name?: string;  // 窗口名称
   windowId?: string;  // 关联的窗口 ID
+  paneId?: string;  // 关联的窗格 ID（用于拆分功能）
 }
 
 // 进程句柄
@@ -27,6 +28,7 @@ export interface ProcessInfo {
   workingDirectory: string;
   command?: string;
   windowId?: string;  // 关联的窗口 ID
+  paneId?: string;  // 关联的窗格 ID
 }
 
 // ProcessManager 接口
@@ -35,7 +37,7 @@ export interface IProcessManager {
   killProcess(pid: number): Promise<void>;
   getProcessStatus(pid: number): ProcessInfo | null;
   listProcesses(): ProcessInfo[];
-  getWindowStatus(windowId: string): Promise<import('../../renderer/types/window').WindowStatus>;
+  getPaneStatus(windowId: string, paneId: string): Promise<import('../../renderer/types/window').WindowStatus>;
   subscribeStatusChange(callback: (pid: number, status: import('../../renderer/types/window').WindowStatus) => void): void;
   destroy(): Promise<void>;
 }

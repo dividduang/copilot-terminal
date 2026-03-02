@@ -30,18 +30,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.removeListener('window-status-changed', callback),
 
   // PTY I/O
-  ptyWrite: (windowId: string, data: string) =>
-    ipcRenderer.invoke('pty-write', { windowId, data }),
-  ptyResize: (windowId: string, cols: number, rows: number) =>
-    ipcRenderer.invoke('pty-resize', { windowId, cols, rows }),
+  ptyWrite: (windowId: string, paneId: string | undefined, data: string) =>
+    ipcRenderer.invoke('pty-write', { windowId, paneId, data }),
+  ptyResize: (windowId: string, paneId: string | undefined, cols: number, rows: number) =>
+    ipcRenderer.invoke('pty-resize', { windowId, paneId, cols, rows }),
   getPtyHistory: (windowId: string) =>
     ipcRenderer.invoke('get-pty-history', { windowId }),
-  onPtyData: (callback: (event: unknown, payload: { windowId: string; data: string }) => void) => {
+  onPtyData: (callback: (event: unknown, payload: { windowId: string; paneId?: string; data: string }) => void) => {
     ipcRenderer.on('pty-data', callback);
   },
-  offPtyData: (callback: (event: unknown, payload: { windowId: string; data: string }) => void) => {
+  offPtyData: (callback: (event: unknown, payload: { windowId: string; paneId?: string; data: string }) => void) => {
     ipcRenderer.removeListener('pty-data', callback);
   },
+
+  // Pane management
+  splitPane: (config: unknown) =>
+    ipcRenderer.invoke('split-pane', config),
+  closePane: (windowId: string, paneId: string) =>
+    ipcRenderer.invoke('close-pane', { windowId, paneId }),
 
   // View switching
   switchToTerminalView: (windowId: string) =>

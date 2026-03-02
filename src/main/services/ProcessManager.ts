@@ -77,6 +77,7 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
       workingDirectory: config.workingDirectory,
       command,
       windowId: config.windowId,
+      paneId: config.paneId,
     };
     this.processes.set(pid, processInfo);
     this.ptys.set(pid, ptyProcess);
@@ -187,12 +188,14 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
   }
 
   /**
-   * 获取窗口状态（通过 windowId）
+   * 获取窗格状态（通过 windowId 和 paneId）
    */
-  async getWindowStatus(windowId: string): Promise<WindowStatus> {
-    const processInfo = Array.from(this.processes.values()).find(p => p.windowId === windowId);
+  async getPaneStatus(windowId: string, paneId: string): Promise<WindowStatus> {
+    const processInfo = Array.from(this.processes.values()).find(
+      p => p.windowId === windowId && p.paneId === paneId
+    );
     if (!processInfo) {
-      throw new Error(`Window not found: ${windowId}`);
+      throw new Error(`Pane not found: ${windowId}/${paneId}`);
     }
     return this.statusDetector.detectStatus(processInfo.pid);
   }

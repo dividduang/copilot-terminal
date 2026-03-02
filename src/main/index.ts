@@ -660,13 +660,15 @@ function registerIPCHandlers() {
   });
 
   // PTY 数据写入（用户输入 → PTY 进程）
-  ipcMain.handle('pty-write', async (_event, { windowId, data }: { windowId: string; data: string }) => {
+  ipcMain.handle('pty-write', async (_event, { windowId, paneId, data }: { windowId: string; paneId?: string; data: string }) => {
     try {
       if (!processManager) {
         throw new Error('ProcessManager not initialized');
       }
       const processes = processManager.listProcesses();
-      const found = processes.find(p => p.windowId === windowId);
+      const found = processes.find(p =>
+        p.windowId === windowId && (paneId ? p.paneId === paneId : true)
+      );
       if (found) {
         processManager.writeToPty(found.pid, data);
       }
@@ -678,13 +680,15 @@ function registerIPCHandlers() {
   });
 
   // PTY resize
-  ipcMain.handle('pty-resize', async (_event, { windowId, cols, rows }: { windowId: string; cols: number; rows: number }) => {
+  ipcMain.handle('pty-resize', async (_event, { windowId, paneId, cols, rows }: { windowId: string; paneId?: string; cols: number; rows: number }) => {
     try {
       if (!processManager) {
         throw new Error('ProcessManager not initialized');
       }
       const processes = processManager.listProcesses();
-      const found = processes.find(p => p.windowId === windowId);
+      const found = processes.find(p =>
+        p.windowId === windowId && (paneId ? p.paneId === paneId : true)
+      );
       if (found) {
         processManager.resizePty(found.pid, cols, rows);
       }
@@ -705,6 +709,41 @@ function registerIPCHandlers() {
         console.error('Failed to get PTY history:', error);
       }
       return [];
+    }
+  });
+
+  // 拆分窗格（创建新的 PTY 进程）
+  ipcMain.handle('split-pane', async (_event, config: TerminalConfig) => {
+    try {
+      if (!processManager) {
+        throw new Error('ProcessManager not initialized');
+      }
+      const handle = await processManager.spawnTerminal(config);
+      return { pid: handle.pid };
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to split pane:', error);
+      }
+      throw error;
+    }
+  });
+
+  // 关闭窗格（终止 PTY 进程）
+  ipcMain.handle('close-pane', async (_event, { windowId, paneId }: { windowId: string; paneId: string }) => {
+    try {
+      if (!processManager) {
+        throw new Error('ProcessManager not initialized');
+      }
+      const processes = processManager.listProcesses();
+      const found = processes.find(p => p.windowId === windowId && p.paneId === paneId);
+      if (found) {
+        await processManager.killProcess(found.pid);
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Failed to close pane:', error);
+      }
+      throw error;
     }
   });
 
