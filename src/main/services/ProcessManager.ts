@@ -314,28 +314,6 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
         }
       }
     }
-        } catch (error) {
-          // 忽略错误，因为进程可能已经退出
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`[ProcessManager] PTY process ${pid} already exited or kill failed`);
-          }
-        }
-      }
-    }
-
-    // Windows 特殊处理：使用 taskkill 强制终止所有子进程
-    if (process.platform === 'win32' && pidsToKill.length > 0) {
-      const { execSync } = require('child_process');
-      for (const pid of pidsToKill) {
-        try {
-          // /F 强制终止, /T 终止子进程树
-          execSync(`taskkill /F /T /PID ${pid}`, { stdio: 'ignore' });
-          console.log(`[ProcessManager] Force killed process tree ${pid} with taskkill`);
-        } catch (error) {
-          // 进程可能已经不存在，忽略错误
-        }
-      }
-    }
 
     // 不等待进程退出，直接清理
     this.processes.clear();
