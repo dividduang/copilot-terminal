@@ -79,8 +79,12 @@ function createWindow() {
 
   // 🎯 等待渲染进程明确通知"我准备好了"
   // 使用淡入效果掩盖任何系统级的白色闪烁
+  let rendererReady = false;
+
   ipcMain.once('renderer-ready', () => {
+    rendererReady = true;
     if (mainWindow && !mainWindow.isDestroyed()) {
+      console.log('[ELECTRON] Renderer ready, showing window');
       // 1. 先设置窗口为完全透明
       mainWindow.setOpacity(0);
 
@@ -106,6 +110,18 @@ function createWindow() {
       }, 50);
     }
   });
+
+  // 超时保护：如果 5 秒后还没收到 renderer-ready，强制显示窗口
+  setTimeout(() => {
+    if (!rendererReady && mainWindow && !mainWindow.isDestroyed()) {
+      console.log('[ELECTRON] Renderer ready timeout, forcing window show');
+      mainWindow.setOpacity(1);
+      mainWindow.maximize();
+      mainWindow.show();
+      // 打开开发者工具以便调试
+      mainWindow.webContents.openDevTools();
+    }
+  }, 5000);
 
   // 开发环境加载 dev server,生产环境加载打包文件
   if (process.env.NODE_ENV === 'development') {
