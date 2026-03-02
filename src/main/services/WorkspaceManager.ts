@@ -1,6 +1,7 @@
 import fs from 'fs-extra';
 import path from 'path';
 import { app } from 'electron';
+import { randomUUID } from 'crypto';
 import { Workspace, Settings } from '../types/workspace';
 
 /**
@@ -118,8 +119,6 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
    * 迁移旧版工作区到新版
    */
   private migrateWorkspace(oldWorkspace: any): Workspace {
-    const { v4: uuidv4 } = require('uuid');
-
     const migratedWindows = oldWorkspace.windows.map((oldWindow: any) => {
       // 如果已经是新版格式，直接返回
       if (oldWindow.layout) {
@@ -127,7 +126,7 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
       }
 
       // 迁移旧版窗口到新版
-      const paneId = uuidv4();
+      const paneId = randomUUID();
       const pane = {
         id: paneId,
         cwd: oldWindow.workingDirectory,
