@@ -28,8 +28,14 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
   const terminalContainerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+  const isActiveRef = useRef(isActive); // 使用 ref 跟踪 isActive 状态
   const statusLabel = getStatusLabel(pane.status);
   const statusTextColor = getStatusTextColor(pane.status);
+
+  // 更新 isActive ref
+  useEffect(() => {
+    isActiveRef.current = isActive;
+  }, [isActive]);
 
   // 初始化 xterm.js
   useEffect(() => {
@@ -80,7 +86,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
 
     // 监听用户输入
     const disposable = terminal.onData((data) => {
-      if (window.electronAPI && isActive) {
+      if (window.electronAPI && isActiveRef.current) {
         window.electronAPI.ptyWrite(windowId, pane.id, data);
       }
     });
@@ -103,7 +109,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
       window.electronAPI.onPtyData(handlePtyData);
 
       // 加载历史输出（如果有）
-      window.electronAPI.getPtyHistory(paneId).then((history) => {
+      window.electronAPI.getPtyHistory(pane.id).then((history) => {
         if (history && history.length > 0) {
           for (const data of history) {
             terminal.write(data);
@@ -138,7 +144,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
       window.removeEventListener('resize', handleResize);
       terminal.dispose();
     };
-  }, [windowId, pane.id, isActive]);
+  }, [windowId, pane.id]); // 移除 isActive 依赖
 
   // 处理点击激活
   const handleClick = useCallback(() => {
