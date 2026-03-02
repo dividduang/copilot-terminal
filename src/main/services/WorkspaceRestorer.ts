@@ -87,8 +87,8 @@ export class WorkspaceRestorerImpl implements IWorkspaceRestorer {
 
       // 启动终端进程
       const handle = await this.processManager.spawnTerminal({
-        workingDirectory: window.workingDirectory,
-        command: window.command,
+        workingDirectory: (window as any).workingDirectory || process.cwd(),
+        command: (window as any).command || '',
         windowId: window.id,
       });
 

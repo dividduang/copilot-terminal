@@ -8,7 +8,7 @@ import { StatusPoller } from './services/StatusPoller';
 import { ViewSwitcherImpl } from './services/ViewSwitcher';
 import { WorkspaceManagerImpl } from './services/WorkspaceManager';
 import { AutoSaveManagerImpl } from './services/AutoSaveManager';
-import { WorkspaceRestorerImpl } from './services/WorkspaceRestorer';
+// import { WorkspaceRestorerImpl } from './services/WorkspaceRestorer';
 import { TerminalConfig } from './types/process';
 import { WindowStatus } from '../renderer/types/window';
 import { Window } from '../renderer/types/window';
@@ -20,7 +20,7 @@ let statusPoller: StatusPoller | null = null;
 let viewSwitcher: ViewSwitcherImpl | null = null;
 let workspaceManager: WorkspaceManagerImpl | null = null;
 let autoSaveManager: AutoSaveManagerImpl | null = null;
-let workspaceRestorer: WorkspaceRestorerImpl | null = null;
+// let workspaceRestorer: WorkspaceRestorerImpl | null = null;
 let windowCounter = 0; // 用于生成唯一的窗口编号
 let currentWorkspace: Workspace | null = null; // 缓存当前工作区状态
 
@@ -227,12 +227,9 @@ function createWindow() {
       ipcMain.removeHandler('recover-from-backup');
       console.log('[ELECTRON] IPC handlers cleaned up');
 
-      // 强制退出（缩短超时时间）
-      console.log('[ELECTRON] Scheduling force exit in 300ms...');
-      setTimeout(() => {
-        console.log('[ELECTRON] Force exit timeout reached, exiting now');
-        process.exit(0);
-      }, 300); // 从 1000ms 改为 300ms
+      // 直接强制退出，不等待
+      console.log('[ELECTRON] Exiting process now...');
+      process.exit(0);
     }
   });
 }
@@ -262,7 +259,7 @@ app.whenReady().then(async () => {
     viewSwitcher = new ViewSwitcherImpl(mainWindow);
 
     // 初始化 WorkspaceRestorer
-    workspaceRestorer = new WorkspaceRestorerImpl(processManager, mainWindow);
+    // workspaceRestorer = new WorkspaceRestorerImpl(processManager, mainWindow);
   }
 
   // 加载工作区并恢复窗口
