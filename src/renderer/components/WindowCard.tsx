@@ -85,6 +85,9 @@ export const WindowCard = React.memo<WindowCardProps>(({
   const paneCount = useMemo(() => getPaneCount(window.layout), [window.layout]);
   const panes = useMemo(() => getAllPanes(window.layout), [window.layout]);
 
+  // 调试日志
+  console.log(`[WindowCard ${window.name}] aggregatedStatus:`, aggregatedStatus, 'panes:', panes.map(p => ({ id: p.id, status: p.status })));
+
   // 获取第一个窗格的工作目录作为显示
   const workingDirectory = useMemo(() => panes[0]?.cwd || '', [panes]);
 
