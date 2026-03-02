@@ -211,11 +211,15 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
   subscribePtyData(pid: number, callback: (data: string) => void): () => void {
     const pty = this.ptys.get(pid);
     if (!pty) return () => {};
-    // Store callback for cleanup
-    const handler = (data: string) => callback(data);
-    pty.onData(handler);
+
+    // node-pty 的 onData 返回一个 disposable 对象
+    const disposable = pty.onData(callback);
+
+    // 返回清理函数
     return () => {
-      // Mock PTY doesn't support removeListener, no-op
+      if (disposable && typeof disposable.dispose === 'function') {
+        disposable.dispose();
+      }
     };
   }
 

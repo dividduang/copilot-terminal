@@ -28,6 +28,9 @@ let currentWorkspace: Workspace | null = null; // 缓存当前工作区状态
 const ptyOutputCache = new Map<string, string[]>();
 const MAX_CACHE_SIZE = 1000; // 每个窗口最多缓存 1000 条输出
 
+// PTY 数据订阅清理函数：windowId -> 清理函数
+const ptyDataUnsubscribers = new Map<string, () => void>();
+
 // 退出标志，防止重复执行退出逻辑
 let isQuitting = false;
 
@@ -161,6 +164,13 @@ function createWindow() {
 
         // 停止状态轮询
         statusPoller?.stopPolling();
+
+        // 取消所有 PTY 数据订阅
+        for (const [windowId, unsubscribe] of ptyDataUnsubscribers.entries()) {
+          unsubscribe();
+        }
+        ptyDataUnsubscribers.clear();
+        ptyOutputCache.clear();
 
         // 清理所有 PTY 进程（等待进程完全终止）
         if (processManager) {
@@ -351,7 +361,7 @@ function registerIPCHandlers() {
       ptyOutputCache.set(windowId, []);
 
       // 订阅 PTY 数据，推送到渲染进程并缓存
-      processManager.subscribePtyData(handle.pid, (data: string) => {
+      const unsubscribe = processManager.subscribePtyData(handle.pid, (data: string) => {
         // 缓存输出
         const cache = ptyOutputCache.get(windowId);
         if (cache) {
@@ -367,6 +377,9 @@ function registerIPCHandlers() {
           mainWindow.webContents.send('pty-data', { windowId, data });
         }
       });
+
+      // 保存清理函数
+      ptyDataUnsubscribers.set(windowId, unsubscribe);
 
       return window;
     } catch (error) {
@@ -420,7 +433,7 @@ function registerIPCHandlers() {
       ptyOutputCache.set(windowId, []);
 
       // 订阅 PTY 数据，推送到渲染进程并缓存
-      processManager.subscribePtyData(handle.pid, (data: string) => {
+      const unsubscribe = processManager.subscribePtyData(handle.pid, (data: string) => {
         // 缓存输出
         const cache = ptyOutputCache.get(windowId);
         if (cache) {
@@ -436,6 +449,9 @@ function registerIPCHandlers() {
           mainWindow.webContents.send('pty-data', { windowId, data });
         }
       });
+
+      // 保存清理函数
+      ptyDataUnsubscribers.set(windowId, unsubscribe);
 
       return {
         pid: handle.pid,
@@ -528,6 +544,17 @@ function registerIPCHandlers() {
       if (!processManager) {
         throw new Error('ProcessManager not initialized');
       }
+
+      // 取消订阅 PTY 数据
+      const unsubscribe = ptyDataUnsubscribers.get(windowId);
+      if (unsubscribe) {
+        unsubscribe();
+        ptyDataUnsubscribers.delete(windowId);
+      }
+
+      // 清理输出缓存
+      ptyOutputCache.delete(windowId);
+
       // 查找对应进程并终止
       const processes = processManager.listProcesses();
       const found = processes.find(p => p.windowId === windowId);
@@ -567,6 +594,13 @@ function registerIPCHandlers() {
             console.log(`Process ${found.pid} already exited`);
           }
         }
+      }
+
+      // 取消订阅 PTY 数据
+      const unsubscribe = ptyDataUnsubscribers.get(windowId);
+      if (unsubscribe) {
+        unsubscribe();
+        ptyDataUnsubscribers.delete(windowId);
       }
 
       // 清理 PTY 输出缓存
