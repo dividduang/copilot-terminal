@@ -415,8 +415,8 @@ function registerIPCHandlers() {
         lastActiveAt: new Date().toISOString(),
       };
 
-      // 将新窗口添加到 StatusPoller
-      statusPoller?.addWindow(windowId, handle.pid);
+      // 将新窗格添加到 StatusPoller
+      statusPoller?.addWindow(windowId, handle.pid, paneId);
 
       // 初始化输出缓存（使用 paneId）
       ptyOutputCache.set(paneId, []);
@@ -488,8 +488,8 @@ function registerIPCHandlers() {
         throw new Error('终端进程启动失败');
       }
 
-      // 将窗口添加到 StatusPoller
-      statusPoller?.addWindow(windowId, handle.pid);
+      // 将窗格添加到 StatusPoller
+      statusPoller?.addWindow(windowId, handle.pid, paneId);
 
       // 初始化输出缓存（如果还没有，使用 paneId）
       if (paneId && !ptyOutputCache.has(paneId)) {

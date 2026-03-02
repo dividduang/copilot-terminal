@@ -6,6 +6,13 @@ export interface WindowStatusChangedPayload {
   timestamp: string;
 }
 
+export interface PaneStatusChangedPayload {
+  windowId: string;
+  paneId: string;
+  status: WindowStatus;
+  timestamp: string;
+}
+
 /**
  * 订阅窗口状态变化事件
  * @param callback 状态变化回调，接收 windowId 和新状态
@@ -22,5 +29,24 @@ export function subscribeToWindowStatusChange(
 
   return () => {
     window.electronAPI.offWindowStatusChanged(handler);
+  };
+}
+
+/**
+ * 订阅窗格状态变化事件
+ * @param callback 状态变化回调，接收 windowId, paneId 和新状态
+ * @returns 取消订阅函数
+ */
+export function subscribeToPaneStatusChange(
+  callback: (windowId: string, paneId: string, status: WindowStatus) => void
+): () => void {
+  const handler = (_event: unknown, payload: PaneStatusChangedPayload) => {
+    callback(payload.windowId, payload.paneId, payload.status);
+  };
+
+  window.electronAPI.onPaneStatusChanged(handler);
+
+  return () => {
+    window.electronAPI.offPaneStatusChanged(handler);
   };
 }

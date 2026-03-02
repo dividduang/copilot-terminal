@@ -28,6 +28,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   offWindowStatusChanged: (callback: (event: unknown, payload: unknown) => void) =>
     ipcRenderer.removeListener('window-status-changed', callback),
+  onPaneStatusChanged: (callback: (event: unknown, payload: unknown) => void) => {
+    ipcRenderer.on('pane-status-changed', callback);
+  },
+  offPaneStatusChanged: (callback: (event: unknown, payload: unknown) => void) =>
+    ipcRenderer.removeListener('pane-status-changed', callback),
 
   // PTY I/O
   ptyWrite: (windowId: string, paneId: string | undefined, data: string) =>

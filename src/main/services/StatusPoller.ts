@@ -2,7 +2,9 @@ import { BrowserWindow } from 'electron';
 import { IStatusDetector } from './StatusDetector';
 import { WindowStatus } from '../../renderer/types/window';
 
-interface TrackedWindow {
+interface TrackedPane {
+  windowId: string;
+  paneId: string;
   pid: number;
   isActive: boolean;
   lastStatus: WindowStatus;
@@ -10,13 +12,13 @@ interface TrackedWindow {
 }
 
 /**
- * StatusPoller - 窗口状态轮询服务
+ * StatusPoller - 窗格状态轮询服务
  *
- * 管理所有窗口的状态轮询，活跃窗口每 1s 检测，非活跃窗口每 5s 检测。
- * 状态变化时通过 IPC 推送 window-status-changed 事件到渲染进程。
+ * 管理所有窗格的状态轮询，活跃窗格每 1s 检测，非活跃窗格每 5s 检测。
+ * 状态变化时通过 IPC 推送 pane-status-changed 事件到渲染进程。
  */
 export class StatusPoller {
-  private trackedWindows = new Map<string, TrackedWindow>();
+  private trackedPanes = new Map<string, TrackedPane>(); // key: paneId
   private pollingInterval: ReturnType<typeof setInterval> | null = null;
   private statusDetector: IStatusDetector;
   private mainWindow: BrowserWindow;
@@ -49,10 +51,12 @@ export class StatusPoller {
   }
 
   /**
-   * 添加窗口到轮询列表
+   * 添加窗格到轮询列表
    */
-  addWindow(windowId: string, pid: number): void {
-    this.trackedWindows.set(windowId, {
+  addPane(windowId: string, paneId: string, pid: number): void {
+    this.trackedPanes.set(paneId, {
+      windowId,
+      paneId,
       pid,
       isActive: false,
       lastStatus: WindowStatus.Restoring,
@@ -61,30 +65,72 @@ export class StatusPoller {
   }
 
   /**
-   * 从轮询列表移除窗口
+   * 从轮询列表移除窗格
    */
-  removeWindow(windowId: string): void {
-    this.trackedWindows.delete(windowId);
+  removePane(paneId: string): void {
+    this.trackedPanes.delete(paneId);
   }
 
   /**
-   * 标记活跃窗口（同时将其他窗口设为非活跃）
+   * 移除窗口的所有窗格
    */
-  setActiveWindow(windowId: string): void {
-    for (const tracked of this.trackedWindows.values()) {
+  removeWindow(windowId: string): void {
+    for (const [paneId, tracked] of this.trackedPanes.entries()) {
+      if (tracked.windowId === windowId) {
+        this.trackedPanes.delete(paneId);
+      }
+    }
+  }
+
+  /**
+   * 标记活跃窗格（同时将其他窗格设为非活跃）
+   */
+  setActivePane(paneId: string): void {
+    for (const tracked of this.trackedPanes.values()) {
       tracked.isActive = false;
     }
-    const tracked = this.trackedWindows.get(windowId);
+    const tracked = this.trackedPanes.get(paneId);
     if (tracked) {
       tracked.isActive = true;
     }
   }
 
   /**
-   * 获取当前跟踪的窗口数量（用于测试）
+   * 获取当前跟踪的窗格数量（用于测试）
+   */
+  getTrackedPaneCount(): number {
+    return this.trackedPanes.size;
+  }
+
+  /**
+   * 兼容旧接口：添加窗口（实际上是添加窗格）
+   * @deprecated 使用 addPane 代替
+   */
+  addWindow(windowId: string, pid: number, paneId?: string): void {
+    const actualPaneId = paneId || windowId; // 如果没有 paneId，使用 windowId 作为 paneId
+    this.addPane(windowId, actualPaneId, pid);
+  }
+
+  /**
+   * 兼容旧接口：设置活跃窗口
+   * @deprecated 使用 setActivePane 代替
+   */
+  setActiveWindow(windowId: string): void {
+    // 将该窗口的第一个窗格设为活跃
+    for (const tracked of this.trackedPanes.values()) {
+      if (tracked.windowId === windowId) {
+        this.setActivePane(tracked.paneId);
+        break;
+      }
+    }
+  }
+
+  /**
+   * 兼容旧接口：获取跟踪的窗口数量
+   * @deprecated 使用 getTrackedPaneCount 代替
    */
   getTrackedWindowCount(): number {
-    return this.trackedWindows.size;
+    return this.getTrackedPaneCount();
   }
 
   /**
@@ -100,8 +146,8 @@ export class StatusPoller {
   private poll(): void {
     const now = Date.now();
 
-    for (const [windowId, tracked] of this.trackedWindows.entries()) {
-      // 活跃窗口每 1s 检测，非活跃窗口每 5s 检测
+    for (const [paneId, tracked] of this.trackedPanes.entries()) {
+      // 活跃窗格每 1s 检测，非活跃窗格每 5s 检测
       const interval = tracked.isActive ? 1000 : 5000;
 
       if (now - tracked.lastCheckTime < interval) {
@@ -113,7 +159,7 @@ export class StatusPoller {
       this.statusDetector.detectStatus(tracked.pid).then((newStatus) => {
         if (newStatus !== tracked.lastStatus) {
           tracked.lastStatus = newStatus;
-          this.notifyStatusChange(windowId, newStatus);
+          this.notifyStatusChange(tracked.windowId, paneId, newStatus);
         }
       }).catch(() => {
         // 检测失败时忽略，下次轮询重试
@@ -124,9 +170,18 @@ export class StatusPoller {
   /**
    * 通过 IPC 推送状态变化事件到渲染进程
    */
-  private notifyStatusChange(windowId: string, status: WindowStatus): void {
+  private notifyStatusChange(windowId: string, paneId: string, status: WindowStatus): void {
     if (this.mainWindow.isDestroyed()) return;
 
+    // 发送新的 pane-status-changed 事件
+    this.mainWindow.webContents.send('pane-status-changed', {
+      windowId,
+      paneId,
+      status,
+      timestamp: new Date().toISOString(),
+    });
+
+    // 为了兼容性，也发送旧的 window-status-changed 事件
     this.mainWindow.webContents.send('window-status-changed', {
       windowId,
       status,

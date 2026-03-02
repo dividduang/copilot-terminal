@@ -10,12 +10,13 @@ import { useWindowStore } from './stores/windowStore';
 import { useViewSwitcher } from './hooks/useViewSwitcher';
 import { useWindowSwitcher } from './hooks/useWindowSwitcher';
 import { useWorkspaceRestore } from './hooks/useWorkspaceRestore';
-import { subscribeToWindowStatusChange } from './api/events';
+import { subscribeToWindowStatusChange, subscribeToPaneStatusChange } from './api/events';
 import { Window } from './types/window';
 
 function App() {
   const windows = useWindowStore((state) => state.windows);
   const updateWindowStatus = useWindowStore((state) => state.updateWindowStatus);
+  const updatePane = useWindowStore((state) => state.updatePane);
   const storeActiveWindowId = useWindowStore((state) => state.activeWindowId);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentTab, setCurrentTab] = useState<'active' | 'archived'>('active');
@@ -44,7 +45,7 @@ function App() {
   // 使用 store 的 activeWindowId，确保状态一致
   const activeWindowId = storeActiveWindowId;
 
-  // 订阅主进程推送的窗口状态变化事件
+  // 订阅主进程推送的窗口状态变化事件（兼容旧代码）
   useEffect(() => {
     const unsubscribe = subscribeToWindowStatusChange((windowId, status) => {
       updateWindowStatus(windowId, status);
@@ -53,6 +54,16 @@ function App() {
       unsubscribe();
     };
   }, [updateWindowStatus]);
+
+  // 订阅主进程推送的窗格状态变化事件
+  useEffect(() => {
+    const unsubscribe = subscribeToPaneStatusChange((windowId, paneId, status) => {
+      updatePane(windowId, paneId, { status });
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [updatePane]);
 
   const handleCreateWindow = useCallback(() => {
     setIsDialogOpen(true);
