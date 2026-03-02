@@ -73,6 +73,7 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
   /**
    * 加载工作区配置
    * 如果文件不存在或损坏，尝试从备份恢复
+   * 自动迁移旧版数据结构到新版
    */
   async loadWorkspace(): Promise<Workspace> {
     try {
@@ -82,6 +83,14 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
 
         // 校验数据格式
         if (this.validateWorkspace(workspace)) {
+          // 如果是旧版数据（version 1.0），迁移到新版
+          if (workspace.version === '1.0') {
+            console.log('Migrating workspace from version 1.0 to 2.0');
+            const migratedWorkspace = this.migrateWorkspace(workspace);
+            // 保存迁移后的数据
+            await this.saveWorkspace(migratedWorkspace);
+            return migratedWorkspace;
+          }
           return workspace;
         }
 
@@ -103,6 +112,54 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
         return this.getDefaultWorkspace();
       }
     }
+  }
+
+  /**
+   * 迁移旧版工作区到新版
+   */
+  private migrateWorkspace(oldWorkspace: any): Workspace {
+    const { v4: uuidv4 } = require('uuid');
+
+    const migratedWindows = oldWorkspace.windows.map((oldWindow: any) => {
+      // 如果已经是新版格式，直接返回
+      if (oldWindow.layout) {
+        return oldWindow;
+      }
+
+      // 迁移旧版窗口到新版
+      const paneId = uuidv4();
+      const pane = {
+        id: paneId,
+        cwd: oldWindow.workingDirectory,
+        command: oldWindow.command,
+        status: oldWindow.status,
+        pid: oldWindow.pid,
+        lastOutput: oldWindow.lastOutput,
+      };
+
+      const layout = {
+        type: 'pane' as const,
+        id: paneId,
+        pane,
+      };
+
+      return {
+        id: oldWindow.id,
+        name: oldWindow.name,
+        layout,
+        activePaneId: paneId,
+        createdAt: oldWindow.createdAt,
+        lastActiveAt: oldWindow.lastActiveAt,
+        archived: oldWindow.archived,
+      };
+    });
+
+    return {
+      version: '2.0',
+      windows: migratedWindows,
+      settings: oldWorkspace.settings,
+      lastSavedAt: oldWorkspace.lastSavedAt || '',
+    };
   }
 
   /**
@@ -211,6 +268,7 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
 
   /**
    * 校验工作区数据格式
+   * 支持旧版和新版数据结构
    */
   private validateWorkspace(workspace: any): workspace is Workspace {
     if (!workspace || typeof workspace !== 'object') {
@@ -233,13 +291,28 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
       }
       if (typeof window.id !== 'string' ||
           typeof window.name !== 'string' ||
-          typeof window.workingDirectory !== 'string' ||
-          typeof window.command !== 'string' ||
-          typeof window.status !== 'string' ||
-          (window.pid !== null && typeof window.pid !== 'number') ||
           typeof window.createdAt !== 'string' ||
           typeof window.lastActiveAt !== 'string') {
         return false;
+      }
+
+      // 检查是否是新版数据结构（有 layout 字段）
+      if (window.layout) {
+        // 新版数据结构：验证 layout 和 activePaneId
+        if (!this.validateLayoutNode(window.layout)) {
+          return false;
+        }
+        if (typeof window.activePaneId !== 'string') {
+          return false;
+        }
+      } else {
+        // 旧版数据结构：验证旧字段
+        if (typeof window.workingDirectory !== 'string' ||
+            typeof window.command !== 'string' ||
+            typeof window.status !== 'string' ||
+            (window.pid !== null && typeof window.pid !== 'number')) {
+          return false;
+        }
       }
     }
 
@@ -258,8 +331,8 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
       return false;
     }
 
-    // 版本检查（当前只支持 1.0）
-    if (workspace.version !== '1.0') {
+    // 版本检查（支持 1.0 和 2.0）
+    if (workspace.version !== '1.0' && workspace.version !== '2.0') {
       console.warn(`Unsupported workspace version: ${workspace.version}`);
       return false;
     }
@@ -268,11 +341,52 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
   }
 
   /**
+   * 验证布局节点
+   */
+  private validateLayoutNode(node: any): boolean {
+    if (!node || typeof node !== 'object') {
+      return false;
+    }
+
+    if (node.type === 'pane') {
+      // 验证 PaneNode
+      if (typeof node.id !== 'string' || !node.pane) {
+        return false;
+      }
+      const pane = node.pane;
+      if (typeof pane.id !== 'string' ||
+          typeof pane.cwd !== 'string' ||
+          typeof pane.command !== 'string' ||
+          typeof pane.status !== 'string' ||
+          (pane.pid !== null && typeof pane.pid !== 'number')) {
+        return false;
+      }
+      return true;
+    } else if (node.type === 'split') {
+      // 验证 SplitNode
+      if ((node.direction !== 'horizontal' && node.direction !== 'vertical') ||
+          !Array.isArray(node.sizes) ||
+          !Array.isArray(node.children)) {
+        return false;
+      }
+      // 递归验证子节点
+      for (const child of node.children) {
+        if (!this.validateLayoutNode(child)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
    * 获取默认工作区配置
    */
   private getDefaultWorkspace(): Workspace {
     return {
-      version: '1.0',
+      version: '2.0',
       windows: [],
       settings: {
         notificationsEnabled: true,
