@@ -3,6 +3,7 @@ import path from 'path';
 import { app } from 'electron';
 import { randomUUID } from 'crypto';
 import { Workspace, Settings } from '../types/workspace';
+import { LayoutNode, PaneNode, SplitNode, WindowStatus } from '../../renderer/types/window';
 
 /**
  * WorkspaceManager 接口
@@ -138,29 +139,28 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
   /**
    * 递归重置布局树中所有窗格的状态
    */
-  private resetLayoutPaneStates(layout: any): any {
+  private resetLayoutPaneStates(layout: LayoutNode): LayoutNode {
     if (layout.type === 'pane') {
       return {
         ...layout,
         pane: {
           ...layout.pane,
-          status: 'Paused',
+          status: WindowStatus.Paused,
           pid: null,
         },
       };
-    } else if (layout.type === 'split') {
+    } else {
       return {
         ...layout,
-        children: layout.children.map((child: any) => this.resetLayoutPaneStates(child)),
+        children: layout.children.map((child) => this.resetLayoutPaneStates(child)),
       };
     }
-    return layout;
   }
 
   /**
    * 迁移旧版工作区到新版
    */
-  private migrateWorkspace(oldWorkspace: any): Workspace {
+  private migrateWorkspace(oldWorkspace: Partial<Workspace> & { windows: any[] }): Workspace {
     const migratedWindows = oldWorkspace.windows.map((oldWindow: any) => {
       // 如果已经是新版格式，直接返回
       if (oldWindow.layout) {
@@ -178,7 +178,7 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
         lastOutput: oldWindow.lastOutput,
       };
 
-      const layout = {
+      const layout: PaneNode = {
         type: 'pane' as const,
         id: paneId,
         pane,
@@ -198,8 +198,13 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
     return {
       version: '2.0',
       windows: migratedWindows,
-      settings: oldWorkspace.settings,
-      lastSavedAt: oldWorkspace.lastSavedAt || '',
+      settings: oldWorkspace.settings || {
+        notificationsEnabled: true,
+        theme: 'dark' as const,
+        autoSave: true,
+        autoSaveInterval: 5,
+      },
+      lastSavedAt: oldWorkspace.lastSavedAt || new Date().toISOString(),
     };
   }
 
@@ -311,22 +316,24 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
    * 校验工作区数据格式
    * 支持旧版和新版数据结构
    */
-  private validateWorkspace(workspace: any): workspace is Workspace {
+  private validateWorkspace(workspace: unknown): workspace is Workspace {
     if (!workspace || typeof workspace !== 'object') {
       return false;
     }
 
+    const ws = workspace as Record<string, any>;
+
     // 检查必需字段
-    if (typeof workspace.version !== 'string') {
+    if (typeof ws.version !== 'string') {
       return false;
     }
 
-    if (!Array.isArray(workspace.windows)) {
+    if (!Array.isArray(ws.windows)) {
       return false;
     }
 
     // 验证每个窗口对象的基本结构
-    for (const window of workspace.windows) {
+    for (const window of ws.windows) {
       if (!window || typeof window !== 'object') {
         return false;
       }
@@ -357,12 +364,12 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
       }
     }
 
-    if (!workspace.settings || typeof workspace.settings !== 'object') {
+    if (!ws.settings || typeof ws.settings !== 'object') {
       return false;
     }
 
     // 检查 settings 字段
-    const settings = workspace.settings;
+    const settings = ws.settings;
     if (
       typeof settings.notificationsEnabled !== 'boolean' ||
       (settings.theme !== 'dark' && settings.theme !== 'light') ||
@@ -373,8 +380,8 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
     }
 
     // 版本检查（支持 1.0 和 2.0）
-    if (workspace.version !== '1.0' && workspace.version !== '2.0') {
-      console.warn(`Unsupported workspace version: ${workspace.version}`);
+    if (ws.version !== '1.0' && ws.version !== '2.0') {
+      console.warn(`Unsupported workspace version: ${ws.version}`);
       return false;
     }
 
@@ -384,17 +391,19 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
   /**
    * 验证布局节点
    */
-  private validateLayoutNode(node: any): boolean {
+  private validateLayoutNode(node: unknown): node is LayoutNode {
     if (!node || typeof node !== 'object') {
       return false;
     }
 
-    if (node.type === 'pane') {
+    const n = node as Record<string, any>;
+
+    if (n.type === 'pane') {
       // 验证 PaneNode
-      if (typeof node.id !== 'string' || !node.pane) {
+      if (typeof n.id !== 'string' || !n.pane) {
         return false;
       }
-      const pane = node.pane;
+      const pane = n.pane;
       if (typeof pane.id !== 'string' ||
           typeof pane.cwd !== 'string' ||
           typeof pane.command !== 'string' ||
@@ -403,15 +412,15 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
         return false;
       }
       return true;
-    } else if (node.type === 'split') {
+    } else if (n.type === 'split') {
       // 验证 SplitNode
-      if ((node.direction !== 'horizontal' && node.direction !== 'vertical') ||
-          !Array.isArray(node.sizes) ||
-          !Array.isArray(node.children)) {
+      if ((n.direction !== 'horizontal' && n.direction !== 'vertical') ||
+          !Array.isArray(n.sizes) ||
+          !Array.isArray(n.children)) {
         return false;
       }
       // 递归验证子节点
-      for (const child of node.children) {
+      for (const child of n.children) {
         if (!this.validateLayoutNode(child)) {
           return false;
         }

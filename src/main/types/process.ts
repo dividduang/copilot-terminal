@@ -1,3 +1,22 @@
+/**
+ * 统一的 PTY 接口
+ * 兼容 node-pty 的 IPty 接口和 mock 实现
+ */
+export interface IPty {
+  pid: number;
+  cols: number;
+  rows: number;
+  process: string;
+  handleFlowControl: boolean;
+
+  write(data: string): void;
+  resize(cols: number, rows: number): void;
+  kill(signal?: string): void;
+
+  onData(listener: (data: string) => void): { dispose(): void };
+  onExit(listener: (exitCode: { exitCode: number; signal?: number }) => void): { dispose(): void };
+}
+
 // 终端配置
 export interface TerminalConfig {
   workingDirectory: string;
@@ -11,7 +30,7 @@ export interface TerminalConfig {
 // 进程句柄
 export interface ProcessHandle {
   pid: number;
-  pty: any;  // IPty from node-pty (will be properly typed when node-pty is available)
+  pty: IPty;
 }
 
 // 进程状态
