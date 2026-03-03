@@ -2,8 +2,9 @@ import React, { useCallback, useMemo } from 'react';
 import * as ScrollArea from '@radix-ui/react-scroll-area';
 import { useWindowStore } from '../stores/windowStore';
 import { sortWindows } from '../utils/sortWindows';
+import { getAllPanes } from '../utils/layoutHelpers';
 import { WindowCard } from './WindowCard';
-import { Window } from '../types/window';
+import { Window, WindowStatus } from '../types/window';
 
 interface ArchivedViewProps {
   onEnterTerminal?: (window: Window) => void;
@@ -18,6 +19,7 @@ export const ArchivedView = React.memo<ArchivedViewProps>(({ onEnterTerminal }) 
   const setActiveWindow = useWindowStore((state) => state.setActiveWindow);
   const removeWindow = useWindowStore((state) => state.removeWindow);
   const updateWindow = useWindowStore((state) => state.updateWindow);
+  const updatePane = useWindowStore((state) => state.updatePane);
   const unarchiveWindow = useWindowStore((state) => state.unarchiveWindow);
 
   // 只显示已归档的窗口
@@ -25,6 +27,73 @@ export const ArchivedView = React.memo<ArchivedViewProps>(({ onEnterTerminal }) 
 
   // 按 lastActiveAt 降序排序
   const sortedWindows = useMemo(() => sortWindows(archivedWindows, 'lastActiveAt'), [archivedWindows]);
+
+  const handleCardClick = useCallback(
+    async (win: Window) => {
+      // 直接调用 onEnterTerminal，让上层处理启动逻辑
+      onEnterTerminal?.(win);
+    },
+    [onEnterTerminal]
+  );
+
+  const handleStartWindow = useCallback(async (win: Window) => {
+    try {
+      // 获取所有窗格
+      const panes = getAllPanes(win.layout);
+
+      // 为每个窗格启动 PTY 进程
+      for (const pane of panes) {
+        // 更新窗格状态为 Restoring
+        updatePane(win.id, pane.id, { status: WindowStatus.Restoring });
+
+        try {
+          // 启动窗格
+          const result = await window.electronAPI.startWindow({
+            windowId: win.id,
+            paneId: pane.id,
+            name: win.name,
+            workingDirectory: pane.cwd,
+            command: pane.command,
+          });
+
+          // 立即更新窗格状态
+          updatePane(win.id, pane.id, {
+            pid: result.pid,
+            status: result.status,
+          });
+        } catch (paneError) {
+          console.error(`Failed to start pane ${pane.id}:`, paneError);
+          // 单个窗格启动失败，恢复为暂停状态
+          updatePane(win.id, pane.id, { status: WindowStatus.Paused });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to start window:', error);
+      // 整体启动失败，恢复所有窗格为暂停状态
+      const panes = getAllPanes(win.layout);
+      for (const pane of panes) {
+        updatePane(win.id, pane.id, { status: WindowStatus.Paused });
+      }
+    }
+  }, [updatePane]);
+
+  const handlePauseWindow = useCallback(async (win: Window) => {
+    try {
+      // 关闭窗口（终止所有 PTY 进程）
+      await window.electronAPI.closeWindow(win.id);
+
+      // 立即更新所有窗格状态为 Paused
+      const panes = getAllPanes(win.layout);
+      for (const pane of panes) {
+        updatePane(win.id, pane.id, {
+          status: WindowStatus.Paused,
+          pid: null
+        });
+      }
+    } catch (error) {
+      console.error('Failed to pause window:', error);
+    }
+  }, [updatePane]);
 
   const handleUnarchiveWindow = useCallback((win: Window) => {
     unarchiveWindow(win.id);
@@ -64,16 +133,24 @@ export const ArchivedView = React.memo<ArchivedViewProps>(({ onEnterTerminal }) 
           data-testid="archived-view"
           className="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-4 p-8"
         >
-          {sortedWindows.map((win) => (
-            <WindowCard
-              key={win.id}
-              window={win}
-              onClick={() => {}}
-              onOpenFolder={() => handleOpenFolder(win.workingDirectory)}
-              onDelete={() => handleDeleteWindow(win.id)}
-              onUnarchive={() => handleUnarchiveWindow(win)}
-            />
-          ))}
+          {sortedWindows.map((win) => {
+            // 从布局树中获取第一个窗格的工作目录
+            const panes = getAllPanes(win.layout);
+            const firstPaneCwd = panes.length > 0 ? panes[0].cwd : '';
+
+            return (
+              <WindowCard
+                key={win.id}
+                window={win}
+                onClick={() => handleCardClick(win)}
+                onOpenFolder={() => handleOpenFolder(firstPaneCwd)}
+                onDelete={() => handleDeleteWindow(win.id)}
+                onStart={() => handleStartWindow(win)}
+                onPause={() => handlePauseWindow(win)}
+                onUnarchive={() => handleUnarchiveWindow(win)}
+              />
+            );
+          })}
         </div>
       </ScrollArea.Viewport>
       <ScrollArea.Scrollbar
