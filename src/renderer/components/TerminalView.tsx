@@ -84,7 +84,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
         onReturn();
       }
     },
-    enabled: isActive && !quickSwitcherOpen,
+    enabled: isActive,
   });
 
   // 处理窗格激活

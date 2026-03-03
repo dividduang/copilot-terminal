@@ -1,6 +1,7 @@
 import React from 'react';
 import { Activity, Terminal, Pause, XCircle } from 'lucide-react';
 import { Window, WindowStatus } from '../types/window';
+import { getAggregatedStatus } from '../utils/layoutHelpers';
 
 interface SidebarWindowItemProps {
   window: Window;
@@ -87,10 +88,12 @@ export const SidebarWindowItem: React.FC<SidebarWindowItemProps> = ({
   onClick,
   onContextMenu,
 }) => {
-  const StatusIcon = getStatusIcon(terminalWindow.status);
-  const iconColor = getStatusIconColor(terminalWindow.status);
-  const statusAnimation = getStatusAnimation(terminalWindow.status);
-  const bgColor = getWindowBackgroundColor(terminalWindow.status, isActive);
+  // 获取窗口的聚合状态
+  const aggregatedStatus = getAggregatedStatus(terminalWindow.layout);
+  const StatusIcon = getStatusIcon(aggregatedStatus);
+  const iconColor = getStatusIconColor(aggregatedStatus);
+  const statusAnimation = getStatusAnimation(aggregatedStatus);
+  const bgColor = getWindowBackgroundColor(aggregatedStatus, isActive);
 
   // 折叠状态：只显示图标
   if (!isExpanded) {

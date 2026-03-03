@@ -129,6 +129,22 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
     terminalRef.current = terminal;
     fitAddonRef.current = fitAddon;
 
+    // 告诉 xterm.js 忽略应用级快捷键
+    terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => {
+      if (e.ctrlKey) {
+        if (e.key === 'p' || e.key === 'b' || e.key === 'Tab' ||
+            (e.key >= '1' && e.key <= '9')) {
+          console.log('[TerminalPane] xterm ignoring shortcut:', e.key);
+          return false; // xterm 不处理，让事件正常传播
+        }
+      }
+      if (e.key === 'Escape') {
+        console.log('[TerminalPane] xterm ignoring Escape');
+        return false;
+      }
+      return true;
+    });
+
     // 监听用户输入
     const disposable = terminal.onData((data) => {
       if (window.electronAPI && isActiveRef.current) {
@@ -138,13 +154,6 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
 
     // 监听 PTY 数据输出
     const handlePtyData = (_event: unknown, payload: { windowId: string; paneId?: string; data: string }) => {
-      console.log('[TerminalPane] Received PTY data:', {
-        payloadWindowId: payload.windowId,
-        payloadPaneId: payload.paneId,
-        expectedWindowId: windowId,
-        expectedPaneId: pane.id,
-        dataLength: payload.data.length,
-      });
       if (payload.windowId === windowId && payload.paneId === pane.id) {
         terminal.write(payload.data);
       }
