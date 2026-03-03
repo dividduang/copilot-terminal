@@ -1,31 +1,10 @@
 import { ipcMain } from 'electron';
 import { randomUUID } from 'crypto';
-import { execSync } from 'child_process';
 import { HandlerContext, MAX_CACHE_SIZE } from './HandlerContext';
 import { PathValidator } from '../utils/pathValidator';
+import { getDefaultShell } from '../utils/shell';
 import { WindowStatus } from '../../renderer/types/window';
 import { successResponse, errorResponse } from './HandlerResponse';
-
-/**
- * 获取默认 shell，带回退逻辑
- */
-function getDefaultShell(): string {
-  if (process.platform === 'win32') {
-    // 检查 pwsh.exe 是否存在（PowerShell 7+）
-    try {
-      execSync('where pwsh.exe', { stdio: 'ignore' });
-      return 'pwsh.exe';
-    } catch {
-      // 直接回退到 cmd.exe，不使用旧版 powershell.exe
-      return 'cmd.exe';
-    }
-  } else if (process.platform === 'darwin') {
-    return 'zsh';
-  } else {
-    // Linux
-    return 'bash';
-  }
-}
 
 /**
  * 注册窗口管理相关的 IPC handlers
@@ -296,7 +275,6 @@ export function registerWindowHandlers(ctx: HandlerContext) {
         }
       }
 
-      // TODO: 移除窗口配置（Story 6.x 工作区持久化时实现）
       // 从 StatusPoller 移除窗口
       statusPoller?.removeWindow(windowId);
 
