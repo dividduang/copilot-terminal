@@ -173,17 +173,10 @@ export class StatusPoller {
   private notifyStatusChange(windowId: string, paneId: string, status: WindowStatus): void {
     if (this.mainWindow.isDestroyed()) return;
 
-    // 发送新的 pane-status-changed 事件
+    // 发送 pane-status-changed 事件，每个窗格独立更新状态
     this.mainWindow.webContents.send('pane-status-changed', {
       windowId,
       paneId,
-      status,
-      timestamp: new Date().toISOString(),
-    });
-
-    // 为了兼容性，也发送旧的 window-status-changed 事件
-    this.mainWindow.webContents.send('window-status-changed', {
-      windowId,
       status,
       timestamp: new Date().toISOString(),
     });
