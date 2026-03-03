@@ -80,9 +80,8 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
         setQuickSwitcherOpen(false);
       } else if (tabSwitcherOpen) {
         setTabSwitcherOpen(false);
-      } else {
-        onReturn();
       }
+      // ESC 键保持原生默认行为，不返回主界面
     },
     enabled: isActive,
   });

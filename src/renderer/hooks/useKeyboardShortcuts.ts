@@ -69,10 +69,14 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions) {
         return;
       }
 
-      // Escape: 关闭面板或返回
+      // Escape: 关闭打开的面板（QuickSwitcher、TabSwitcher）
       if (e.key === 'Escape') {
         console.log('[Shortcuts] Escape triggered');
-        opts.onEscape?.();
+        // 只在有面板打开时才调用回调，否则保持原生默认行为
+        if (opts.onEscape) {
+          opts.onEscape();
+        }
+        // 不阻止默认行为，让 ESC 在终端中正常工作
         return;
       }
     };
