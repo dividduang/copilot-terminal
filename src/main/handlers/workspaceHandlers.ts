@@ -8,19 +8,30 @@ export function registerWorkspaceHandlers(ctx: HandlerContext) {
 
   // 监听自动保存触发事件
   ipcMain.on('trigger-auto-save', (_event, windows: Window[]) => {
+    console.log(`[WorkspaceHandlers] Received trigger-auto-save event with ${windows?.length || 0} windows`);
+
     try {
       if (!autoSaveManager) {
         console.warn('[WorkspaceHandlers] AutoSaveManager not initialized');
         return;
       }
 
-      // 更新当前工作区的窗口列表
-      if (ctx.currentWorkspace) {
-        ctx.currentWorkspace.windows = windows;
+      if (!ctx.currentWorkspace) {
+        console.warn('[WorkspaceHandlers] currentWorkspace is null');
+        return;
       }
+
+      // 更新当前工作区的窗口列表
+      ctx.currentWorkspace.windows = windows;
+      console.log(`[WorkspaceHandlers] Updated currentWorkspace with ${windows.length} windows`);
+
+      // 打印归档窗口信息
+      const archivedCount = windows.filter(w => w.archived).length;
+      console.log(`[WorkspaceHandlers] Archived windows: ${archivedCount}`);
 
       // 触发自动保存（带防抖）
       autoSaveManager.triggerSave();
+      console.log('[WorkspaceHandlers] Auto-save triggered');
     } catch (error) {
       console.error('[WorkspaceHandlers] Failed to trigger auto-save:', error);
     }

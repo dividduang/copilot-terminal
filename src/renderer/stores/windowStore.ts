@@ -235,6 +235,7 @@ export const useWindowStore = create<WindowStore>()(
         if (window) {
           window.archived = true;
           window.lastActiveAt = new Date().toISOString();
+          console.log(`[WindowStore] Archived window: ${window.name} (id: ${id})`);
         }
         // 如果归档的是当前活跃窗口，清除活跃状态
         if (state.activeWindowId === id) {
@@ -243,6 +244,8 @@ export const useWindowStore = create<WindowStore>()(
       });
       // 触发自动保存
       const windows = get().windows;
+      const archivedCount = windows.filter(w => w.archived).length;
+      console.log(`[WindowStore] Triggering auto-save with ${windows.length} windows (${archivedCount} archived)`);
       triggerAutoSave(windows);
     },
 
