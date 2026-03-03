@@ -96,17 +96,48 @@ export class AutoSaveManagerImpl implements IAutoSaveManager {
           new Map(workspace.windows.map(w => [w.id, w])).values()
         );
 
+        // 规范化窗口数据：确保所有 pane 都有 pid 字段
+        const normalizedWindows = uniqueWindows.map(window => ({
+          ...window,
+          layout: this.normalizeLayout(window.layout),
+        }));
+
         const deduplicatedWorkspace = {
           ...workspace,
-          windows: uniqueWindows,
+          windows: normalizedWindows,
         };
 
         await this.workspaceManager.saveWorkspace(deduplicatedWorkspace);
-        console.log(`[AutoSave] Workspace saved successfully at ${new Date().toISOString()} (${uniqueWindows.length} windows)`);
+        console.log(`[AutoSave] Workspace saved successfully at ${new Date().toISOString()} (${normalizedWindows.length} windows)`);
       }
     } catch (error) {
       // 保存失败时记录错误日志，不影响应用运行
       console.error('[AutoSave] Failed to save workspace:', error instanceof Error ? error.message : String(error));
     }
+  }
+
+  /**
+   * 规范化布局数据：确保所有 pane 都有必需的字段
+   */
+  private normalizeLayout(layout: any): any {
+    if (!layout) return layout;
+
+    if (layout.type === 'pane') {
+      return {
+        ...layout,
+        pane: {
+          ...layout.pane,
+          // 确保 pid 字段存在（如果不存在则设为 null）
+          pid: layout.pane.pid !== undefined ? layout.pane.pid : null,
+        },
+      };
+    } else if (layout.type === 'split') {
+      return {
+        ...layout,
+        children: layout.children.map((child: any) => this.normalizeLayout(child)),
+      };
+    }
+
+    return layout;
   }
 }
