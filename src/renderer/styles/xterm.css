@@ -1,2 +1,16 @@
 /* xterm.js styles */
 @import '@xterm/xterm/css/xterm.css';
+
+/* 移除 xterm.js 默认的 padding，让终端占满容器 */
+.xterm {
+  padding: 0 !important;
+}
+
+.xterm .xterm-viewport {
+  overflow-y: auto;
+}
+
+/* 终端内容区域只保留右侧少量边距 */
+.xterm .xterm-screen {
+  padding-right: 8px !important;
+}

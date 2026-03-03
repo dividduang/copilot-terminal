@@ -187,6 +187,15 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
 
     window.addEventListener('resize', handleResize);
 
+    // 使用 ResizeObserver 监听容器大小变化（拆分窗格、调整大小时触发）
+    const resizeObserver = new ResizeObserver(() => {
+      handleResize();
+    });
+
+    if (terminalContainerRef.current) {
+      resizeObserver.observe(terminalContainerRef.current);
+    }
+
     // 初始化时调整大小
     setTimeout(() => handleResize(), 100);
 
@@ -196,6 +205,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
         window.electronAPI.offPtyData(handlePtyData);
       }
       window.removeEventListener('resize', handleResize);
+      resizeObserver.disconnect();
       terminal.dispose();
     };
   }, [windowId, pane.id]); // 移除 isActive 依赖
@@ -236,7 +246,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
       )}
 
       {/* 终端容器 */}
-      <div ref={terminalContainerRef} className="flex-1 overflow-hidden p-2" />
+      <div ref={terminalContainerRef} className="flex-1 overflow-hidden" />
     </div>
   );
 };
