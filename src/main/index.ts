@@ -9,6 +9,7 @@ import { ViewSwitcherImpl } from './services/ViewSwitcher';
 import { WorkspaceManagerImpl } from './services/WorkspaceManager';
 import { AutoSaveManagerImpl } from './services/AutoSaveManager';
 import { PtySubscriptionManager } from './services/PtySubscriptionManager';
+import { PathValidator } from './utils/pathValidator';
 // import { WorkspaceRestorerImpl } from './services/WorkspaceRestorer';
 import { TerminalConfig } from './types/process';
 import { WindowStatus } from '../renderer/types/window';
@@ -377,15 +378,16 @@ function registerIPCHandlers() {
         throw new Error('进程管理器未初始化，请重启应用');
       }
 
-      // 验证工作目录存在且可访问
-      if (!existsSync(config.workingDirectory)) {
-        throw new Error('工作目录不存在');
+      // 验证工作目录存在且可访问（使用安全验证）
+      const pathValidation = PathValidator.validate(config.workingDirectory);
+      if (!pathValidation.valid) {
+        throw new Error(`工作目录无效: ${pathValidation.reason}`);
       }
 
-      try {
-        accessSync(config.workingDirectory, constants.R_OK | constants.X_OK);
-      } catch {
-        throw new Error('工作目录无访问权限');
+      // 使用安全的规范化路径
+      const safePath = PathValidator.getSafePath(config.workingDirectory);
+      if (!safePath) {
+        throw new Error('无法解析工作目录路径');
       }
 
       // 生成 UUID 作为窗口 ID 和窗格 ID
@@ -396,9 +398,9 @@ function registerIPCHandlers() {
       const defaultShell = getDefaultShell();
       const command = config.command || defaultShell;
 
-      // 创建终端进程
+      // 创建终端进程（使用安全路径）
       const handle = await processManager.spawnTerminal({
-        workingDirectory: config.workingDirectory,
+        workingDirectory: safePath,
         command: command,
         windowId: windowId,
         paneId: paneId,
@@ -410,14 +412,14 @@ function registerIPCHandlers() {
       }
 
       // 从工作目录路径中提取最后一个文件夹名作为默认窗口名
-      const pathParts = config.workingDirectory.replace(/[\\\/]+$/, '').split(/[\\\/]/);
+      const pathParts = safePath.replace(/[\\\/]+$/, '').split(/[\\\/]/);
       const folderName = pathParts[pathParts.length - 1] || 'Terminal';
       const defaultName = folderName;
 
-      // 创建 Pane 对象
+      // 创建 Pane 对象（使用安全路径）
       const pane = {
         id: paneId,
-        cwd: config.workingDirectory,
+        cwd: safePath,
         command: command,
         status: WindowStatus.Running as WindowStatus,
         pid: handle.pid,
@@ -487,24 +489,25 @@ function registerIPCHandlers() {
         throw new Error('进程管理器未初始化，请重启应用');
       }
 
-      // 验证工作目录存在且可访问
-      if (!existsSync(workingDirectory)) {
-        throw new Error('工作目录不存在');
+      // 验证工作目录存在且可访问（使用安全验证）
+      const pathValidation = PathValidator.validate(workingDirectory);
+      if (!pathValidation.valid) {
+        throw new Error(`工作目录无效: ${pathValidation.reason}`);
       }
 
-      try {
-        accessSync(workingDirectory, constants.R_OK | constants.X_OK);
-      } catch {
-        throw new Error('工作目录无访问权限');
+      // 使用安全的规范化路径
+      const safePath = PathValidator.getSafePath(workingDirectory);
+      if (!safePath) {
+        throw new Error('无法解析工作目录路径');
       }
 
       // 获取默认 shell
       const defaultShell = getDefaultShell();
       const shellCommand = command || defaultShell;
 
-      // 创建终端进程
+      // 创建终端进程（使用安全路径）
       const handle = await processManager.spawnTerminal({
-        workingDirectory: workingDirectory,
+        workingDirectory: safePath,
         command: shellCommand,
         windowId: windowId,
         paneId: paneId,
@@ -613,24 +616,15 @@ function registerIPCHandlers() {
     }
   });
   
-  // 验证路径（包含权限检查）
+  // 验证路径（包含权限检查和安全验证）
   ipcMain.handle('validate-path', async (_event, pathToValidate: string) => {
-    try {
-      // 检查路径是否存在
-      if (!existsSync(pathToValidate)) {
-        return false;
-      }
+    const result = PathValidator.validate(pathToValidate);
 
-      // 检查是否有读取和执行权限
-      try {
-        accessSync(pathToValidate, constants.R_OK | constants.X_OK);
-        return true;
-      } catch {
-        return false;
-      }
-    } catch (error) {
-      return false;
+    if (process.env.NODE_ENV === 'development' && !result.valid) {
+      console.log(`[PathValidator] Path validation failed: ${pathToValidate}, reason: ${result.reason}`);
     }
+
+    return result.valid;
   });
 
   // 关闭窗口（终止进程）
