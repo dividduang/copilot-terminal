@@ -7,7 +7,7 @@ export function registerWorkspaceHandlers(ctx: HandlerContext) {
   const { workspaceManager, autoSaveManager, setCurrentWorkspace } = ctx;
 
   // 监听自动保存触发事件
-  ipcMain.on('trigger-auto-save', (_event, windows: Window[]) => {
+  ipcMain.on('trigger-auto-save', async (_event, windows: Window[]) => {
     console.log(`[WorkspaceHandlers] Received trigger-auto-save event with ${windows?.length || 0} windows`);
 
     try {
@@ -16,18 +16,23 @@ export function registerWorkspaceHandlers(ctx: HandlerContext) {
         return;
       }
 
-      if (!ctx.currentWorkspace) {
-        console.warn('[WorkspaceHandlers] currentWorkspace is null');
+      if (!workspaceManager) {
+        console.warn('[WorkspaceHandlers] WorkspaceManager not initialized');
         return;
       }
 
-      // 更新当前工作区的窗口列表
-      ctx.currentWorkspace.windows = windows;
-      console.log(`[WorkspaceHandlers] Updated currentWorkspace with ${windows.length} windows`);
+      // 加载当前工作区配置（获取 settings 等其他字段）
+      const currentWorkspace = await workspaceManager.loadWorkspace();
+
+      // 更新窗口列表
+      currentWorkspace.windows = windows;
+
+      // 更新全局 currentWorkspace
+      setCurrentWorkspace(currentWorkspace);
 
       // 打印归档窗口信息
       const archivedCount = windows.filter(w => w.archived).length;
-      console.log(`[WorkspaceHandlers] Archived windows: ${archivedCount}`);
+      console.log(`[WorkspaceHandlers] Updated workspace with ${windows.length} windows (${archivedCount} archived)`);
 
       // 触发自动保存（带防抖）
       autoSaveManager.triggerSave();
