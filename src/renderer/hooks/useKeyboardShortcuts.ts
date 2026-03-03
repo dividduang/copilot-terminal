@@ -6,7 +6,7 @@ interface KeyboardShortcutsOptions {
   onCtrlP?: () => void;
   onCtrlB?: () => void;
   onCtrlNumber?: (num: number) => void;
-  onEscape?: () => void;
+  onEscape?: () => boolean | void; // 返回 true 表示已处理，阻止传播；返回 false 表示未处理，继续传播
   enabled?: boolean;
 }
 
@@ -72,11 +72,17 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions) {
       // Escape: 关闭打开的面板（QuickSwitcher、TabSwitcher）
       if (e.key === 'Escape') {
         console.log('[Shortcuts] Escape triggered');
-        // 只在有面板打开时才调用回调，否则保持原生默认行为
+        // 调用回调，如果返回 true 表示已处理，阻止事件传播
         if (opts.onEscape) {
-          opts.onEscape();
+          const handled = opts.onEscape();
+          if (handled) {
+            console.log('[Shortcuts] Escape handled by callback, preventing propagation');
+            e.preventDefault();
+            e.stopPropagation();
+          } else {
+            console.log('[Shortcuts] Escape not handled, allowing propagation to terminal');
+          }
         }
-        // 不阻止默认行为，让 ESC 在终端中正常工作
         return;
       }
     };

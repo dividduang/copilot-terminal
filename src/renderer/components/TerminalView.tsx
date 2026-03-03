@@ -76,12 +76,16 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
       }
     },
     onEscape: () => {
+      // 只有当面板打开时才处理 ESC 键
       if (quickSwitcherOpen) {
         setQuickSwitcherOpen(false);
+        return true; // 表示已处理，阻止传播到终端
       } else if (tabSwitcherOpen) {
         setTabSwitcherOpen(false);
+        return true; // 表示已处理，阻止传播到终端
       }
-      // ESC 键保持原生默认行为，不返回主界面
+      // 没有面板打开时，返回 false，让 ESC 键传递到终端
+      return false;
     },
     enabled: isActive,
   });

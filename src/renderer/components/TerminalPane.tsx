@@ -138,10 +138,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
           return false; // xterm 不处理，让事件正常传播
         }
       }
-      if (e.key === 'Escape') {
-        console.log('[TerminalPane] xterm ignoring Escape');
-        return false;
-      }
+      // ESC 键让 xterm.js 正常处理，发送到终端应用程序
       return true;
     });
 
