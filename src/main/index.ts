@@ -177,7 +177,19 @@ app.whenReady().then(async () => {
   // 初始化 ShutdownManager
   shutdownManager = new ShutdownManager();
 
-  // 创建 handler 上下文并注册所有 IPC handlers
+  createWindow();
+
+  // 初始化 StatusPoller 和 ViewSwitcher（需要 mainWindow 已创建）
+  if (mainWindow) {
+    statusPoller = new StatusPoller(processManager.getStatusDetector(), mainWindow);
+    statusPoller.startPolling();
+    viewSwitcher = new ViewSwitcherImpl(mainWindow);
+
+    // 初始化 WorkspaceRestorer
+    // workspaceRestorer = new WorkspaceRestorerImpl(processManager, mainWindow);
+  }
+
+  // 创建 handler 上下文并注册所有 IPC handlers（必须在所有服务初始化后）
   const handlerContext: HandlerContext = {
     mainWindow,
     processManager,
@@ -191,18 +203,6 @@ app.whenReady().then(async () => {
     setCurrentWorkspace: (workspace) => { currentWorkspace = workspace; },
   };
   registerAllHandlers(handlerContext);
-
-  createWindow();
-
-  // 初始化 StatusPoller（需要 mainWindow 已创建）
-  if (mainWindow) {
-    statusPoller = new StatusPoller(processManager.getStatusDetector(), mainWindow);
-    statusPoller.startPolling();
-    viewSwitcher = new ViewSwitcherImpl(mainWindow);
-
-    // 初始化 WorkspaceRestorer
-    // workspaceRestorer = new WorkspaceRestorerImpl(processManager, mainWindow);
-  }
 
   // 加载工作区并恢复窗口
   try {
