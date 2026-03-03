@@ -6,6 +6,7 @@ import { ViewSwitcherImpl } from './services/ViewSwitcher';
 import { WorkspaceManagerImpl } from './services/WorkspaceManager';
 import { AutoSaveManagerImpl } from './services/AutoSaveManager';
 import { PtySubscriptionManager } from './services/PtySubscriptionManager';
+import { ShutdownManager, ShutdownContext } from './services/ShutdownManager';
 import { Workspace } from './types/workspace';
 import { registerAllHandlers } from './handlers';
 import { HandlerContext } from './handlers/HandlerContext';
@@ -17,6 +18,7 @@ let viewSwitcher: ViewSwitcherImpl | null = null;
 let workspaceManager: WorkspaceManagerImpl | null = null;
 let autoSaveManager: AutoSaveManagerImpl | null = null;
 let ptySubscriptionManager: PtySubscriptionManager | null = null;
+let shutdownManager: ShutdownManager | null = null;
 let currentWorkspace: Workspace | null = null; // 缓存当前工作区状态
 
 // PTY 输出缓存：paneId -> 输出历史数组
@@ -134,103 +136,24 @@ function createWindow() {
       event.preventDefault();
       isQuitting = true;
 
-      // 顶级安全定时器：3 秒后强制退出
-      const safetyTimer = setTimeout(() => {
-        console.log('[ELECTRON] Safety timeout reached, forcing exit');
-        process.exit(0);
-      }, 3000);
-      safetyTimer.unref(); // 不阻止进程退出
+      // 使用 ShutdownManager 处理退出
+      if (shutdownManager) {
+        const shutdownContext: ShutdownContext = {
+          mainWindow,
+          processManager,
+          statusPoller,
+          autoSaveManager,
+          ptySubscriptionManager,
+          ptyOutputCache,
+          currentWorkspace,
+        };
 
-      try {
-        console.log('[ELECTRON] Starting cleanup...');
-
-        // 立即保存工作区
-        if (autoSaveManager && currentWorkspace) {
-          console.log('[ELECTRON] Saving workspace...');
-          await autoSaveManager.saveImmediately();
-          console.log('[ELECTRON] Workspace saved');
-        }
-
-        // 停止自动保存
-        console.log('[ELECTRON] Stopping auto-save...');
-        autoSaveManager?.stopAutoSave();
-
-        // 停止状态轮询
-        console.log('[ELECTRON] Stopping status polling...');
-        statusPoller?.stopPolling();
-
-        // 取消所有 PTY 数据订阅
-        console.log('[ELECTRON] Unsubscribing PTY data...');
-        if (ptySubscriptionManager) {
-          ptySubscriptionManager.clear();
-        }
-        ptyOutputCache.clear();
-        console.log('[ELECTRON] PTY data unsubscribed');
-
-        // 清理所有 PTY 进程（等待进程完全终止）
-        if (processManager) {
-          console.log('[ELECTRON] Destroying process manager...');
-          await processManager.destroy();
-          console.log('[ELECTRON] Process manager destroyed');
-        }
-
-        // 等待一小段时间确保所有清理完成
-        console.log('[ELECTRON] Waiting for final cleanup...');
-        await new Promise(resolve => setTimeout(resolve, 200));
-        console.log('[ELECTRON] Final cleanup completed');
-      } catch (error) {
-        console.error('[ELECTRON] Error during cleanup:', error);
+        await shutdownManager.shutdown(shutdownContext);
+      } else {
+        // 如果 ShutdownManager 未初始化，直接退出
+        console.error('[ELECTRON] ShutdownManager not initialized, forcing exit');
+        process.exit(1);
       }
-
-      // 销毁窗口
-      console.log('[ELECTRON] Destroying window...');
-      if (mainWindow) {
-        mainWindow.destroy();
-      }
-      console.log('[ELECTRON] Window destroyed');
-
-      // 清理所有 IPC handlers
-      console.log('[ELECTRON] Cleaning up IPC handlers...');
-      ipcMain.removeHandler('ping');
-      ipcMain.removeHandler('create-window');
-      ipcMain.removeHandler('start-window');
-      ipcMain.removeHandler('close-window');
-      ipcMain.removeHandler('delete-window');
-      ipcMain.removeHandler('pty-write');
-      ipcMain.removeHandler('pty-resize');
-      ipcMain.removeHandler('get-pty-history');
-      ipcMain.removeHandler('open-folder');
-      ipcMain.removeHandler('save-workspace');
-      ipcMain.removeHandler('load-workspace');
-      ipcMain.removeHandler('get-window-status');
-      ipcMain.removeHandler('create-terminal');
-      ipcMain.removeHandler('kill-terminal');
-      ipcMain.removeHandler('get-terminal-status');
-      ipcMain.removeHandler('list-terminals');
-      ipcMain.removeHandler('validate-path');
-      ipcMain.removeHandler('select-directory');
-      ipcMain.removeHandler('switch-to-terminal-view');
-      ipcMain.removeHandler('switch-to-unified-view');
-      ipcMain.removeHandler('recover-from-backup');
-      console.log('[ELECTRON] IPC handlers cleaned up');
-
-      // 多种方式强制退出
-      console.log('[ELECTRON] Exiting process now...');
-
-      // 方式1: 使用 app.exit (Electron 推荐)
-      app.exit(0);
-
-      // 方式2: 如果 app.exit 失败，使用 process.exit
-      setTimeout(() => {
-        console.log('[ELECTRON] app.exit failed, using process.exit...');
-        process.exit(0);
-      }, 100);
-
-      // 方式3: 最后的保险 - 强制杀死进程
-      setTimeout(() => {
-        console.log('[ELECTRON] process.exit failed, killing process...');
-        process.kill(process.pid, 'SIGKILL');
-      }, 200);
     }
   });
 }
@@ -250,6 +173,9 @@ app.whenReady().then(async () => {
 
   // 初始化 PtySubscriptionManager
   ptySubscriptionManager = new PtySubscriptionManager();
+
+  // 初始化 ShutdownManager
+  shutdownManager = new ShutdownManager();
 
   // 创建 handler 上下文并注册所有 IPC handlers
   const handlerContext: HandlerContext = {
