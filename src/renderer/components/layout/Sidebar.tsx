@@ -172,26 +172,26 @@ export function Sidebar({
             <span>新建终端</span>
           </button>
 
-          {/* Batch and Clear buttons - only show when there are active windows */}
+          {/* Batch button - always show */}
+          <button
+            onClick={() => setIsBatchDialogOpen(true)}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))] font-medium hover:opacity-90 transition-opacity"
+            title="批量添加"
+          >
+            <FolderPlus className="h-4 w-4" />
+            <span>批量添加</span>
+          </button>
+
+          {/* Clear button - only show when there are active windows */}
           {currentTab === 'active' && activeWindows.length > 0 && (
-            <>
-              <button
-                onClick={() => setIsBatchDialogOpen(true)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))] font-medium hover:opacity-90 transition-opacity"
-                title="批量添加"
-              >
-                <FolderPlus className="h-4 w-4" />
-                <span>批量添加</span>
-              </button>
-              <button
-                onClick={() => setIsConfirmDialogOpen(true)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-red-600 text-zinc-300 hover:text-white transition-colors"
-                title="清空所有终端"
-              >
-                <Trash2 className="h-4 w-4" />
-                <span>清空终端</span>
-              </button>
-            </>
+            <button
+              onClick={() => setIsConfirmDialogOpen(true)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-red-600 text-zinc-300 hover:text-white transition-colors"
+              title="清空所有终端"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>清空终端</span>
+            </button>
           )}
         </div>
       </aside>
