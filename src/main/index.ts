@@ -195,6 +195,7 @@ app.whenReady().then(async () => {
     autoSaveManager,
     ptySubscriptionManager,
     currentWorkspace,
+    getCurrentWorkspace: () => currentWorkspace,
     setCurrentWorkspace: (workspace) => { currentWorkspace = workspace; },
   };
   registerAllHandlers(handlerContext);

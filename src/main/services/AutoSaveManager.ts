@@ -16,7 +16,7 @@ export interface IAutoSaveManager {
  * AutoSaveManager 实现
  *
  * 功能：
- * - 防抖保存：频繁修改时只保存一次（1 秒延迟）
+ * - 防抖保存：频繁修改时只保存一次（300ms 延迟）
  * - 异步保存：不阻塞主进程
  * - 错误处理：保存失败时记录日志，不影响应用运行
  * - 应用关闭时立即保存
@@ -25,7 +25,7 @@ export class AutoSaveManagerImpl implements IAutoSaveManager {
   private saveTimer: NodeJS.Timeout | null = null;
   private workspaceManager: IWorkspaceManager | null = null;
   private getWorkspace: (() => Workspace) | null = null;
-  private readonly DEBOUNCE_DELAY = 1000; // 1 秒防抖延迟
+  private readonly DEBOUNCE_DELAY = 300; // 300ms 防抖延迟（快速响应用户操作）
 
   /**
    * 启动自动保存
@@ -53,7 +53,7 @@ export class AutoSaveManagerImpl implements IAutoSaveManager {
   /**
    * 触发保存（防抖）
    * 如果已有待处理的保存，清除旧的定时器
-   * 设置新的定时器，延迟 1 秒后执行保存
+   * 设置新的定时器，延迟 300ms 后执行保存
    */
   triggerSave(): void {
     // 清除旧的定时器

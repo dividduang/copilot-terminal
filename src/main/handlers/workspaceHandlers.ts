@@ -4,7 +4,7 @@ import { Window } from '../../shared/types/window';
 import { successResponse, errorResponse } from './HandlerResponse';
 
 export function registerWorkspaceHandlers(ctx: HandlerContext) {
-  const { workspaceManager, autoSaveManager, setCurrentWorkspace } = ctx;
+  const { workspaceManager, autoSaveManager, getCurrentWorkspace, setCurrentWorkspace } = ctx;
 
   // 监听自动保存触发事件
   ipcMain.on('trigger-auto-save', async (_event, windows: Window[]) => {
@@ -21,20 +21,19 @@ export function registerWorkspaceHandlers(ctx: HandlerContext) {
         return;
       }
 
-      // 🔥 关键修复：不要重新加载，直接使用缓存的 currentWorkspace
-      // 避免竞态条件：如果磁盘文件损坏，重新加载会得到空数据
-      const currentWorkspace = ctx.currentWorkspace;
+      // 🔥 关键修复：使用 getCurrentWorkspace() 获取最新的 currentWorkspace
+      // 避免闭包捕获旧值的问题
+      const currentWorkspace = getCurrentWorkspace();
       if (!currentWorkspace) {
         console.error('[WorkspaceHandlers] Current workspace not available');
         return;
       }
 
-      // 🔥 数据校验：防止保存空数据覆盖现有数据
-      if (!windows || windows.length === 0) {
-        if (currentWorkspace.windows.length > 0) {
-          console.warn('[WorkspaceHandlers] Rejecting empty windows array (current workspace has data)');
-          return;
-        }
+      // 🔥 数据校验：防止保存 undefined/null 数据（但允许空数组）
+      // 空数组是合法的：用户可能删除了所有窗口
+      if (windows === undefined || windows === null) {
+        console.warn('[WorkspaceHandlers] Rejecting undefined/null windows data');
+        return;
       }
 
       // 更新窗口列表

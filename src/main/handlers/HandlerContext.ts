@@ -20,5 +20,6 @@ export interface HandlerContext {
   autoSaveManager: AutoSaveManagerImpl | null;
   ptySubscriptionManager: PtySubscriptionManager | null;
   currentWorkspace: Workspace | null;
+  getCurrentWorkspace: () => Workspace | null;
   setCurrentWorkspace: (workspace: Workspace | null) => void;
 }
