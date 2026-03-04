@@ -174,12 +174,12 @@ export function Sidebar({
             <span>新建终端</span>
           </button>
 
-          {/* Batch and Clear buttons */}
+          {/* Batch and Clear buttons - only show when there are active windows */}
           {currentTab === 'active' && activeWindows.length > 0 && (
-            <div className="flex gap-2">
+            <>
               <button
                 onClick={() => setIsBatchDialogOpen(true)}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[rgb(var(--accent))] text-[rgb(var(--foreground))] hover:bg-[rgb(var(--accent))]/80 transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[rgb(var(--accent))] text-[rgb(var(--foreground))] hover:bg-[rgb(var(--accent))]/80 transition-colors"
                 title="批量添加"
               >
                 <FolderPlus className="h-4 w-4" />
@@ -187,13 +187,13 @@ export function Sidebar({
               </button>
               <button
                 onClick={handleClearAllWindows}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-red-600 text-zinc-300 hover:text-white transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-red-600 text-zinc-300 hover:text-white transition-colors"
                 title="清空所有终端"
               >
                 <Trash2 className="h-4 w-4" />
                 <span>清空终端</span>
               </button>
-            </div>
+            </>
           )}
         </div>
       </aside>
