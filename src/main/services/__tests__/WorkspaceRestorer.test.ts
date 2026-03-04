@@ -3,7 +3,7 @@ import { BrowserWindow } from 'electron';
 import { WorkspaceRestorerImpl } from '../WorkspaceRestorer';
 import { ProcessManager } from '../ProcessManager';
 import { Workspace } from '../../types/workspace';
-import { WindowStatus } from '../../../renderer/types/window';
+import { WindowStatus } from '../../../shared/types/window';
 
 // Mock Electron
 vi.mock('electron', () => ({

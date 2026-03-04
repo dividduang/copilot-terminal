@@ -3,7 +3,7 @@ import path from 'path';
 import { app } from 'electron';
 import { randomUUID } from 'crypto';
 import { Workspace, Settings } from '../types/workspace';
-import { LayoutNode, PaneNode, SplitNode, WindowStatus } from '../../renderer/types/window';
+import { LayoutNode, PaneNode, SplitNode, WindowStatus } from '../../shared/types/window';
 
 /**
  * WorkspaceManager 接口

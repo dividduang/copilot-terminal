@@ -1,7 +1,7 @@
 import { BrowserWindow } from 'electron';
 import { ProcessManager } from './ProcessManager';
 import { Workspace } from '../types/workspace';
-import { Window } from '../../renderer/types/window';
+import { Window } from '../../shared/types/window';
 
 /**
  * 工作区恢复结果

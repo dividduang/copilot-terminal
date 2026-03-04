@@ -1,4 +1,4 @@
-import { WindowStatus } from '../../renderer/types/window';
+import { WindowStatus } from '../../shared/types/window';
 
 /**
  * StatusDetector 接口

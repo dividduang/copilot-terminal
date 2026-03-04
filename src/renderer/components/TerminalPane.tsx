@@ -80,6 +80,54 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
   const borderColor = getStatusBorderColor(pane.status);
   const ringColor = getStatusRingColor(pane.status);
 
+  // 写入系统剪贴板（优先走 Electron IPC，失败时回退到浏览器 API）
+  const writeClipboardText = useCallback(async (text: string) => {
+    if (!text) return;
+
+    try {
+      if (window.electronAPI?.writeClipboardText) {
+        await window.electronAPI.writeClipboardText(text);
+        return;
+      }
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      }
+    } catch {
+      // 剪贴板失败不应影响终端主流程
+    }
+  }, []);
+
+  // 读取系统剪贴板（优先走 Electron IPC，失败时回退到浏览器 API）
+  const readClipboardText = useCallback(async (): Promise<string> => {
+    try {
+      if (window.electronAPI?.readClipboardText) {
+        const response = await window.electronAPI.readClipboardText();
+
+        if (typeof response === 'string') {
+          return response;
+        }
+
+        if (
+          response &&
+          typeof response === 'object' &&
+          'success' in response &&
+          (response as { success?: boolean }).success
+        ) {
+          const data = (response as { data?: unknown }).data;
+          return typeof data === 'string' ? data : '';
+        }
+      }
+
+      if (navigator.clipboard?.readText) {
+        return await navigator.clipboard.readText();
+      }
+    } catch {
+      // 剪贴板失败不应影响终端主流程
+    }
+
+    return '';
+  }, []);
+
   // 更新 isActive ref
   useEffect(() => {
     isActiveRef.current = isActive;
@@ -231,6 +279,13 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
       }
     });
 
+    // 划选复制：选中文本自动写入剪贴板
+    const selectionDisposable = terminal.onSelectionChange(() => {
+      const selection = terminal.getSelection();
+      if (!selection) return;
+      void writeClipboardText(selection);
+    });
+
     // 监听 PTY 数据输出
     const handlePtyData = (_event: unknown, payload: { windowId: string; paneId?: string; data: string }) => {
       if (payload.windowId === windowId && payload.paneId === pane.id) {
@@ -280,6 +335,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
 
     return () => {
       disposable.dispose();
+      selectionDisposable.dispose();
       if (window.electronAPI) {
         window.electronAPI.offPtyData(handlePtyData);
       }
@@ -287,7 +343,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
       resizeObserver.disconnect();
       terminal.dispose();
     };
-  }, [windowId, pane.id]); // 移除 isActive 依赖
+  }, [windowId, pane.id, writeClipboardText]); // 移除 isActive 依赖
 
   // 处理点击激活
   const handleClick = useCallback(() => {
@@ -295,6 +351,21 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
       onActivate();
     }
   }, [isActive, onActivate]);
+
+  // 右键粘贴：读取剪贴板并写入当前窗格 PTY
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+
+    if (!isActive) {
+      onActivate();
+    }
+
+    void (async () => {
+      const text = await readClipboardText();
+      if (!text || !window.electronAPI) return;
+      window.electronAPI.ptyWrite(windowId, pane.id, text);
+    })();
+  }, [isActive, onActivate, readClipboardText, windowId, pane.id]);
 
   return (
     <div
@@ -327,7 +398,11 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
       )}
 
       {/* 终端容器 */}
-      <div ref={terminalContainerRef} className="flex-1 overflow-hidden" />
+      <div
+        ref={terminalContainerRef}
+        className="flex-1 overflow-hidden"
+        onContextMenu={handleContextMenu}
+      />
     </div>
   );
 };

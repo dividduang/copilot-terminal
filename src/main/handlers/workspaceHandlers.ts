@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron';
 import { HandlerContext } from './HandlerContext';
-import { Window } from '../../renderer/types/window';
+import { Window } from '../../shared/types/window';
 import { successResponse, errorResponse } from './HandlerResponse';
 
 export function registerWorkspaceHandlers(ctx: HandlerContext) {

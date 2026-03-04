@@ -4,7 +4,7 @@ import { existsSync } from 'fs';
 import { execSync } from 'child_process';
 import { IProcessManager, TerminalConfig, ProcessHandle, ProcessInfo, ProcessStatus } from '../types/process';
 import { StatusDetectorImpl, IStatusDetector } from './StatusDetector';
-import { WindowStatus } from '../../renderer/types/window';
+import { WindowStatus } from '../../shared/types/window';
 
 // 尝试导入 node-pty，如果失败则使用 mock
 let pty: any;

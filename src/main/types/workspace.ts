@@ -1,4 +1,4 @@
-import { Window } from '../../renderer/types/window';
+import { Window } from '../../shared/types/window';
 
 /**
  * 工作区设置

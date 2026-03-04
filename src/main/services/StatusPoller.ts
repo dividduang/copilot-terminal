@@ -1,6 +1,6 @@
 import { BrowserWindow } from 'electron';
 import { IStatusDetector } from './StatusDetector';
-import { WindowStatus } from '../../renderer/types/window';
+import { WindowStatus } from '../../shared/types/window';
 
 interface TrackedPane {
   windowId: string;

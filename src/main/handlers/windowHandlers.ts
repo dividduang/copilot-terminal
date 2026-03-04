@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto';
 import { HandlerContext, MAX_CACHE_SIZE } from './HandlerContext';
 import { PathValidator } from '../utils/pathValidator';
 import { getDefaultShell } from '../utils/shell';
-import { WindowStatus } from '../../renderer/types/window';
+import { WindowStatus } from '../../shared/types/window';
 import { successResponse, errorResponse } from './HandlerResponse';
 
 /**

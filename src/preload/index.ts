@@ -82,6 +82,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   triggerAutoSave: (windows?: unknown[]) =>
     ipcRenderer.send('trigger-auto-save', windows),
 
+  // Clipboard
+  writeClipboardText: (text: string) =>
+    ipcRenderer.invoke('clipboard-write-text', text),
+  readClipboardText: () =>
+    ipcRenderer.invoke('clipboard-read-text'),
+
   // 通知主进程渲染完成
   notifyRendererReady: () => ipcRenderer.send('renderer-ready'),
 

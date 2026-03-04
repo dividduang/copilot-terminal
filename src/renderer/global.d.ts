@@ -49,6 +49,10 @@ export interface ElectronAPI {
   // Auto-save
   triggerAutoSave: (windows?: TerminalWindow[]) => void
 
+  // Clipboard
+  writeClipboardText: (text: string) => Promise<unknown>
+  readClipboardText: () => Promise<unknown>
+
   // Workspace restore
   onWindowRestored: (callback: (event: unknown, result: unknown) => void) => void
   offWindowRestored: (callback: (event: unknown, result: unknown) => void) => void

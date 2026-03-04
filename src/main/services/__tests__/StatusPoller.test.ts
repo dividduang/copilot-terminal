@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { StatusPoller } from '../StatusPoller';
-import { WindowStatus } from '../../../renderer/types/window';
+import { WindowStatus } from '../../../shared/types/window';
 
 // Flush pending promise microtasks (no setTimeout — safe with fake timers)
 async function flushPromises() {

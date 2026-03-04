@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { StatusDetectorImpl } from '../StatusDetector';
-import { WindowStatus } from '../../../renderer/types/window';
+import { WindowStatus } from '../../../shared/types/window';
 
 // Mock pidusage
 vi.mock('pidusage', () => ({

@@ -7,10 +7,21 @@ files:
   - dist/**/*
   - resources/**/*
   - package.json
+  - node_modules/**/*
+npmRebuild: false
+buildDependenciesFromSource: false
 win:
   icon: resources/icon.png
   target:
-    - nsis
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  allowElevation: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
 mac:
   icon: resources/icon.png
   category: public.app-category.developer-tools
