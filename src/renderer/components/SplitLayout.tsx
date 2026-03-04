@@ -7,6 +7,7 @@ export interface SplitLayoutProps {
   windowId: string;
   layout: LayoutNode;
   activePaneId: string;
+  isWindowActive: boolean;
   onPaneActivate: (paneId: string) => void;
   onPaneClose: (paneId: string) => void;
 }
@@ -19,6 +20,7 @@ export const SplitLayout: React.FC<SplitLayoutProps> = ({
   windowId,
   layout,
   activePaneId,
+  isWindowActive,
   onPaneActivate,
   onPaneClose,
 }) => {
@@ -31,13 +33,15 @@ export const SplitLayout: React.FC<SplitLayoutProps> = ({
   // 计算窗格总数
   const totalPaneCount = getPaneCount(layout);
 
-  // 如果是窗格节点，直接渲染 TerminalPane
+  // 如果是窗格节点,直接渲染 TerminalPane
   if (layout.type === 'pane') {
+    const isActive = layout.id === activePaneId;
     return (
       <TerminalPane
         windowId={windowId}
         pane={layout.pane}
-        isActive={layout.id === activePaneId}
+        isActive={isActive}
+        isWindowActive={isWindowActive}
         onActivate={() => onPaneActivate(layout.id)}
         onClose={() => onPaneClose(layout.id)}
       />
@@ -66,6 +70,7 @@ interface SplitContainerProps {
   windowId: string;
   splitNode: SplitNode;
   activePaneId: string;
+  isWindowActive: boolean;
   onPaneActivate: (paneId: string) => void;
   onPaneClose: (paneId: string) => void;
 }
@@ -74,6 +79,7 @@ const SplitContainer: React.FC<SplitContainerProps> = ({
   windowId,
   splitNode,
   activePaneId,
+  isWindowActive,
   onPaneActivate,
   onPaneClose,
 }) => {
@@ -153,6 +159,7 @@ const SplitContainer: React.FC<SplitContainerProps> = ({
               windowId={windowId}
               layout={child}
               activePaneId={activePaneId}
+              isWindowActive={isWindowActive}
               onPaneActivate={onPaneActivate}
               onPaneClose={onPaneClose}
             />

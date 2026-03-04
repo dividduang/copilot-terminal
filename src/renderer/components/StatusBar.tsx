@@ -2,27 +2,33 @@ import React, { useMemo } from 'react';
 import { Activity, Keyboard, Pause } from 'lucide-react';
 import { useWindowStore } from '../stores/windowStore';
 import { WindowStatus } from '../types/window';
+import { getAllPanes } from '../utils/layoutHelpers';
 
 /**
  * StatusBar 组件
- * 在侧边栏中显示各状态的窗口数量统计
+ * 在侧边栏中显示各状态的窗格数量统计
  */
 export const StatusBar = React.memo(function StatusBar() {
   const windows = useWindowStore((state) => state.windows);
 
-  // 缓存状态计数（只统计未归档的窗口）
-  const activeWindows = useMemo(() => windows.filter(w => !w.archived), [windows]);
+  // 缓存状态计数（统计所有未归档窗口中的所有窗格）
+  const statusCounts = useMemo(() => {
+    const activeWindows = windows.filter(w => !w.archived);
 
-  const statusCounts = useMemo(() => ({
-    running: activeWindows.filter((w) => w.status === WindowStatus.Running).length,
-    waiting: activeWindows.filter((w) => w.status === WindowStatus.WaitingForInput).length,
-    paused: activeWindows.filter((w) => w.status === WindowStatus.Paused).length,
-  }), [activeWindows]);
+    // 收集所有窗格
+    const allPanes = activeWindows.flatMap(w => getAllPanes(w.layout));
+
+    return {
+      running: allPanes.filter(p => p.status === WindowStatus.Running).length,
+      waiting: allPanes.filter(p => p.status === WindowStatus.WaitingForInput).length,
+      paused: allPanes.filter(p => p.status === WindowStatus.Paused).length,
+    };
+  }, [windows]);
 
   // 缓存 aria-label
   const ariaLabel = useMemo(
     () =>
-      `窗口状态统计：运行中 ${statusCounts.running} 个，等待输入 ${statusCounts.waiting} 个，暂停 ${statusCounts.paused} 个`,
+      `窗格状态统计：运行中 ${statusCounts.running} 个，等待输入 ${statusCounts.waiting} 个，暂停 ${statusCounts.paused} 个`,
     [statusCounts]
   );
 

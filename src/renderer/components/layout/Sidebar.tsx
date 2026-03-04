@@ -57,7 +57,7 @@ export function Sidebar({
               }`}
             >
               <Terminal className="h-4 w-4" />
-              <span>活跃终端</span>
+              <span>工作区终端</span>
               {activeWindows.length > 0 && (
                 <span className="ml-auto text-xs">{activeWindows.length}</span>
               )}

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { ArrowLeft, SplitSquareHorizontal, SplitSquareVertical } from 'lucide-react';
@@ -50,6 +50,20 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
     setActivePane,
   } = useWindowStore();
   const activeWindows = getActiveWindows();
+
+  // 确保窗口激活时，激活第一个窗格
+  useEffect(() => {
+    if (!isActive) return;
+
+    const paneIds = panes.map(p => p.id);
+
+    // 如果没有激活的窗格，或激活的窗格不在当前窗格列表中，则激活第一个窗格
+    if (!terminalWindow.activePaneId || !paneIds.includes(terminalWindow.activePaneId)) {
+      if (panes.length > 0) {
+        setActivePane(terminalWindow.id, panes[0].id);
+      }
+    }
+  }, [isActive, terminalWindow.activePaneId, terminalWindow.id, panes, setActivePane]);
 
   // 快捷键处理
   useKeyboardShortcuts({
@@ -257,6 +271,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
             windowId={terminalWindow.id}
             layout={terminalWindow.layout}
             activePaneId={terminalWindow.activePaneId}
+            isWindowActive={isActive}
             onPaneActivate={handlePaneActivate}
             onPaneClose={handlePaneClose}
           />

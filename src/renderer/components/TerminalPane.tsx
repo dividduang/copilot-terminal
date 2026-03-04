@@ -54,6 +54,7 @@ export interface TerminalPaneProps {
   windowId: string;
   pane: Pane;
   isActive: boolean; // 是否是当前激活的窗格
+  isWindowActive: boolean; // 窗口是否是当前激活的窗口
   onActivate: () => void; // 点击激活
   onClose?: () => void; // 关闭窗格（可选，最后一个窗格不显示关闭按钮）
 }
@@ -66,6 +67,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
   windowId,
   pane,
   isActive,
+  isWindowActive,
   onActivate,
   onClose,
 }) => {
@@ -81,6 +83,28 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
   useEffect(() => {
     isActiveRef.current = isActive;
   }, [isActive]);
+
+  // 当窗格激活且窗口激活时，自动聚焦到终端
+  useEffect(() => {
+    const shouldFocus = isActive && isWindowActive;
+
+    if (shouldFocus && terminalRef.current) {
+      requestAnimationFrame(() => {
+        if (!terminalRef.current) return;
+
+        try {
+          terminalRef.current.focus();
+
+          const textarea = terminalContainerRef.current?.querySelector('textarea');
+          if (textarea) {
+            textarea.focus();
+          }
+        } catch (error) {
+          console.error(`[TerminalPane] Error focusing pane ${pane.id}:`, error);
+        }
+      });
+    }
+  }, [isActive, isWindowActive, pane.id]);
 
   // 初始化 xterm.js
   useEffect(() => {
