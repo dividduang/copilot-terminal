@@ -191,16 +191,44 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
   // 处理归档窗口
   const handleArchiveWindow = useCallback(async () => {
     try {
-      // 先关闭窗口（如果有运行中的进程）
-      await window.electronAPI.closeWindow(terminalWindow.id);
-      // 归档窗口
-      archiveWindow(terminalWindow.id);
-      // 返回统一视图
-      onReturn();
+      // 获取所有未归档的窗口
+      const { windows } = useWindowStore.getState();
+      const activeWindows = windows.filter(w => !w.archived && w.id !== terminalWindow.id);
+
+      // 查找第一个等待输入的窗口
+      let targetWindow = activeWindows.find(w => {
+        const windowPanes = getAllPanes(w.layout);
+        return windowPanes.some(pane => pane.status === WindowStatus.WaitingForInput);
+      });
+
+      // 如果没有等待输入的窗口，找第一个活跃窗口
+      if (!targetWindow && activeWindows.length > 0) {
+        targetWindow = activeWindows[0];
+      }
+
+      // 如果找到了目标窗口，先切换过去
+      if (targetWindow) {
+        onWindowSwitch(targetWindow.id);
+
+        // 等待切换完成后再关闭和归档当前窗口
+        setTimeout(async () => {
+          try {
+            await window.electronAPI.closeWindow(terminalWindow.id);
+            archiveWindow(terminalWindow.id);
+          } catch (error) {
+            console.error('Failed to close and archive window:', error);
+          }
+        }, 100);
+      } else {
+        // 没有其他窗口，关闭并归档后返回主界面
+        await window.electronAPI.closeWindow(terminalWindow.id);
+        archiveWindow(terminalWindow.id);
+        onReturn();
+      }
     } catch (error) {
       console.error('Failed to archive window:', error);
     }
-  }, [terminalWindow.id, archiveWindow, onReturn]);
+  }, [terminalWindow.id, archiveWindow, onReturn, onWindowSwitch]);
 
   // 处理 Tab 切换
   const handleTabSwitcherSelect = useCallback(
