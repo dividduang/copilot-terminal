@@ -176,14 +176,17 @@ export function CreateWindowDialog({ open, onOpenChange }: CreateWindowDialogPro
               浏览
             </Button>
           </div>
-          {pathError && (
-            <p id="path-error" className="mt-1 text-sm text-status-error" role="alert">
-              {pathError}
-            </p>
-          )}
-          {isValidating && (
-            <p className="mt-1 text-sm text-text-secondary" aria-live="polite">验证中...</p>
-          )}
+          {/* 固定高度的提示区域，防止弹窗抖动 */}
+          <div className="mt-1 h-5">
+            {pathError && (
+              <p id="path-error" className="text-sm text-status-error" role="alert">
+                {pathError}
+              </p>
+            )}
+            {!pathError && isValidating && (
+              <p className="text-sm text-text-secondary" aria-live="polite">验证中...</p>
+            )}
+          </div>
         </div>
 
         {/* Shell 程序 */}

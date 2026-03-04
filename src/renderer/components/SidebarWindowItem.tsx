@@ -59,8 +59,8 @@ function getStatusAnimation(status: WindowStatus): string {
  */
 function getWindowBackgroundColor(status: WindowStatus, isActive: boolean): string {
   if (isActive) {
-    // 激活状态：使用主按钮颜色（和新建终端按钮一致）
-    return 'bg-[rgb(var(--primary))]';
+    // 激活状态：使用蓝色背景，与状态图标有更好的对比度
+    return 'bg-blue-600/50';
   }
 
   // 非激活状态：根据窗口状态显示不同的基础背景色和悬停色

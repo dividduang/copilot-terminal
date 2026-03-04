@@ -1,0 +1,19 @@
+appId: com.ausome.terminal
+productName: Ausome Terminal
+directories:
+  output: release
+  buildResources: resources
+files:
+  - dist/**/*
+  - resources/**/*
+  - package.json
+win:
+  icon: resources/icon.png
+  target:
+    - nsis
+mac:
+  icon: resources/icon.png
+  category: public.app-category.developer-tools
+linux:
+  icon: resources/icon.png
+  category: Development

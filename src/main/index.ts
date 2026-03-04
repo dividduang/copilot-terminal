@@ -35,6 +35,7 @@ function createWindow() {
     minHeight: 360,
     backgroundColor: '#0a0a0a',
     title: 'ausome-terminal',
+    icon: path.join(__dirname, '../../resources/icon.png'),
     show: false, // 创建时不显示，等待渲染进程通知
     frame: true,
     webPreferences: {

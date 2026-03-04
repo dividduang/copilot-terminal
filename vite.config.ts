@@ -13,6 +13,9 @@ export default defineConfig({
 
   root: path.join(__dirname, 'src/renderer'),
 
+  // 静态资源目录
+  publicDir: path.join(__dirname, 'src/renderer/public'),
+
   // 开发服务器配置
   server: {
     port: 5173,

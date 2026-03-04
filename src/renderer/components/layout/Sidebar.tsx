@@ -30,20 +30,22 @@ export function Sidebar({
   return (
     <>
       <aside className="w-64 h-screen bg-[rgb(var(--sidebar))] border-r border-[rgb(var(--border))] flex flex-col">
-        {/* Header with app title */}
-        <div className="flex h-14 items-center px-4 pt-6">
-          <span className="text-lg font-bold text-[rgb(var(--primary))]">{appName}</span>
-        </div>
+        {/* 顶部间距，与右侧卡片对齐 */}
+        <div className="h-4" />
 
-        <div className="h-px bg-[rgb(var(--border))] mt-2" />
-
-        {/* Status section */}
+        {/* 状态统计 */}
         <div className="px-4 py-4 border-b border-[rgb(var(--border))]">
+          <h3 className="text-xs font-semibold text-[rgb(var(--muted-foreground))] uppercase tracking-wider mb-3">
+            状态统计
+          </h3>
           <StatusBar />
         </div>
 
-        {/* Main content area */}
-        <div className="flex-1 px-4 py-4 overflow-y-auto">
+        {/* 窗格管理 */}
+        <div className="flex-1 px-4 py-4 overflow-y-auto border-b border-[rgb(var(--border))]">
+          <h3 className="text-xs font-semibold text-[rgb(var(--muted-foreground))] uppercase tracking-wider mb-3">
+            窗格管理
+          </h3>
           {/* Tab buttons */}
           <div className="flex flex-col gap-2">
             <button
@@ -76,8 +78,6 @@ export function Sidebar({
             </button>
           </div>
         </div>
-
-        <div className="h-px bg-[rgb(var(--border))]" />
 
         {/* Bottom section */}
         <div className="space-y-3 p-4">
