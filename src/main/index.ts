@@ -21,9 +21,6 @@ let ptySubscriptionManager: PtySubscriptionManager | null = null;
 let shutdownManager: ShutdownManager | null = null;
 let currentWorkspace: Workspace | null = null; // 缓存当前工作区状态
 
-// PTY 输出缓存：paneId -> 输出历史数组
-const ptyOutputCache = new Map<string, string[]>();
-
 // 退出标志，防止重复执行退出逻辑
 let isQuitting = false;
 
@@ -144,7 +141,6 @@ function createWindow() {
           statusPoller,
           autoSaveManager,
           ptySubscriptionManager,
-          ptyOutputCache,
           currentWorkspace,
         };
 
@@ -198,7 +194,6 @@ app.whenReady().then(async () => {
     workspaceManager,
     autoSaveManager,
     ptySubscriptionManager,
-    ptyOutputCache,
     currentWorkspace,
     setCurrentWorkspace: (workspace) => { currentWorkspace = workspace; },
   };
@@ -270,9 +265,6 @@ app.on('window-all-closed', () => {
       }
     }
   }
-
-  // 清理缓存
-  ptyOutputCache.clear();
 
   if (process.platform !== 'darwin') {
     app.exit(0); // 使用 app.exit(0) 而不是 app.quit()

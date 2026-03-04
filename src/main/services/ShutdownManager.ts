@@ -15,7 +15,6 @@ export interface ShutdownContext {
   statusPoller: StatusPoller | null;
   autoSaveManager: AutoSaveManagerImpl | null;
   ptySubscriptionManager: PtySubscriptionManager | null;
-  ptyOutputCache: Map<string, string[]>;
   currentWorkspace: Workspace | null;
 }
 
@@ -159,7 +158,6 @@ export class ShutdownManager {
    */
   private async cleanupSubscriptions(context: ShutdownContext): Promise<void> {
     context.ptySubscriptionManager?.clear();
-    context.ptyOutputCache.clear();
   }
 
   /**

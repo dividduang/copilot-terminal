@@ -6,7 +6,7 @@ import { successResponse, errorResponse } from './HandlerResponse';
  * 注册 PTY 通信相关的 IPC handlers
  */
 export function registerPtyHandlers(ctx: HandlerContext) {
-  const { processManager, ptyOutputCache } = ctx;
+  const { processManager } = ctx;
 
   // PTY 数据写入（用户输入 → PTY 进程）
   ipcMain.handle('pty-write', async (_event, { windowId, paneId, data }: { windowId: string; paneId?: string; data: string }) => {
@@ -45,16 +45,6 @@ export function registerPtyHandlers(ctx: HandlerContext) {
       }
       processManager.resizePty(found.pid, cols, rows);
       return successResponse();
-    } catch (error) {
-      return errorResponse(error);
-    }
-  });
-
-  // 获取 PTY 历史输出
-  ipcMain.handle('get-pty-history', async (_event, { paneId }: { paneId: string }) => {
-    try {
-      const cache = ptyOutputCache.get(paneId);
-      return successResponse(cache || []);
     } catch (error) {
       return errorResponse(error);
     }

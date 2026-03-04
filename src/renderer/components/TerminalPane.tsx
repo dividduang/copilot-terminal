@@ -74,6 +74,10 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
   const terminalContainerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+  const outputBufferRef = useRef('');
+  const outputFlushFrameRef = useRef<number | null>(null);
+  const resizeFrameRef = useRef<number | null>(null);
+  const lastContainerSizeRef = useRef({ width: 0, height: 0 });
   const isActiveRef = useRef(isActive); // 使用 ref 跟踪 isActive 状态
   const lastCtrlEnterTimeRef = useRef(0); // 记录上次 Ctrl+Enter 的时间戳
   const [isHovered, setIsHovered] = useState(false);
@@ -227,10 +231,72 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
     const fitAddon = new FitAddon();
     terminal.loadAddon(fitAddon);
     terminal.open(terminalContainerRef.current);
-    fitAddon.fit();
 
     terminalRef.current = terminal;
     fitAddonRef.current = fitAddon;
+
+    // 批量刷新 PTY 输出：每帧最多写一次，降低高频输出时的重绘抖动
+    const flushOutput = () => {
+      outputFlushFrameRef.current = null;
+
+      const pending = outputBufferRef.current;
+      if (!pending || !terminalRef.current) {
+        return;
+      }
+
+      outputBufferRef.current = '';
+      terminalRef.current.write(pending);
+    };
+
+    const queueOutput = (data: string) => {
+      if (!data) return;
+
+      outputBufferRef.current += data;
+      if (outputFlushFrameRef.current !== null) {
+        return;
+      }
+
+      outputFlushFrameRef.current = requestAnimationFrame(flushOutput);
+    };
+
+    // 尺寸同步：仅在容器尺寸实际变化时执行 fit，避免无效重排
+    const runResize = () => {
+      resizeFrameRef.current = null;
+
+      const container = terminalContainerRef.current;
+      const currentTerminal = terminalRef.current;
+      const currentFitAddon = fitAddonRef.current;
+      if (!container || !currentTerminal || !currentFitAddon) {
+        return;
+      }
+
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      if (width <= 0 || height <= 0) {
+        return;
+      }
+
+      const last = lastContainerSizeRef.current;
+      if (last.width === width && last.height === height) {
+        return;
+      }
+
+      lastContainerSizeRef.current = { width, height };
+      currentFitAddon.fit();
+
+      if (window.electronAPI) {
+        const { cols, rows } = currentTerminal;
+        window.electronAPI.ptyResize(windowId, pane.id, cols, rows);
+      }
+    };
+
+    const scheduleResize = () => {
+      if (resizeFrameRef.current !== null) {
+        return;
+      }
+
+      resizeFrameRef.current = requestAnimationFrame(runResize);
+    };
 
     // 根据激活状态设置光标可见性
     if (!isActive || !isWindowActive) {
@@ -289,41 +355,22 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
     // 监听 PTY 数据输出
     const handlePtyData = (_event: unknown, payload: { windowId: string; paneId?: string; data: string }) => {
       if (payload.windowId === windowId && payload.paneId === pane.id) {
-        terminal.write(payload.data);
+        queueOutput(payload.data);
       }
     };
 
     if (window.electronAPI) {
       window.electronAPI.onPtyData(handlePtyData);
-
-      // 加载历史输出（如果有）
-      window.electronAPI.getPtyHistory(pane.id).then((history) => {
-        if (history && history.length > 0) {
-          for (const data of history) {
-            terminal.write(data);
-          }
-        }
-      }).catch((error) => {
-        console.error('Failed to load PTY history:', error);
-      });
     }
 
     // 窗口大小变化时重新调整终端大小
-    const handleResize = () => {
-      if (fitAddon && terminal) {
-        fitAddon.fit();
-        const { cols, rows } = terminal;
-        if (window.electronAPI) {
-          window.electronAPI.ptyResize(windowId, pane.id, cols, rows);
-        }
-      }
-    };
+    const handleResize = () => scheduleResize();
 
     window.addEventListener('resize', handleResize);
 
     // 使用 ResizeObserver 监听容器大小变化（拆分窗格、调整大小时触发）
     const resizeObserver = new ResizeObserver(() => {
-      handleResize();
+      scheduleResize();
     });
 
     if (terminalContainerRef.current) {
@@ -331,7 +378,8 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
     }
 
     // 初始化时调整大小
-    setTimeout(() => handleResize(), 100);
+    scheduleResize();
+    const initResizeTimer = window.setTimeout(() => scheduleResize(), 100);
 
     return () => {
       disposable.dispose();
@@ -341,6 +389,19 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
       }
       window.removeEventListener('resize', handleResize);
       resizeObserver.disconnect();
+      window.clearTimeout(initResizeTimer);
+
+      if (resizeFrameRef.current !== null) {
+        cancelAnimationFrame(resizeFrameRef.current);
+        resizeFrameRef.current = null;
+      }
+
+      if (outputFlushFrameRef.current !== null) {
+        cancelAnimationFrame(outputFlushFrameRef.current);
+        outputFlushFrameRef.current = null;
+      }
+      outputBufferRef.current = '';
+
       terminal.dispose();
     };
   }, [windowId, pane.id, writeClipboardText]); // 移除 isActive 依赖

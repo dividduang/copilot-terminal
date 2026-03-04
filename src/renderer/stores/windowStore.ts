@@ -155,16 +155,41 @@ export const useWindowStore = create<WindowStore>()(
 
     // 更新窗格
     updatePane: (windowId, paneId, updates) => {
+      const updateKeys = Object.keys(updates);
+      const isStatusOnlyUpdate = updateKeys.length > 0 && updateKeys.every((key) => key === 'status');
+      let didChange = false;
+
       set((state) => {
         const window = state.windows.find(w => w.id === windowId);
         if (window) {
+          const paneNode = findPaneNode(window.layout, paneId);
+          if (!paneNode) {
+            return;
+          }
+
+          const hasActualChange = updateKeys.some((key) => {
+            const paneKey = key as keyof Pane;
+            return paneNode.pane[paneKey] !== updates[paneKey];
+          });
+
+          if (!hasActualChange) {
+            return;
+          }
+
+          didChange = true;
           window.layout = updatePaneInLayout(window.layout, paneId, updates);
-          window.lastActiveAt = new Date().toISOString();
+          // 状态轮询导致的高频 status 更新不应刷新活跃时间，避免无意义重渲染
+          if (!isStatusOnlyUpdate) {
+            window.lastActiveAt = new Date().toISOString();
+          }
         }
       });
-      // 触发自动保存
-      const windows = get().windows;
-      triggerAutoSave(windows);
+
+      // 仅在结构性变更时触发自动保存
+      if (didChange && !isStatusOnlyUpdate) {
+        const windows = get().windows;
+        triggerAutoSave(windows);
+      }
     },
 
     // 拆分窗格
@@ -349,5 +374,3 @@ export const useWindowStore = create<WindowStore>()(
 // Re-export types for convenience
 export type { Window };
 export { WindowStatus } from '../types/window';
-
-

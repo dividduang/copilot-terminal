@@ -32,11 +32,14 @@ export const useWorkspaceRestore = () => {
       addWindow(window);
     }
 
-    // 立即启用自动保存
+    console.log(`[useWorkspaceRestore] Restored ${workspace.windows.length} windows`);
+
+    // 延迟启用自动保存，确保所有窗口都已添加完成
+    // 使用更长的延迟（2秒）确保恢复过程完全完成
     setTimeout(() => {
       setAutoSaveEnabled(true);
       console.log('[useWorkspaceRestore] Auto-save enabled, windows in paused state');
-    }, 500);
+    }, 2000);
   }, [addWindow, clearWindows]);
 
   /**

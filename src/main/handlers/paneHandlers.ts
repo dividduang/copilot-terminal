@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron';
-import { HandlerContext, MAX_CACHE_SIZE } from './HandlerContext';
+import { HandlerContext } from './HandlerContext';
 import { TerminalConfig } from '../types/process';
 import { successResponse, errorResponse } from './HandlerResponse';
 
@@ -11,7 +11,6 @@ export function registerPaneHandlers(ctx: HandlerContext) {
     mainWindow,
     processManager,
     ptySubscriptionManager,
-    ptyOutputCache,
   } = ctx;
 
   // 拆分窗格（创建新的 PTY 进程）
@@ -22,25 +21,8 @@ export function registerPaneHandlers(ctx: HandlerContext) {
       }
       const handle = await processManager.spawnTerminal(config);
 
-      // 初始化输出缓存
-      if (config.paneId) {
-        ptyOutputCache.set(config.paneId, []);
-      }
-
-      // 订阅 PTY 数据（修复：之前缺少这部分逻辑）
+      // 订阅 PTY 数据
       const unsubscribe = processManager.subscribePtyData(handle.pid, (data: string) => {
-        // 缓存输出
-        if (config.paneId) {
-          const cache = ptyOutputCache.get(config.paneId);
-          if (cache) {
-            cache.push(data);
-            // 限制缓存大小
-            if (cache.length > MAX_CACHE_SIZE) {
-              cache.shift();
-            }
-          }
-        }
-
         // 推送到渲染进程
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('pty-data', {
@@ -69,10 +51,7 @@ export function registerPaneHandlers(ctx: HandlerContext) {
         throw new Error('ProcessManager not initialized');
       }
 
-      // 清理输出缓存
-      ptyOutputCache.delete(paneId);
-
-      // 清理 PTY 订阅（修复：之前缺少这部分逻辑）
+      // 清理 PTY 订阅
       if (ptySubscriptionManager) {
         ptySubscriptionManager.remove(paneId);
       }

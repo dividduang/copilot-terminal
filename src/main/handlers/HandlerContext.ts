@@ -19,12 +19,6 @@ export interface HandlerContext {
   workspaceManager: WorkspaceManagerImpl | null;
   autoSaveManager: AutoSaveManagerImpl | null;
   ptySubscriptionManager: PtySubscriptionManager | null;
-  ptyOutputCache: Map<string, string[]>;
   currentWorkspace: Workspace | null;
   setCurrentWorkspace: (workspace: Workspace | null) => void;
 }
-
-/**
- * 常量配置
- */
-export const MAX_CACHE_SIZE = 1000; // 每个窗格最多缓存 1000 条输出

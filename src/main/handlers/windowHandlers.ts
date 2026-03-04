@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron';
 import { randomUUID } from 'crypto';
-import { HandlerContext, MAX_CACHE_SIZE } from './HandlerContext';
+import { HandlerContext } from './HandlerContext';
 import { PathValidator } from '../utils/pathValidator';
 import { getDefaultShell } from '../utils/shell';
 import { WindowStatus } from '../../shared/types/window';
@@ -15,7 +15,6 @@ export function registerWindowHandlers(ctx: HandlerContext) {
     processManager,
     statusPoller,
     ptySubscriptionManager,
-    ptyOutputCache,
   } = ctx;
 
   // 创建窗口
@@ -92,21 +91,8 @@ export function registerWindowHandlers(ctx: HandlerContext) {
       // 将新窗格添加到 StatusPoller
       statusPoller?.addWindow(windowId, handle.pid, paneId);
 
-      // 初始化输出缓存（使用 paneId）
-      ptyOutputCache.set(paneId, []);
-
-      // 订阅 PTY 数据，推送到渲染进程并缓存
+      // 订阅 PTY 数据，推送到渲染进程
       const unsubscribe = processManager.subscribePtyData(handle.pid, (data: string) => {
-        // 缓存输出
-        const cache = ptyOutputCache.get(paneId);
-        if (cache) {
-          cache.push(data);
-          // 限制缓存大小
-          if (cache.length > MAX_CACHE_SIZE) {
-            cache.shift();
-          }
-        }
-
         // 推送到渲染进程
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('pty-data', { windowId, paneId, data });
@@ -163,25 +149,8 @@ export function registerWindowHandlers(ctx: HandlerContext) {
       // 将窗格添加到 StatusPoller
       statusPoller?.addWindow(windowId, handle.pid, paneId);
 
-      // 初始化输出缓存（如果还没有，使用 paneId）
-      if (paneId && !ptyOutputCache.has(paneId)) {
-        ptyOutputCache.set(paneId, []);
-      }
-
-      // 订阅 PTY 数据，推送到渲染进程并缓存
+      // 订阅 PTY 数据，推送到渲染进程
       const unsubscribe = processManager.subscribePtyData(handle.pid, (data: string) => {
-        // 缓存输出
-        if (paneId) {
-          const cache = ptyOutputCache.get(paneId);
-          if (cache) {
-            cache.push(data);
-            // 限制缓存大小
-            if (cache.length > MAX_CACHE_SIZE) {
-              cache.shift();
-            }
-          }
-        }
-
         // 推送到渲染进程（包含 paneId）
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('pty-data', { windowId, paneId, data });
@@ -219,11 +188,6 @@ export function registerWindowHandlers(ctx: HandlerContext) {
       }
 
       for (const proc of windowProcesses) {
-        // 清理每个窗格的输出缓存
-        if (proc.paneId) {
-          ptyOutputCache.delete(proc.paneId);
-        }
-
         try {
           await processManager.killProcess(proc.pid);
         } catch (error) {
@@ -261,10 +225,6 @@ export function registerWindowHandlers(ctx: HandlerContext) {
       }
 
       for (const proc of windowProcesses) {
-        // 清理每个窗格的输出缓存
-        if (proc.paneId) {
-          ptyOutputCache.delete(proc.paneId);
-        }
         try {
           await processManager.killProcess(proc.pid);
         } catch (error) {

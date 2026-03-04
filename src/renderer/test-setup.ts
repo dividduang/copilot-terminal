@@ -28,7 +28,6 @@ Object.defineProperty(window, 'electronAPI', {
     offPaneStatusChanged: vi.fn(),
     ptyWrite: vi.fn().mockResolvedValue(undefined),
     ptyResize: vi.fn().mockResolvedValue(undefined),
-    getPtyHistory: vi.fn().mockResolvedValue([]),
     onPtyData: vi.fn(),
     offPtyData: vi.fn(),
     splitPane: vi.fn().mockResolvedValue({ success: true }),
