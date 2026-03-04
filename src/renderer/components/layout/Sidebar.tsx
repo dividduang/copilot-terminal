@@ -179,7 +179,7 @@ export function Sidebar({
             <>
               <button
                 onClick={() => setIsBatchDialogOpen(true)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[rgb(var(--accent))] text-[rgb(var(--foreground))] hover:opacity-80 transition-opacity"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))] font-medium hover:opacity-90 transition-opacity"
                 title="批量添加"
               >
                 <FolderPlus className="h-4 w-4" />
