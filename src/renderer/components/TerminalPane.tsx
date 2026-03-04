@@ -80,6 +80,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
   const lastContainerSizeRef = useRef({ width: 0, height: 0 });
   const isActiveRef = useRef(isActive); // 使用 ref 跟踪 isActive 状态
   const lastCtrlEnterTimeRef = useRef(0); // 记录上次 Ctrl+Enter 的时间戳
+  const ptyDataHandlerRef = useRef<((event: unknown, payload: { windowId: string; paneId?: string; data: string }) => void) | null>(null); // 存储 PTY 数据处理器的引用
   const [isHovered, setIsHovered] = useState(false);
   const borderColor = getStatusBorderColor(pane.status);
   const ringColor = getStatusRingColor(pane.status);
@@ -360,7 +361,16 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
     };
 
     if (window.electronAPI) {
+      // 先移除可能存在的旧监听器（使用 ref 中保存的旧引用）
+      const oldHandler = ptyDataHandlerRef.current;
+      if (oldHandler) {
+        window.electronAPI.offPtyData(oldHandler);
+      }
+
       window.electronAPI.onPtyData(handlePtyData);
+
+      // 保存新的处理器引用，用于清理
+      ptyDataHandlerRef.current = handlePtyData;
     }
 
     // 窗口大小变化时重新调整终端大小
@@ -384,8 +394,9 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
     return () => {
       disposable.dispose();
       selectionDisposable.dispose();
-      if (window.electronAPI) {
-        window.electronAPI.offPtyData(handlePtyData);
+      if (window.electronAPI && ptyDataHandlerRef.current) {
+        window.electronAPI.offPtyData(ptyDataHandlerRef.current);
+        ptyDataHandlerRef.current = null;
       }
       window.removeEventListener('resize', handleResize);
       resizeObserver.disconnect();

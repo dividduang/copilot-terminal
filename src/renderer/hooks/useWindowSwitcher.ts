@@ -40,7 +40,7 @@ export function useWindowSwitcher(onSwitchView: (windowId: string) => void) {
 
         // 启动所有窗格
         for (const pane of panes) {
-          const result = await window.electronAPI.startWindow({
+          const response = await window.electronAPI.startWindow({
             windowId: win.id,
             paneId: pane.id,
             name: win.name,
@@ -48,11 +48,16 @@ export function useWindowSwitcher(onSwitchView: (windowId: string) => void) {
             command: pane.command,
           });
 
-          // 更新窗格信息
-          updatePane(win.id, pane.id, {
-            pid: result.pid,
-            status: result.status,
-          });
+          // 修复：正确访问响应数据
+          if (response && response.success && response.data) {
+            updatePane(win.id, pane.id, {
+              pid: response.data.pid,
+              status: response.data.status,
+            });
+          } else {
+            console.error(`Failed to start pane ${pane.id}:`, response);
+            updatePane(win.id, pane.id, { status: WindowStatus.Paused });
+          }
         }
 
         // 等待一小段时间让终端初始化
