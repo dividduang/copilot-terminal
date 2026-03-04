@@ -191,10 +191,12 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
 
     // 告诉 xterm.js 忽略应用级快捷键
     terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => {
-      // Ctrl+Enter：插入换行符（用于多行输入）
+      // Ctrl+Enter：发送换行符到 PTY（用于多行输入）
       if (e.ctrlKey && e.key === 'Enter' && !e.shiftKey) {
-        // 直接在终端显示换行
-        terminal.write('\r\n');
+        // 只发送到 PTY，让应用程序自己处理显示
+        if (window.electronAPI && isActiveRef.current) {
+          window.electronAPI.ptyWrite(windowId, pane.id, '\n');
+        }
         return false; // 阻止 xterm.js 处理
       }
 
