@@ -30,30 +30,25 @@ export const SplitLayout: React.FC<SplitLayoutProps> = ({
     return <div className="flex items-center justify-center h-full text-zinc-500">布局数据无效</div>;
   }
 
-  // 计算窗格总数
   const totalPaneCount = getPaneCount(layout);
 
-  // 如果是窗格节点,直接渲染 TerminalPane
-  if (layout.type === 'pane') {
-    const isActive = layout.id === activePaneId;
-    return (
-      <TerminalPane
-        windowId={windowId}
-        pane={layout.pane}
-        isActive={isActive}
-        isWindowActive={isWindowActive}
-        onActivate={() => onPaneActivate(layout.id)}
-        onClose={() => onPaneClose(layout.id)}
-      />
-    );
-  }
+  // 统一根节点渲染结构，避免单窗格->拆分时已存在窗格被卸载重建
+  const rootSplitNode: SplitNode = layout.type === 'split'
+    ? layout
+    : {
+      type: 'split',
+      direction: 'horizontal',
+      sizes: [1],
+      children: [layout],
+    };
 
-  // 如果是拆分节点，递归渲染子节点
   return (
     <SplitContainer
       windowId={windowId}
-      splitNode={layout}
+      splitNode={rootSplitNode}
       activePaneId={activePaneId}
+      isWindowActive={isWindowActive}
+      totalPaneCount={totalPaneCount}
       onPaneActivate={onPaneActivate}
       onPaneClose={onPaneClose}
     />
@@ -71,6 +66,7 @@ interface SplitContainerProps {
   splitNode: SplitNode;
   activePaneId: string;
   isWindowActive: boolean;
+  totalPaneCount: number;
   onPaneActivate: (paneId: string) => void;
   onPaneClose: (paneId: string) => void;
 }
@@ -80,6 +76,7 @@ const SplitContainer: React.FC<SplitContainerProps> = ({
   splitNode,
   activePaneId,
   isWindowActive,
+  totalPaneCount,
   onPaneActivate,
   onPaneClose,
 }) => {
@@ -147,19 +144,20 @@ const SplitContainer: React.FC<SplitContainerProps> = ({
       className={`flex ${isHorizontal ? 'flex-row' : 'flex-col'} w-full h-full`}
     >
       {splitNode.children.map((child, index) => (
-        <React.Fragment key={index}>
+        <React.Fragment key={child.type === 'pane' ? child.id : `split-${index}`}>
           {/* 子节点 */}
           <div
             style={{
-              [isHorizontal ? 'width' : 'height']: `${sizes[index] * 100}%`,
+              [isHorizontal ? 'width' : 'height']: `${(sizes[index] ?? (1 / splitNode.children.length)) * 100}%`,
             }}
             className="relative"
           >
-            <SplitLayout
+            <LayoutNodeRenderer
               windowId={windowId}
               layout={child}
               activePaneId={activePaneId}
               isWindowActive={isWindowActive}
+              totalPaneCount={totalPaneCount}
               onPaneActivate={onPaneActivate}
               onPaneClose={onPaneClose}
             />
@@ -179,5 +177,51 @@ const SplitContainer: React.FC<SplitContainerProps> = ({
         </React.Fragment>
       ))}
     </div>
+  );
+};
+
+interface LayoutNodeRendererProps {
+  windowId: string;
+  layout: LayoutNode;
+  activePaneId: string;
+  isWindowActive: boolean;
+  totalPaneCount: number;
+  onPaneActivate: (paneId: string) => void;
+  onPaneClose: (paneId: string) => void;
+}
+
+const LayoutNodeRenderer: React.FC<LayoutNodeRendererProps> = ({
+  windowId,
+  layout,
+  activePaneId,
+  isWindowActive,
+  totalPaneCount,
+  onPaneActivate,
+  onPaneClose,
+}) => {
+  if (layout.type === 'pane') {
+    const isActive = layout.id === activePaneId;
+    return (
+      <TerminalPane
+        windowId={windowId}
+        pane={layout.pane}
+        isActive={isActive}
+        isWindowActive={isWindowActive}
+        onActivate={() => onPaneActivate(layout.id)}
+        onClose={totalPaneCount > 1 ? () => onPaneClose(layout.id) : undefined}
+      />
+    );
+  }
+
+  return (
+    <SplitContainer
+      windowId={windowId}
+      splitNode={layout}
+      activePaneId={activePaneId}
+      isWindowActive={isWindowActive}
+      totalPaneCount={totalPaneCount}
+      onPaneActivate={onPaneActivate}
+      onPaneClose={onPaneClose}
+    />
   );
 };
