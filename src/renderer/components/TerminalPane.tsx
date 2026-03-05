@@ -79,6 +79,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
   const resizeFrameRef = useRef<number | null>(null);
   const lastContainerSizeRef = useRef({ width: 0, height: 0 });
   const isActiveRef = useRef(isActive); // 使用 ref 跟踪 isActive 状态
+  const suppressNativePasteUntilRef = useRef(0); // 短时间屏蔽原生 paste，避免与手动 Ctrl+V 粘贴重复
   const lastCtrlEnterTimeRef = useRef(0); // 记录上次 Ctrl+Enter 的时间戳
   const ptyDataHandlerRef = useRef<((event: unknown, payload: { windowId: string; paneId?: string; data: string }) => void) | null>(null); // 存储 PTY 数据处理器的引用
   const [isHovered, setIsHovered] = useState(false);
@@ -219,6 +220,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
     const fitAddon = new FitAddon();
     terminal.loadAddon(fitAddon);
     terminal.open(terminalContainerRef.current);
+    const pasteCaptureBlockMs = 300;
 
     terminalRef.current = terminal;
     fitAddonRef.current = fitAddon;
@@ -286,6 +288,19 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
       resizeFrameRef.current = requestAnimationFrame(runResize);
     };
 
+    // 捕获阶段拦截 Ctrl+V 触发的原生 paste，避免与手动 ptyWrite 双写入
+    const suppressNativePaste = (event: ClipboardEvent) => {
+      if (Date.now() <= suppressNativePasteUntilRef.current) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+
+    const terminalContainer = terminalContainerRef.current;
+    const helperTextarea = terminalContainer?.querySelector('textarea');
+    helperTextarea?.addEventListener('paste', suppressNativePaste, true);
+    terminalContainer?.addEventListener('paste', suppressNativePaste as EventListener, true);
+
     // 告诉 xterm.js 忽略应用级快捷键
     terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => {
       // 调试日志：记录 @ 键和 Shift 键的事件
@@ -299,6 +314,21 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
           target: (e.target as HTMLElement)?.className,
           timestamp: Date.now(),
         });
+      }
+
+      // Ctrl+V：粘贴剪贴板内容
+      if (e.type === 'keydown' && e.ctrlKey && e.key.toLowerCase() === 'v' && !e.shiftKey && !e.altKey && !e.metaKey) {
+        e.preventDefault(); // 阻止浏览器默认粘贴行为（否则会通过 xterm textarea 触发第二次粘贴）
+        e.stopPropagation();
+        suppressNativePasteUntilRef.current = Date.now() + pasteCaptureBlockMs;
+        if (isActiveRef.current && window.electronAPI) {
+          void readClipboardText().then((text) => {
+            if (text && window.electronAPI && isActiveRef.current) {
+              window.electronAPI.ptyWrite(windowId, pane.id, text);
+            }
+          });
+        }
+        return false; // 阻止 xterm.js 将 Ctrl+V 作为 ^V 发送给 PTY
       }
 
       // Ctrl+Enter：发送换行符到 PTY（用于多行输入）
@@ -406,10 +436,13 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
         outputFlushFrameRef.current = null;
       }
       outputBufferRef.current = '';
+      suppressNativePasteUntilRef.current = 0;
+      helperTextarea?.removeEventListener('paste', suppressNativePaste, true);
+      terminalContainer?.removeEventListener('paste', suppressNativePaste as EventListener, true);
 
       terminal.dispose();
     };
-  }, [windowId, pane.id, writeClipboardText]); // 移除 isActive 依赖
+  }, [windowId, pane.id, writeClipboardText, readClipboardText]); // 移除 isActive 依赖
 
   // 处理点击激活
   const handleClick = useCallback(() => {
