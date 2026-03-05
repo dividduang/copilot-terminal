@@ -139,6 +139,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
   }, [isActive]);
 
   // 根据激活状态动态更新光标样式
+  // 方案1：使用 cursorInactiveStyle 'none' 来隐藏非激活窗格的光标，避免光标跳动
   useEffect(() => {
     if (!terminalRef.current) return;
 
@@ -147,9 +148,13 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
     if (shouldShowCursor) {
       terminalRef.current.options.cursorBlink = true;
       terminalRef.current.options.cursorStyle = 'block';
+      // @ts-ignore - cursorInactiveStyle 是 xterm.js 的有效选项
+      terminalRef.current.options.cursorInactiveStyle = 'outline';
     } else {
+      // 关键修改：不改变 cursorStyle，只禁用闪烁并设置 inactive 样式为 none
       terminalRef.current.options.cursorBlink = false;
-      terminalRef.current.options.cursorStyle = 'underline';
+      // @ts-ignore - cursorInactiveStyle 是 xterm.js 的有效选项
+      terminalRef.current.options.cursorInactiveStyle = 'none';
     }
   }, [isActive, isWindowActive]);
 
@@ -300,9 +305,11 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
     };
 
     // 根据激活状态设置光标可见性
+    // 方案1：初始化时也使用 cursorInactiveStyle 'none'
     if (!isActive || !isWindowActive) {
       terminal.options.cursorBlink = false;
-      terminal.options.cursorStyle = 'underline';
+      // @ts-ignore - cursorInactiveStyle 是 xterm.js 的有效选项
+      terminal.options.cursorInactiveStyle = 'none';
     }
 
     // 告诉 xterm.js 忽略应用级快捷键
