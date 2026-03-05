@@ -1,10 +1,12 @@
 import { ipcMain, dialog, shell } from 'electron';
+import { spawn } from 'child_process';
+import { existsSync } from 'fs';
 import { HandlerContext } from './HandlerContext';
 import { PathValidator } from '../utils/pathValidator';
 import { successResponse, errorResponse } from './HandlerResponse';
 
 export function registerFileHandlers(ctx: HandlerContext) {
-  const { mainWindow } = ctx;
+  const { mainWindow, getCurrentWorkspace } = ctx;
 
   ipcMain.handle('validate-path', async (_event, pathToValidate: string) => {
     try {
@@ -36,6 +38,68 @@ export function registerFileHandlers(ctx: HandlerContext) {
       await shell.openPath(path);
       return successResponse();
     } catch (error) {
+      return errorResponse(error);
+    }
+  });
+
+  ipcMain.handle('open-in-ide', async (_event, { ide, path }: { ide: string; path: string }) => {
+    try {
+      const workspace = getCurrentWorkspace();
+      if (!workspace) {
+        throw new Error('Workspace not loaded');
+      }
+
+      // 从设置中查找 IDE 配置
+      const ideConfig = workspace.settings.ides.find(i => i.id === ide || i.command === ide);
+      if (!ideConfig) {
+        throw new Error(`IDE ${ide} not found in settings`);
+      }
+
+      if (!ideConfig.enabled) {
+        throw new Error(`IDE ${ide} is disabled`);
+      }
+
+      let command: string;
+      let args: string[];
+
+      // 如果配置了路径，使用路径；否则使用命令
+      if (ideConfig.path && existsSync(ideConfig.path)) {
+        command = ideConfig.path;
+        args = [path];
+      } else {
+        command = ideConfig.command;
+        args = [path];
+      }
+
+      console.log(`Opening ${ideConfig.name} with command: ${command} ${args.join(' ')}`);
+
+      // 启动 IDE - 使用 shell: false 并正确处理参数
+      return new Promise((resolve) => {
+        const proc = spawn(command, args, {
+          detached: true,
+          stdio: 'ignore',
+          shell: false, // 改为 false，避免 shell 解析问题
+          windowsHide: false, // 确保窗口可见
+        });
+
+        proc.on('error', (error) => {
+          console.error(`Failed to open ${ideConfig.name}:`, error);
+          resolve(errorResponse(new Error(`Failed to open ${ideConfig.name}: ${error.message}`)));
+        });
+
+        proc.on('spawn', () => {
+          console.log(`${ideConfig.name} process spawned successfully`);
+        });
+
+        proc.unref();
+
+        // 延迟一点再返回成功，确保进程启动
+        setTimeout(() => {
+          resolve(successResponse());
+        }, 100);
+      });
+    } catch (error) {
+      console.error('open-in-ide error:', error);
       return errorResponse(error);
     }
   });

@@ -1,6 +1,18 @@
 import { Window } from '../../shared/types/window';
 
 /**
+ * IDE 配置
+ */
+export interface IDEConfig {
+  id: string;              // 唯一标识符
+  name: string;            // 显示名称（如 "VS Code", "IntelliJ IDEA"）
+  command: string;         // 命令行命令（如 "code", "idea"）
+  path?: string;           // 可执行文件路径（可选，如果在 PATH 中则不需要）
+  enabled: boolean;        // 是否启用
+  icon?: string;           // 图标名称（可选）
+}
+
+/**
  * 工作区设置
  */
 export interface Settings {
@@ -8,6 +20,7 @@ export interface Settings {
   theme: 'dark' | 'light';
   autoSave: boolean;
   autoSaveInterval: number;  // 自动保存间隔（分钟）
+  ides: IDEConfig[];         // IDE 配置列表
 }
 
 /**

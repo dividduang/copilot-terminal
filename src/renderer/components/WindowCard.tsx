@@ -7,6 +7,8 @@ import { Window, WindowStatus } from '../types/window';
 import { getStatusColor, getStatusLabel } from '../utils/statusHelpers';
 import { getAllPanes, getAggregatedStatus, getPaneCount } from '../utils/layoutHelpers';
 import { StatusDot } from './StatusDot';
+import { IDEIcon } from './icons/IDEIcons';
+import { useIDESettings } from '../hooks/useIDESettings';
 
 interface WindowCardProps {
   window: Window;
@@ -17,6 +19,7 @@ interface WindowCardProps {
   onPause?: () => void;
   onArchive?: () => void;
   onUnarchive?: () => void;
+  onOpenInIDE?: (ide: string) => void;
 }
 
 /**
@@ -79,8 +82,11 @@ export const WindowCard = React.memo<WindowCardProps>(({
   onStart,
   onPause,
   onArchive,
-  onUnarchive
+  onUnarchive,
+  onOpenInIDE
 }) => {
+  const { enabledIDEs } = useIDESettings();
+
   // 获取窗口的聚合状态和窗格信息
   const aggregatedStatus = useMemo(() => getAggregatedStatus(window.layout), [window.layout]);
   const paneCount = useMemo(() => getPaneCount(window.layout), [window.layout]);
@@ -334,6 +340,30 @@ export const WindowCard = React.memo<WindowCardProps>(({
 
         {/* 图标按钮组 */}
         <div className="flex items-center gap-1.5 ml-auto">
+          {/* 动态渲染启用的 IDE 图标 */}
+          {enabledIDEs.map((ide) => (
+            <Tooltip.Provider key={ide.id}>
+              <Tooltip.Root delayDuration={300}>
+                <Tooltip.Trigger asChild>
+                  <button
+                    onClick={(e) => handleButtonClick(e, () => onOpenInIDE?.(ide.id))}
+                    className="flex items-center justify-center w-8 h-8 text-[rgb(var(--foreground))] bg-[rgb(var(--card))] rounded hover:bg-[rgb(var(--accent))] transition-colors focus:outline-none focus:ring-0 border-0"
+                  >
+                    <IDEIcon icon={ide.icon || ''} size={ide.command === 'code' ? 24 : 16} />
+                  </button>
+                </Tooltip.Trigger>
+                <Tooltip.Portal>
+                  <Tooltip.Content
+                    className="bg-[rgb(var(--card))] text-[rgb(var(--foreground))] px-2 py-1 rounded text-xs z-50 shadow-xl border border-[rgb(var(--border))]"
+                    sideOffset={5}
+                  >
+                    在 {ide.name} 中打开
+                  </Tooltip.Content>
+                </Tooltip.Portal>
+              </Tooltip.Root>
+            </Tooltip.Provider>
+          ))}
+
           <Tooltip.Provider>
             <Tooltip.Root delayDuration={300}>
               <Tooltip.Trigger asChild>

@@ -12,6 +12,8 @@ import { SplitLayout } from './SplitLayout';
 import { StatusDot } from './StatusDot';
 import { useWindowStore } from '../stores/windowStore';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import { IDEIcon } from './icons/IDEIcons';
+import { useIDESettings } from '../hooks/useIDESettings';
 
 export interface TerminalViewProps {
   window: Window;
@@ -30,6 +32,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
   onWindowSwitch,
   isActive,
 }) => {
+  const { enabledIDEs } = useIDESettings();
   const aggregatedStatus = getAggregatedStatus(terminalWindow.layout);
   const statusLabel = getStatusLabel(aggregatedStatus);
   const statusTextColor = getStatusTextColor(aggregatedStatus);
@@ -188,6 +191,21 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
     }
   }, [panes]);
 
+  // 处理在 IDE 中打开
+  const handleOpenInIDE = useCallback(async (ide: string) => {
+    try {
+      const firstPane = panes[0];
+      if (firstPane && window.electronAPI) {
+        const response = await window.electronAPI.openInIDE(ide, firstPane.cwd);
+        if (!response.success) {
+          console.error(`Failed to open in ${ide}:`, response.error);
+        }
+      }
+    } catch (error) {
+      console.error(`Failed to open in ${ide}:`, error);
+    }
+  }, [panes]);
+
   // 处理归档窗口
   const handleArchiveWindow = useCallback(async () => {
     try {
@@ -304,6 +322,31 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
 
           {/* 右侧按钮组 */}
           <div className="flex items-center gap-2">
+            {/* 动态渲染启用的 IDE 图标 */}
+            {enabledIDEs.map((ide) => (
+              <Tooltip.Provider key={ide.id}>
+                <Tooltip.Root delayDuration={300}>
+                  <Tooltip.Trigger asChild>
+                    <button
+                      onClick={() => handleOpenInIDE(ide.id)}
+                      className="flex items-center justify-center w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-100 transition-colors"
+                      title={`在 ${ide.name} 中打开`}
+                    >
+                      <IDEIcon icon={ide.icon || ''} size={ide.command === 'code' ? 18 : 14} />
+                    </button>
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Content
+                      className="bg-zinc-800 text-zinc-100 px-2 py-1 rounded text-xs z-50 shadow-xl border border-zinc-700"
+                      sideOffset={5}
+                    >
+                      在 {ide.name} 中打开
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+              </Tooltip.Provider>
+            ))}
+
             {/* 归档按钮 */}
             <Tooltip.Provider>
               <Tooltip.Root delayDuration={300}>

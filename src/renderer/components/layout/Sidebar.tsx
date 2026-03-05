@@ -4,6 +4,7 @@ import { StatusBar } from '../StatusBar';
 import { CreateWindowDialog } from '../CreateWindowDialog';
 import { BatchCreateWindowDialog } from '../BatchCreateWindowDialog';
 import { ConfirmDialog } from '../ConfirmDialog';
+import { SettingsPanel } from '../SettingsPanel';
 import { useWindowStore } from '../../stores/windowStore';
 
 interface SidebarProps {
@@ -36,6 +37,7 @@ export function Sidebar({
   const archivedWindows = windows.filter(w => w.archived);
   const [isBatchDialogOpen, setIsBatchDialogOpen] = useState(false);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
 
   const handleBatchCreate = async (selectedPaths: string[]) => {
     for (const path of selectedPaths) {
@@ -150,7 +152,7 @@ export function Sidebar({
           <div className="flex items-center gap-2">
             <button
               className="flex-1 flex items-center justify-start gap-2 px-3 py-2 rounded-lg text-sm text-[rgb(var(--foreground))] hover:bg-[rgb(var(--accent))] hover:text-[rgb(var(--accent-foreground))] transition-colors"
-              onClick={() => {}}
+              onClick={() => setIsSettingsPanelOpen(true)}
             >
               <Settings className="h-4 w-4" />
               <span>设置</span>
@@ -216,6 +218,11 @@ export function Sidebar({
         cancelText="取消"
         onConfirm={handleClearAllWindows}
         variant="danger"
+      />
+
+      <SettingsPanel
+        open={isSettingsPanelOpen}
+        onClose={() => setIsSettingsPanelOpen(false)}
       />
     </>
   );

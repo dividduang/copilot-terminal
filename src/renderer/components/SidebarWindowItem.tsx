@@ -1,7 +1,9 @@
-import React, { useMemo } from 'react';
-import { Activity, Keyboard, Pause, XCircle } from 'lucide-react';
+import React, { useMemo, useState, useCallback } from 'react';
+import { Activity, Keyboard, Pause, XCircle, Folder } from 'lucide-react';
 import { Window, WindowStatus } from '../types/window';
 import { getAggregatedStatus, getAllPanes } from '../utils/layoutHelpers';
+import { IDEIcon } from './icons/IDEIcons';
+import { useIDESettings } from '../hooks/useIDESettings';
 
 interface SidebarWindowItemProps {
   window: Window;
@@ -9,6 +11,8 @@ interface SidebarWindowItemProps {
   isExpanded: boolean;
   onClick: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
+  onOpenInIDE?: (ide: string, path: string) => void;
+  onOpenFolder?: (path: string) => void;
 }
 
 /**
@@ -87,7 +91,12 @@ export const SidebarWindowItem: React.FC<SidebarWindowItemProps> = ({
   isExpanded,
   onClick,
   onContextMenu,
+  onOpenInIDE,
+  onOpenFolder,
 }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const { enabledIDEs } = useIDESettings();
+
   // 获取窗口的聚合状态
   const aggregatedStatus = getAggregatedStatus(terminalWindow.layout);
   const StatusIcon = getStatusIcon(aggregatedStatus);
@@ -100,6 +109,18 @@ export const SidebarWindowItem: React.FC<SidebarWindowItemProps> = ({
     const panes = getAllPanes(terminalWindow.layout);
     return panes.length > 0 ? panes[0].cwd : '';
   }, [terminalWindow.layout]);
+
+  // 处理 IDE 按钮点击
+  const handleIDEClick = useCallback((e: React.MouseEvent, ide: 'vscode' | 'idea') => {
+    e.stopPropagation();
+    onOpenInIDE?.(ide, workingDirectory);
+  }, [onOpenInIDE, workingDirectory]);
+
+  // 处理文件夹按钮点击
+  const handleFolderClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onOpenFolder?.(workingDirectory);
+  }, [onOpenFolder, workingDirectory]);
 
   // 折叠状态：只显示图标
   if (!isExpanded) {
@@ -122,32 +143,61 @@ export const SidebarWindowItem: React.FC<SidebarWindowItemProps> = ({
 
   // 展开状态：显示完整信息
   return (
-    <button
-      onClick={onClick}
-      onContextMenu={onContextMenu}
-      className={`
-        w-full px-3 py-2 flex items-start gap-2
-        transition-colors text-left rounded
-        ${bgColor}
-      `}
-      aria-label={terminalWindow.name}
+    <div
+      className="relative group"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      {/* 状态图标 */}
-      <StatusIcon className={`h-4 w-4 mt-0.5 flex-shrink-0 ${iconColor} ${statusAnimation}`} />
+      <button
+        onClick={onClick}
+        onContextMenu={onContextMenu}
+        className={`
+          w-full px-3 py-2 flex items-start gap-2
+          transition-colors text-left rounded
+          ${bgColor}
+        `}
+        aria-label={terminalWindow.name}
+      >
+        {/* 状态图标 */}
+        <StatusIcon className={`h-4 w-4 mt-0.5 flex-shrink-0 ${iconColor} ${statusAnimation}`} />
 
-      {/* 窗口信息 */}
-      <div className="flex-1 min-w-0">
-        {/* 窗口名称 */}
-        <div className="text-sm font-medium text-zinc-100 truncate">
-          {terminalWindow.name}
-        </div>
+        {/* 窗口信息 */}
+        <div className="flex-1 min-w-0">
+          {/* 窗口名称 */}
+          <div className="text-sm font-medium text-zinc-100 truncate">
+            {terminalWindow.name}
+          </div>
 
-        {/* 工作目录 */}
-        <div className="text-xs text-zinc-400 truncate">
-          {workingDirectory}
+          {/* 工作目录 */}
+          <div className="text-xs text-zinc-400 truncate">
+            {workingDirectory}
+          </div>
         </div>
-      </div>
-    </button>
+      </button>
+
+      {/* 悬停时显示的操作按钮 */}
+      {isHovered && isExpanded && (
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-zinc-800 rounded px-1 py-0.5 shadow-lg border border-zinc-700">
+          {enabledIDEs.map((ide) => (
+            <button
+              key={ide.id}
+              onClick={(e) => handleIDEClick(e, ide.id)}
+              className="p-1 hover:bg-zinc-700 rounded transition-colors"
+              title={`在 ${ide.name} 中打开`}
+            >
+              <IDEIcon icon={ide.icon || ''} size={12} />
+            </button>
+          ))}
+          <button
+            onClick={handleFolderClick}
+            className="p-1 hover:bg-zinc-700 rounded transition-colors"
+            title="打开文件夹"
+          >
+            <Folder size={12} />
+          </button>
+        </div>
+      )}
+    </div>
   );
 };
 

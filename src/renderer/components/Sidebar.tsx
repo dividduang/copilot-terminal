@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Menu, Archive, ChevronDown, ChevronRight } from 'lucide-react';
 import { useWindowStore } from '../stores/windowStore';
 import { SidebarWindowItem } from './SidebarWindowItem';
+import { getAllPanes } from '../utils/layoutHelpers';
 
 interface SidebarProps {
   activeWindowId: string | null;
@@ -61,6 +62,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onWindowContextMenu?.(windowId, e);
   };
 
+  const handleOpenInIDE = useCallback(async (ide: 'vscode' | 'idea', path: string) => {
+    try {
+      const response = await window.electronAPI.openInIDE(ide, path);
+      if (!response.success) {
+        console.error(`Failed to open in ${ide}:`, response.error);
+      }
+    } catch (error) {
+      console.error(`Failed to open in ${ide}:`, error);
+    }
+  }, []);
+
+  const handleOpenFolder = useCallback(async (path: string) => {
+    try {
+      await window.electronAPI.openFolder(path);
+    } catch (error) {
+      console.error('Failed to open folder:', error);
+    }
+  }, []);
+
   return (
     <div
       ref={sidebarRef}
@@ -102,6 +122,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               isExpanded={sidebarExpanded}
               onClick={() => onWindowSelect(window.id)}
               onContextMenu={(e) => handleWindowContextMenu(window.id, e)}
+              onOpenInIDE={handleOpenInIDE}
+              onOpenFolder={handleOpenFolder}
             />
           ))}
 
@@ -153,6 +175,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   isExpanded={sidebarExpanded}
                   onClick={() => onWindowSelect(window.id)}
                   onContextMenu={(e) => handleWindowContextMenu(window.id, e)}
+                  onOpenInIDE={handleOpenInIDE}
+                  onOpenFolder={handleOpenFolder}
                 />
               ))}
             </div>

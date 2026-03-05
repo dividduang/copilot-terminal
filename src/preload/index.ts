@@ -22,6 +22,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectDirectory: () => ipcRenderer.invoke('select-directory'),
   selectAndScanFolder: () => ipcRenderer.invoke('select-and-scan-folder'),
   openFolder: (path: string) => ipcRenderer.invoke('open-folder', { path }),
+  openInIDE: (ide: string, path: string) => ipcRenderer.invoke('open-in-ide', { ide, path }),
+
+  // Settings
+  getSettings: () => ipcRenderer.invoke('get-settings'),
+  updateSettings: (settings: unknown) => ipcRenderer.invoke('update-settings', settings),
+  scanIDEs: () => ipcRenderer.invoke('scan-ides'),
+  scanSpecificIDE: (ideName: string) => ipcRenderer.invoke('scan-specific-ide', ideName),
+  getSupportedIDENames: () => ipcRenderer.invoke('get-supported-ide-names'),
+  updateIDEConfig: (ideConfig: unknown) => ipcRenderer.invoke('update-ide-config', ideConfig),
+  deleteIDEConfig: (ideId: string) => ipcRenderer.invoke('delete-ide-config', ideId),
+  getIDEIcon: (iconPath: string) => ipcRenderer.invoke('get-ide-icon', iconPath),
 
   // Status events
   onWindowStatusChanged: (callback: (event: unknown, payload: unknown) => void) => {

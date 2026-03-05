@@ -1,0 +1,167 @@
+import { ipcMain } from 'electron';
+import { readFileSync, existsSync } from 'fs';
+import { HandlerContext } from './HandlerContext';
+import { successResponse, errorResponse } from './HandlerResponse';
+import { scanInstalledIDEs, scanSpecificIDE, getSupportedIDENames } from '../utils/ideScanner';
+import { IDEConfig } from '../types/workspace';
+
+export function registerSettingsHandlers(ctx: HandlerContext) {
+  const { workspaceManager, getCurrentWorkspace, setCurrentWorkspace } = ctx;
+
+  // 获取设置
+  ipcMain.handle('get-settings', async () => {
+    try {
+      const workspace = getCurrentWorkspace();
+      if (!workspace) {
+        throw new Error('Workspace not loaded');
+      }
+      return successResponse(workspace.settings);
+    } catch (error) {
+      return errorResponse(error);
+    }
+  });
+
+  // 更新设置
+  ipcMain.handle('update-settings', async (_event, settings: any) => {
+    try {
+      const workspace = getCurrentWorkspace();
+      if (!workspace || !workspaceManager) {
+        throw new Error('Workspace not loaded');
+      }
+
+      const updatedWorkspace = {
+        ...workspace,
+        settings: {
+          ...workspace.settings,
+          ...settings,
+        },
+      };
+
+      await workspaceManager.saveWorkspace(updatedWorkspace);
+      setCurrentWorkspace(updatedWorkspace);
+
+      return successResponse(updatedWorkspace.settings);
+    } catch (error) {
+      return errorResponse(error);
+    }
+  });
+
+  // 扫描已安装的 IDE
+  ipcMain.handle('scan-ides', async () => {
+    try {
+      const installedIDEs = scanInstalledIDEs();
+      return successResponse(installedIDEs);
+    } catch (error) {
+      return errorResponse(error);
+    }
+  });
+
+  // 扫描特定 IDE
+  ipcMain.handle('scan-specific-ide', async (_event, ideName: string) => {
+    try {
+      const path = scanSpecificIDE(ideName);
+      return successResponse(path);
+    } catch (error) {
+      return errorResponse(error);
+    }
+  });
+
+  // 获取支持的 IDE 名称列表
+  ipcMain.handle('get-supported-ide-names', async () => {
+    try {
+      const names = getSupportedIDENames();
+      return successResponse(names);
+    } catch (error) {
+      return errorResponse(error);
+    }
+  });
+
+  // 更新 IDE 配置
+  ipcMain.handle('update-ide-config', async (_event, ideConfig: IDEConfig) => {
+    try {
+      const workspace = getCurrentWorkspace();
+      if (!workspace || !workspaceManager) {
+        throw new Error('Workspace not loaded');
+      }
+
+      const existingIndex = workspace.settings.ides.findIndex(ide => ide.id === ideConfig.id);
+
+      let updatedIDEs: IDEConfig[];
+      if (existingIndex >= 0) {
+        // 更新现有 IDE
+        updatedIDEs = [...workspace.settings.ides];
+        updatedIDEs[existingIndex] = ideConfig;
+      } else {
+        // 添加新 IDE
+        updatedIDEs = [...workspace.settings.ides, ideConfig];
+      }
+
+      const updatedWorkspace = {
+        ...workspace,
+        settings: {
+          ...workspace.settings,
+          ides: updatedIDEs,
+        },
+      };
+
+      await workspaceManager.saveWorkspace(updatedWorkspace);
+      setCurrentWorkspace(updatedWorkspace);
+
+      return successResponse(updatedIDEs);
+    } catch (error) {
+      return errorResponse(error);
+    }
+  });
+
+  // 删除 IDE 配置
+  ipcMain.handle('delete-ide-config', async (_event, ideId: string) => {
+    try {
+      const workspace = getCurrentWorkspace();
+      if (!workspace || !workspaceManager) {
+        throw new Error('Workspace not loaded');
+      }
+
+      const updatedIDEs = workspace.settings.ides.filter(ide => ide.id !== ideId);
+
+      const updatedWorkspace = {
+        ...workspace,
+        settings: {
+          ...workspace.settings,
+          ides: updatedIDEs,
+        },
+      };
+
+      await workspaceManager.saveWorkspace(updatedWorkspace);
+      setCurrentWorkspace(updatedWorkspace);
+
+      return successResponse(updatedIDEs);
+    } catch (error) {
+      return errorResponse(error);
+    }
+  });
+
+  // 获取IDE图标数据(base64)
+  ipcMain.handle('get-ide-icon', async (_event, iconPath: string) => {
+    try {
+      if (!existsSync(iconPath)) {
+        throw new Error(`Icon file not found: ${iconPath}`);
+      }
+
+      const iconData = readFileSync(iconPath);
+      const base64Data = iconData.toString('base64');
+      const ext = iconPath.split('.').pop()?.toLowerCase();
+
+      // 根据文件扩展名确定MIME类型
+      let mimeType = 'image/png';
+      if (ext === 'ico') {
+        mimeType = 'image/x-icon';
+      } else if (ext === 'jpg' || ext === 'jpeg') {
+        mimeType = 'image/jpeg';
+      }
+
+      return successResponse(`data:${mimeType};base64,${base64Data}`);
+    } catch (error) {
+      return errorResponse(error);
+    }
+  });
+}

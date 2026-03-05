@@ -156,6 +156,20 @@ export const CardGrid = React.memo<CardGridProps>(({ onEnterTerminal, searchQuer
     }
   }, []);
 
+  const handleOpenInIDE = useCallback(async (ide: string, workingDirectory: string) => {
+    try {
+      console.log(`Opening ${ide} with path: ${workingDirectory}`);
+      const response = await window.electronAPI.openInIDE(ide, workingDirectory);
+      console.log(`openInIDE response:`, response);
+      if (!response.success) {
+        console.error(`Failed to open in ${ide}:`, response.error);
+        // TODO: 显示错误提示
+      }
+    } catch (error) {
+      console.error(`Failed to open in ${ide}:`, error);
+    }
+  }, []);
+
   if (activeWindows.length === 0) {
     return null;
   }
@@ -182,6 +196,7 @@ export const CardGrid = React.memo<CardGridProps>(({ onEnterTerminal, searchQuer
                 onStart={() => handleStartWindow(win)}
                 onPause={() => handlePauseWindow(win)}
                 onArchive={() => handleArchiveWindow(win)}
+                onOpenInIDE={(ide) => handleOpenInIDE(ide, firstPaneCwd)}
               />
             );
           })}

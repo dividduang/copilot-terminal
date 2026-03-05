@@ -4,6 +4,7 @@ import { app } from 'electron';
 import { randomUUID } from 'crypto';
 import { Workspace, Settings } from '../types/workspace';
 import { LayoutNode, PaneNode, SplitNode, WindowStatus } from '../../shared/types/window';
+import { scanInstalledIDEs } from '../utils/ideScanner';
 
 /**
  * WorkspaceManager 接口
@@ -226,6 +227,7 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
         theme: 'dark' as const,
         autoSave: true,
         autoSaveInterval: 5,
+        ides: scanInstalledIDEs(),
       },
       lastSavedAt: oldWorkspace.lastSavedAt || new Date().toISOString(),
     };
@@ -475,6 +477,7 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
         theme: 'dark',
         autoSave: true,
         autoSaveInterval: 5,
+        ides: scanInstalledIDEs(), // 自动扫描已安装的 IDE
       },
       lastSavedAt: '',
     };

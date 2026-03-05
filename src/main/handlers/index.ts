@@ -7,6 +7,7 @@ import { registerViewHandlers } from './viewHandlers';
 import { registerFileHandlers } from './fileHandlers';
 import { registerProcessHandlers } from './processHandlers';
 import { registerMiscHandlers } from './miscHandlers';
+import { registerSettingsHandlers } from './settingsHandlers';
 
 /**
  * 注册所有 IPC handlers
@@ -34,6 +35,9 @@ export function registerAllHandlers(ctx: HandlerContext) {
 
   // 进程管理 (create-terminal, kill-terminal, get-terminal-status, list-terminals)
   registerProcessHandlers(ctx);
+
+  // 设置管理 (get-settings, update-settings, scan-ides, etc.)
+  registerSettingsHandlers(ctx);
 
   // 其他 (ping)
   registerMiscHandlers(ctx);

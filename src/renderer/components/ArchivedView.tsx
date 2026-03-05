@@ -120,6 +120,17 @@ export const ArchivedView = React.memo<ArchivedViewProps>(({ onEnterTerminal }) 
     }
   }, []);
 
+  const handleOpenInIDE = useCallback(async (ide: string, workingDirectory: string) => {
+    try {
+      const response = await window.electronAPI.openInIDE(ide, workingDirectory);
+      if (!response.success) {
+        console.error(`Failed to open in ${ide}:`, response.error);
+      }
+    } catch (error) {
+      console.error(`Failed to open in ${ide}:`, error);
+    }
+  }, []);
+
   if (archivedWindows.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -152,6 +163,7 @@ export const ArchivedView = React.memo<ArchivedViewProps>(({ onEnterTerminal }) 
                 onStart={() => handleStartWindow(win)}
                 onPause={() => handlePauseWindow(win)}
                 onUnarchive={() => handleUnarchiveWindow(win)}
+                onOpenInIDE={(ide) => handleOpenInIDE(ide, firstPaneCwd)}
               />
             );
           })}
