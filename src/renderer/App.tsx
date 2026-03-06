@@ -109,7 +109,7 @@ function App() {
             activeWindows.length === 0 ? (
               <EmptyState onCreateWindow={handleCreateWindow} />
             ) : (
-              <CardGrid onEnterTerminal={handleEnterTerminal} searchQuery={searchQuery} />
+              <CardGrid onEnterTerminal={handleEnterTerminal} onCreateWindow={handleCreateWindow} searchQuery={searchQuery} />
             )
           ) : (
             <ArchivedView onEnterTerminal={handleEnterTerminal} />

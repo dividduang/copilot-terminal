@@ -10,6 +10,7 @@ import { Window, WindowStatus } from '../types/window';
 
 interface CardGridProps {
   onEnterTerminal?: (window: Window) => void;
+  onCreateWindow?: () => void;
   searchQuery?: string;
 }
 
@@ -17,7 +18,7 @@ interface CardGridProps {
  * CardGrid 组件
  * 以响应式 CSS Grid 网格布局显示所有窗口卡片
  */
-export const CardGrid = React.memo<CardGridProps>(({ onEnterTerminal, searchQuery = '' }) => {
+export const CardGrid = React.memo<CardGridProps>(({ onEnterTerminal, onCreateWindow, searchQuery = '' }) => {
   const windows = useWindowStore((state) => state.windows);
   const setActiveWindow = useWindowStore((state) => state.setActiveWindow);
   const removeWindow = useWindowStore((state) => state.removeWindow);
@@ -200,7 +201,7 @@ export const CardGrid = React.memo<CardGridProps>(({ onEnterTerminal, searchQuer
               />
             );
           })}
-          {!searchQuery && <NewWindowCard onClick={() => {}} />}
+          {!searchQuery && <NewWindowCard onClick={onCreateWindow || (() => {})} />}
         </div>
         {/* 无搜索结果提示 */}
         {searchQuery && filteredWindows.length === 0 && (
