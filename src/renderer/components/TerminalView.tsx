@@ -69,7 +69,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
 
   // 快捷键处理
   useKeyboardShortcuts({
-    onCtrlP: () => {
+    onCtrlTab: () => {
       setQuickSwitcherOpen(true);
     },
     onCtrlB: () => {

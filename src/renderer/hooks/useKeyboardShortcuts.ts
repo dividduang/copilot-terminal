@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 interface KeyboardShortcutsOptions {
-  onCtrlP?: () => void;
+  onCtrlTab?: () => void;
   onCtrlB?: () => void;
   onCtrlNumber?: (num: number) => void;
   onEscape?: () => boolean | void; // 返回 true 表示已处理，阻止传播；返回 false 表示未处理，继续传播
@@ -32,7 +32,7 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions) {
       if (isXtermTextarea) {
         // 在 xterm textarea 中，只处理明确的快捷键，其他一律放行
         const isShortcut =
-          (e.ctrlKey && e.key === 'p') ||
+          (e.ctrlKey && e.key === 'Tab') ||
           (e.ctrlKey && e.key === 'b') ||
           (e.ctrlKey && e.key >= '1' && e.key <= '9') ||
           (e.key === 'Escape');
@@ -45,11 +45,11 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions) {
 
       if (!enabled) return;
 
-      // Ctrl+P: 打开快速切换面板
-      if (e.ctrlKey && e.key === 'p') {
-        console.log('[Shortcuts] Ctrl+P triggered');
+      // Ctrl+Tab: 打开快速切换面板
+      if (e.ctrlKey && e.key === 'Tab') {
+        console.log('[Shortcuts] Ctrl+Tab triggered');
         e.preventDefault();
-        opts.onCtrlP?.();
+        opts.onCtrlTab?.();
         return;
       }
 
