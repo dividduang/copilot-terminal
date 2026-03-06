@@ -84,6 +84,12 @@ const SplitContainer: React.FC<SplitContainerProps> = ({
   const [isResizing, setIsResizing] = useState(false);
   const [resizingIndex, setResizingIndex] = useState<number>(-1);
   const containerRef = useRef<HTMLDivElement>(null);
+  const sizesRef = useRef<number[]>(sizes);
+
+  // 同步 sizesRef 到最新值
+  useEffect(() => {
+    sizesRef.current = sizes;
+  }, [sizes]);
 
   // 同步外部 sizes 变化
   useEffect(() => {
@@ -108,8 +114,8 @@ const SplitContainer: React.FC<SplitContainerProps> = ({
       const totalSize = isHorizontal ? rect.width : rect.height;
       const mousePos = isHorizontal ? e.clientX - rect.left : e.clientY - rect.top;
 
-      // 计算新的大小比例
-      const newSizes = [...sizes];
+      // 计算新的大小比例（使用 ref 读取最新 sizes）
+      const newSizes = [...sizesRef.current];
       const leftSize = mousePos / totalSize;
       const rightSize = 1 - leftSize;
 
@@ -134,7 +140,7 @@ const SplitContainer: React.FC<SplitContainerProps> = ({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isResizing, resizingIndex, sizes, splitNode.direction]);
+  }, [isResizing, resizingIndex, splitNode.direction]);
 
   const isHorizontal = splitNode.direction === 'horizontal';
 
