@@ -1,7 +1,7 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import * as Tooltip from '@radix-ui/react-tooltip';
-import { ArrowLeft, SplitSquareHorizontal, SplitSquareVertical, Folder, Archive } from 'lucide-react';
+import { ArrowLeft, SplitSquareHorizontal, SplitSquareVertical, Folder, Archive, Pause } from 'lucide-react';
 import { Window, Pane, WindowStatus } from '../types/window';
 import { getAggregatedStatus, getPaneCount, getAllPanes } from '../utils/layoutHelpers';
 import { getStatusLabel, getStatusTextColor } from '../utils/statusHelpers';
@@ -52,6 +52,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
     closePaneInWindow,
     setActivePane,
     archiveWindow,
+    updatePane,
   } = useWindowStore();
   const activeWindows = getActiveWindows();
 
@@ -205,6 +206,24 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
       console.error(`Failed to open in ${ide}:`, error);
     }
   }, [panes]);
+
+  // 处理暂停窗口
+  const handlePauseWindow = useCallback(async () => {
+    try {
+      // 关闭窗口（终止所有 PTY 进程）
+      await window.electronAPI.closeWindow(terminalWindow.id);
+
+      // 立即更新所有窗格状态为 Paused
+      for (const pane of panes) {
+        updatePane(terminalWindow.id, pane.id, {
+          status: WindowStatus.Paused,
+          pid: null
+        });
+      }
+    } catch (error) {
+      console.error('Failed to pause window:', error);
+    }
+  }, [terminalWindow.id, panes, updatePane]);
 
   // 处理归档窗口
   const handleArchiveWindow = useCallback(async () => {
@@ -410,6 +429,31 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
             >
               <SplitSquareVertical size={14} />
             </button>
+
+            {/* 暂停按钮 - 仅在运行或等待输入时显示 */}
+            {(aggregatedStatus === WindowStatus.Running || aggregatedStatus === WindowStatus.WaitingForInput) && (
+              <Tooltip.Provider>
+                <Tooltip.Root delayDuration={300}>
+                  <Tooltip.Trigger asChild>
+                    <button
+                      onClick={handlePauseWindow}
+                      className="flex items-center justify-center w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-100 transition-colors"
+                      title="暂停窗口"
+                    >
+                      <Pause size={14} />
+                    </button>
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Content
+                      className="bg-zinc-800 text-zinc-100 px-2 py-1 rounded text-xs z-50 shadow-xl border border-zinc-700"
+                      sideOffset={5}
+                    >
+                      暂停窗口
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+              </Tooltip.Provider>
+            )}
           </div>
         </div>
 
