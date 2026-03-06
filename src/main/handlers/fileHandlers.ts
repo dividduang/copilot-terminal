@@ -103,4 +103,24 @@ export function registerFileHandlers(ctx: HandlerContext) {
       return errorResponse(error);
     }
   });
+
+  ipcMain.handle('open-external-url', async (_event, { url }: { url: string }) => {
+    try {
+      console.log('Received open-external-url request:', url);
+
+      // 验证 URL 格式
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        throw new Error('Invalid URL: must start with http:// or https://');
+      }
+
+      console.log('Opening external URL:', url);
+      await shell.openExternal(url);
+      console.log('URL opened successfully');
+
+      return successResponse();
+    } catch (error) {
+      console.error('Failed to open external URL:', error);
+      return errorResponse(error);
+    }
+  });
 }

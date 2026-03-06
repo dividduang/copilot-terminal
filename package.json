@@ -1,6 +1,6 @@
 {
-  "name": "ausome-terminal",
-  "version": "0.1.0",
+  "name": "copilot-terminal",
+  "version": "0.2.0",
   "description": "A modern terminal window manager built with Electron",
   "main": "dist/main/index.js",
   "scripts": {

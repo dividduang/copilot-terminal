@@ -93,7 +93,7 @@ function App() {
         <MainLayout
           sidebar={
             <Sidebar
-              appName="Ausome Terminal"
+              appName="Copilot-Terminal"
               version="0.1.0"
               onCreateWindow={handleCreateWindow}
               isDialogOpen={isDialogOpen}

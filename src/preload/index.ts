@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   selectAndScanFolder: () => ipcRenderer.invoke('select-and-scan-folder'),
   openFolder: (path: string) => ipcRenderer.invoke('open-folder', { path }),
   openInIDE: (ide: string, path: string) => ipcRenderer.invoke('open-in-ide', { ide, path }),
+  openExternalUrl: (url: string) => ipcRenderer.invoke('open-external-url', { url }),
 
   // Settings
   getSettings: () => ipcRenderer.invoke('get-settings'),

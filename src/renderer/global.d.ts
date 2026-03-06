@@ -23,6 +23,7 @@ export interface ElectronAPI {
   selectDirectory: () => Promise<string | null>
   selectAndScanFolder: () => Promise<{ success: boolean; data?: { folders: Array<{ name: string; path: string }>; parentPath: string | null }; error?: string }>
   openFolder: (path: string) => Promise<void>
+  openExternalUrl: (url: string) => Promise<void>
 
   // Status events
   onWindowStatusChanged: (callback: (event: unknown, payload: unknown) => void) => void

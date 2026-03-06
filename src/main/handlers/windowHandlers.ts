@@ -4,6 +4,7 @@ import { HandlerContext } from './HandlerContext';
 import { PathValidator } from '../utils/pathValidator';
 import { getDefaultShell } from '../utils/shell';
 import { scanSubfolders } from '../utils/folderScanner';
+import { readProjectConfig } from '../utils/project-config';
 import { WindowStatus } from '../../shared/types/window';
 import { successResponse, errorResponse } from './HandlerResponse';
 
@@ -63,6 +64,9 @@ export function registerWindowHandlers(ctx: HandlerContext) {
       const folderName = pathParts[pathParts.length - 1] || 'Terminal';
       const defaultName = folderName;
 
+      // 读取项目配置文件（copilot.json）
+      const projectConfig = readProjectConfig(safePath);
+
       // 创建 Pane 对象（使用安全路径）
       const pane = {
         id: paneId,
@@ -87,6 +91,7 @@ export function registerWindowHandlers(ctx: HandlerContext) {
         activePaneId: paneId,
         createdAt: new Date().toISOString(),
         lastActiveAt: new Date().toISOString(),
+        projectConfig: projectConfig || undefined,
       };
 
       // 将新窗格添加到 StatusPoller

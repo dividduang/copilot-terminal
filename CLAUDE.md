@@ -116,9 +116,44 @@ Terminal view includes multiple ways to switch between windows:
 
 **MRU List**: Maintained in `windowStore.mruList`, updated on every window switch. Persisted to workspace.json.
 
+### Project Configuration (copilot.json)
+
+Projects can include a `copilot.json` file in their root directory to define quick links to related resources:
+
+- **File Location**: Project root directory (same as terminal working directory)
+- **Purpose**: Display quick links to code repos, pipelines, docs, monitoring dashboards, etc.
+- **UI Integration**: Links appear as buttons in WindowCard component (max 6 shown)
+- **Click Behavior**: Opens URLs in default browser via `shell.openExternal()`
+
+**Configuration Structure**:
+```json
+{
+  "version": "1.0",
+  "links": [
+    {
+      "name": "Display Name",
+      "url": "https://example.com"
+    }
+  ]
+}
+```
+
+**Key Points**:
+- `name` must be globally unique within the config file
+- `name` is used as the identifier and displayed on hover
+- Only `name` and `url` fields are required (simplified design)
+
+**Implementation**:
+- Read on window creation: `src/main/utils/project-config.ts`
+- Type definitions: `src/shared/types/project-config.ts`
+- Stored in `Window.projectConfig` field
+- Rendered in `WindowCard` component with ExternalLink icons
+
+See `docs/project-config.md` for detailed documentation and examples.
+
 ## Important File Paths
 
-- Workspace persistence: `%APPDATA%/ausome-terminal/workspace.json`
+- Workspace persistence: `%APPDATA%/copilot-terminal/workspace.json`
 - Auto-save interval: 5 seconds (configurable in `AutoSaveManager`)
 - Status polling interval: 500ms (configurable in `StatusPoller`)
 

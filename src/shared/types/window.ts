@@ -1,3 +1,5 @@
+import { ProjectConfig } from './project-config';
+
 /**
  * 窗口状态枚举
  * 定义窗口在生命周期中的各种状态
@@ -60,6 +62,7 @@ export interface Window {
   createdAt: string;             // 创建时间（ISO 8601）
   lastActiveAt: string;          // 最后活跃时间
   archived?: boolean;            // 是否已归档
+  projectConfig?: ProjectConfig; // 项目配置（从 copilot.json 读取）
 }
 
 /**

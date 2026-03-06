@@ -20,7 +20,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({
-  appName = 'Ausome Terminal',
+  appName = 'Copilot-Terminal',
   version = '0.1.0',
   onCreateWindow,
   isDialogOpen = false,

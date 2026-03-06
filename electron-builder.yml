@@ -1,5 +1,5 @@
-appId: com.ausome.terminal
-productName: Ausome Terminal
+appId: com.copilot.terminal
+productName: Copilot-Terminal
 directories:
   output: release
   buildResources: resources

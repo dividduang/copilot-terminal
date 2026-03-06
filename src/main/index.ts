@@ -25,18 +25,20 @@ let currentWorkspace: Workspace | null = null; // 缓存当前工作区状态
 let isQuitting = false;
 
 function createWindow() {
+  const preloadPath = path.join(__dirname, '../preload/index.js');
+
   mainWindow = new BrowserWindow({
     width: 1024,
     height: 768,
     minWidth: 480,
     minHeight: 360,
     backgroundColor: '#0a0a0a',
-    title: 'ausome-terminal',
+    title: 'Copilot-Terminal',
     icon: path.join(__dirname, '../../resources/icon.png'),
     show: false, // 创建时不显示，等待渲染进程通知
     frame: true,
     webPreferences: {
-      preload: path.join(__dirname, '../preload/index.js'),
+      preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false,
       backgroundThrottling: false,

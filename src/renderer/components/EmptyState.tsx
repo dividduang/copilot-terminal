@@ -15,7 +15,7 @@ export const EmptyState = React.memo<EmptyStateProps>(({ onCreateWindow }) => {
 
       {/* 引导文案 */}
       <h2 className="text-2xl font-semibold text-[rgb(var(--foreground))] mb-2">
-        欢迎使用 Ausome Terminal
+        欢迎使用 Copilot-Terminal
       </h2>
       <p className="text-base text-[rgb(var(--muted-foreground))] mb-8">
         创建你的第一个终端窗口开始工作

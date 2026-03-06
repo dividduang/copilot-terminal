@@ -5,6 +5,7 @@ import { randomUUID } from 'crypto';
 import { Workspace, Settings } from '../types/workspace';
 import { LayoutNode, PaneNode, SplitNode, WindowStatus } from '../../shared/types/window';
 import { scanInstalledIDEs } from '../utils/ideScanner';
+import { readProjectConfig } from '../utils/project-config';
 
 /**
  * WorkspaceManager 接口
@@ -35,8 +36,8 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
 
   constructor() {
     // 获取用户数据目录
-    // Windows: %APPDATA%/ausome-terminal
-    // macOS: ~/Library/Application Support/ausome-terminal
+    // Windows: %APPDATA%/copilot-terminal
+    // macOS: ~/Library/Application Support/copilot-terminal
     const userDataPath = app.getPath('userData');
     this.workspacePath = path.join(userDataPath, 'workspace.json');
     this.tempPath = `${this.workspacePath}.tmp`;
@@ -144,13 +145,29 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
   /**
    * 重置所有窗格状态为暂停
    * 在加载工作区后调用，确保所有窗格都是暂停状态（不启动 PTY 进程）
+   * 同时重新读取每个窗口的 copilot.json 配置
    */
   private resetPaneStates(workspace: Workspace): Workspace {
     const resetWindows = workspace.windows.map(window => {
       const resetLayout = this.resetLayoutPaneStates(window.layout);
+
+      // 获取窗口的工作目录（从第一个窗格）
+      const firstPane = this.getFirstPane(window.layout);
+      const workingDirectory = firstPane?.cwd;
+
+      // 重新读取 copilot.json 配置
+      let projectConfig = window.projectConfig;
+      if (workingDirectory) {
+        const config = readProjectConfig(workingDirectory);
+        if (config) {
+          projectConfig = config;
+        }
+      }
+
       return {
         ...window,
         layout: resetLayout,
+        projectConfig,
       };
     });
 
@@ -158,6 +175,20 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
       ...workspace,
       windows: resetWindows,
     };
+  }
+
+  /**
+   * 获取布局树中的第一个窗格
+   */
+  private getFirstPane(layout: LayoutNode): PaneNode['pane'] | null {
+    if (layout.type === 'pane') {
+      return layout.pane;
+    } else {
+      if (layout.children.length > 0) {
+        return this.getFirstPane(layout.children[0]);
+      }
+      return null;
+    }
   }
 
   /**

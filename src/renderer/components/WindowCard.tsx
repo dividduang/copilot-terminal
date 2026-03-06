@@ -2,7 +2,7 @@ import React, { useMemo, useCallback } from 'react';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { FolderOpen, Trash2, Play, Pause, Loader2, Archive, ArchiveRestore } from 'lucide-react';
+import { FolderOpen, Trash2, Play, Pause, Loader2, Archive, ArchiveRestore, ExternalLink } from 'lucide-react';
 import { Window, WindowStatus } from '../types/window';
 import { getStatusColor, getStatusLabel } from '../utils/statusHelpers';
 import { getAllPanes, getAggregatedStatus, getPaneCount } from '../utils/layoutHelpers';
@@ -165,6 +165,28 @@ export const WindowCard = React.memo<WindowCardProps>(({
     []
   );
 
+  // 打开外部链接
+  const handleOpenLink = useCallback(
+    (e: React.MouseEvent, url: string) => {
+      e.stopPropagation();
+
+      // 使用 globalThis 访问全局 window 对象，避免与 prop window 冲突
+      if (!globalThis.electronAPI?.openExternalUrl) {
+        console.error('openExternalUrl is not available');
+        return;
+      }
+
+      globalThis.electronAPI.openExternalUrl(url)
+        .then(() => {
+          console.log('URL opened successfully:', url);
+        })
+        .catch((error: Error) => {
+          console.error('Failed to open URL:', error);
+        });
+    },
+    []
+  );
+
   return (
     <div
       role="button"
@@ -254,6 +276,38 @@ export const WindowCard = React.memo<WindowCardProps>(({
 
         {/* 分割线 */}
         <div className="border-t border-[rgb(var(--border))]" />
+
+        {/* 项目链接（如果存在） */}
+        {window.projectConfig && window.projectConfig.links.length > 0 && (
+          <>
+            <div className="flex flex-wrap gap-1.5">
+              {window.projectConfig.links.slice(0, 6).map((link) => (
+                <Tooltip.Provider key={link.name}>
+                  <Tooltip.Root delayDuration={300}>
+                    <Tooltip.Trigger asChild>
+                      <button
+                        onClick={(e) => handleOpenLink(e, link.url)}
+                        className="flex items-center gap-1 px-2 py-1 text-xs text-[rgb(var(--foreground))] bg-[rgb(var(--secondary))] rounded hover:bg-[rgb(var(--accent))] transition-colors focus:outline-none focus:ring-1 focus:ring-[rgb(var(--ring))]"
+                      >
+                        <ExternalLink size={12} />
+                        <span className="truncate max-w-[80px]">{link.name}</span>
+                      </button>
+                    </Tooltip.Trigger>
+                    <Tooltip.Portal>
+                      <Tooltip.Content
+                        className="bg-[rgb(var(--card))] text-[rgb(var(--foreground))] px-2 py-1 rounded text-xs z-50 shadow-xl border border-[rgb(var(--border))] max-w-xs break-all"
+                        sideOffset={5}
+                      >
+                        {link.name}
+                      </Tooltip.Content>
+                    </Tooltip.Portal>
+                  </Tooltip.Root>
+                </Tooltip.Provider>
+              ))}
+            </div>
+            <div className="border-t border-[rgb(var(--border))]" />
+          </>
+        )}
 
         {/* 第三行：时间信息 */}
         <div className="flex flex-col gap-1 flex-1">
