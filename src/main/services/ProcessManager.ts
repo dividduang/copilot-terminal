@@ -102,8 +102,8 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
       const buffer = this.ptyOutputBuffers.get(pid);
       if (buffer) {
         buffer.push(data);
-        // 限制缓冲区大小，避免内存泄漏（最多缓存 100 条消息）
-        if (buffer.length > 100) {
+        // 限制缓冲区大小，避免内存泄漏（增加到 500 条消息，覆盖更多启动输出）
+        if (buffer.length > 500) {
           buffer.shift();
         }
       }

@@ -96,7 +96,7 @@ export function findPaneNode(
 }
 
 /**
- * 获取布局树中的所有窗格
+ * 获取布局树中的所有窗格（优化版：避免创建临时数组）
  */
 export function getAllPanes(layout: LayoutNode): Pane[] {
   // 防御性检查：如果 layout 为 undefined 或 null，返回空数组
@@ -105,12 +105,20 @@ export function getAllPanes(layout: LayoutNode): Pane[] {
     return [];
   }
 
-  if (layout.type === 'pane') {
-    return [layout.pane];
+  const result: Pane[] = [];
+
+  function collect(node: LayoutNode) {
+    if (!node) return;
+
+    if (node.type === 'pane') {
+      result.push(node.pane);
+    } else {
+      node.children.forEach(collect);
+    }
   }
 
-  // SplitNode: 递归收集所有子节点的窗格
-  return layout.children.flatMap(child => getAllPanes(child));
+  collect(layout);
+  return result;
 }
 
 /**

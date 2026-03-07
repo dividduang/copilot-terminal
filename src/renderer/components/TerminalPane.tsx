@@ -283,6 +283,17 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
     const queueOutput = (data: string) => {
       if (!data) return;
 
+      // 限制缓冲区大小，避免极端情况下的内存泄漏
+      const MAX_BUFFER_SIZE = 100000; // 100KB
+      if (outputBufferRef.current.length + data.length > MAX_BUFFER_SIZE) {
+        // 强制刷新缓冲区
+        if (outputFlushFrameRef.current !== null) {
+          cancelAnimationFrame(outputFlushFrameRef.current);
+          outputFlushFrameRef.current = null;
+        }
+        flushOutput();
+      }
+
       outputBufferRef.current += data;
       if (outputFlushFrameRef.current !== null) {
         return;
@@ -484,7 +495,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
 
       terminal.dispose();
     };
-  }, [windowId, pane.id, writeClipboardText, readClipboardText]); // 移除 isActive 依赖
+  }, [windowId, pane.id]); // writeClipboardText 和 readClipboardText 已用 useCallback 包裹且依赖为空，引用稳定，无需作为依赖
 
   // 处理点击激活
   const handleClick = useCallback(() => {
