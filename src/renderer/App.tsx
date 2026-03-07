@@ -86,14 +86,10 @@ function App() {
 
   // 订阅主进程推送的 git 分支变化事件
   useEffect(() => {
-    console.log('[App] Setting up git branch change subscription');
     const unsubscribe = subscribeToWindowGitBranchChange((windowId, gitBranch) => {
-      console.log(`[App] Git branch changed for window ${windowId}: ${gitBranch}`);
       updateWindow(windowId, { gitBranch });
-      console.log(`[App] After update, window ${windowId} gitBranch should be:`, gitBranch);
     });
     return () => {
-      console.log('[App] Cleaning up git branch change subscription');
       unsubscribe();
     };
   }, [updateWindow]);
