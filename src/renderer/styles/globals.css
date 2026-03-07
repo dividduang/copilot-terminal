@@ -19,7 +19,7 @@
     --secondary-foreground: 230 230 230;
 
     --muted: 26 26 31;
-    --muted-foreground: 134 143 151; /* #868F97 */
+    --muted-foreground: 156 163 175; /* #9CA3AF - 更亮的灰色，提高可读性 */
 
     --accent: 42 42 31; /* #2A2A1F */
     --accent-foreground: 168 170 88;

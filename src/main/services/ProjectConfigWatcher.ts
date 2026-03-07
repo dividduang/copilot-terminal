@@ -24,11 +24,11 @@ class ProjectConfigWatcher {
    * @param projectPath 项目路径
    * @param onUpdate 更新回调
    */
-  startWatching(
+  async startWatching(
     windowId: string,
     projectPath: string,
     onUpdate: (config: ProjectConfig | null) => void
-  ): void {
+  ): Promise<void> {
     // 如果已经在监听，先停止
     this.stopWatching(windowId);
 
@@ -43,7 +43,7 @@ class ProjectConfigWatcher {
     console.log(`[ProjectConfigWatcher] Start watching ${configPath} for window ${windowId}`);
 
     // 监听文件变化
-    const unwatch = this.fileWatcher.watch(
+    const unwatch = await this.fileWatcher.watch(
       configPath,
       async (event) => {
         if (event === 'change' || event === 'add') {

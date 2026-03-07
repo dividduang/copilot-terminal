@@ -25,11 +25,11 @@ export class GitBranchWatcher {
    * @param cwd 工作目录
    * @param onBranchChange 分支变化回调
    */
-  watch(
+  async watch(
     windowId: string,
     cwd: string,
     onBranchChange: (branch: string | undefined) => void
-  ): void {
+  ): Promise<void> {
     // 如果已经在监听，先停止
     this.unwatch(windowId);
 
@@ -49,7 +49,7 @@ export class GitBranchWatcher {
       onBranchChange(initialBranch);
 
       // 监听 HEAD 文件变化
-      const unwatch = this.fileWatcher.watch(
+      const unwatch = await this.fileWatcher.watch(
         headPath,
         (event) => {
           if (event === 'change' || event === 'add') {

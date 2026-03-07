@@ -1,5 +1,20 @@
-import chokidar from 'chokidar';
 import { existsSync } from 'fs';
+
+// 动态导入 chokidar（ES Module）
+let chokidar: any = null;
+let chokidarPromise: Promise<any> | null = null;
+
+async function getChokidar() {
+  if (chokidar) return chokidar;
+  if (chokidarPromise) return chokidarPromise;
+
+  chokidarPromise = import('chokidar').then(module => {
+    chokidar = module.default || module;
+    return chokidar;
+  });
+
+  return chokidarPromise;
+}
 
 /**
  * 文件监听事件类型
@@ -29,7 +44,7 @@ export interface WatchOptions {
  * 监听器信息
  */
 interface WatcherInfo {
-  watcher: chokidar.FSWatcher;
+  watcher: any; // chokidar.FSWatcher
   refCount: number;
   callbacks: Map<symbol, WatchCallback>;
   debounceTimers: Map<symbol, NodeJS.Timeout>;
@@ -54,17 +69,20 @@ export class FileWatcherService {
    * @param options 监听选项
    * @returns 取消监听函数
    */
-  watch(
+  async watch(
     filePath: string,
     callback: WatchCallback,
     options: WatchOptions = {}
-  ): () => void {
+  ): Promise<() => void> {
     const {
       debounce = 0,
       ignoreInitial = true,
       awaitWriteFinish = true,
       stabilityThreshold = 200,
     } = options;
+
+    // 确保 chokidar 已加载
+    const chokidarModule = await getChokidar();
 
     // 生成唯一的回调 ID
     const callbackId = Symbol('callback');
@@ -74,7 +92,7 @@ export class FileWatcherService {
 
     if (!watcherInfo) {
       // 创建新的 watcher
-      const watcher = chokidar.watch(filePath, {
+      const watcher = chokidarModule.watch(filePath, {
         persistent: true,
         ignoreInitial,
         awaitWriteFinish: awaitWriteFinish
@@ -97,7 +115,7 @@ export class FileWatcherService {
         .on('change', () => this.handleEvent(filePath, 'change'))
         .on('add', () => this.handleEvent(filePath, 'add'))
         .on('unlink', () => this.handleEvent(filePath, 'unlink'))
-        .on('error', (error) => {
+        .on('error', (error: any) => {
           console.error(`[FileWatcherService] Watcher error for ${filePath}:`, error);
         });
 

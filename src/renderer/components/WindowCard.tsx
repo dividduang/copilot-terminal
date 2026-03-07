@@ -94,7 +94,13 @@ export const WindowCard = React.memo<WindowCardProps>(({
   const panes = useMemo(() => getAllPanes(window.layout), [window.layout]);
 
   // 获取第一个窗格的工作目录作为显示
-  const workingDirectory = useMemo(() => panes[0]?.cwd || '', [panes]);
+  const workingDirectory = useMemo(() => {
+    const cwd = panes[0]?.cwd || '';
+    if (process.env.NODE_ENV === 'development' && !cwd) {
+      console.warn(`[WindowCard] Window "${window.name}" (${window.id}) has no cwd. Panes:`, panes);
+    }
+    return cwd;
+  }, [panes, window.name, window.id]);
 
   // 缓存状态色和标签
   const statusColor = useMemo(() => getStatusColor(aggregatedStatus), [aggregatedStatus]);
@@ -195,7 +201,7 @@ export const WindowCard = React.memo<WindowCardProps>(({
       onClick={() => onClick?.(window)}
       onKeyDown={handleKeyDown}
       aria-label={ariaLabel}
-      className="min-w-[280px] h-56 bg-[rgb(var(--card))] rounded-lg overflow-hidden cursor-pointer transition-all duration-200 ease-out hover:bg-[rgb(var(--card))]/80 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] active:bg-[rgb(var(--accent))]/30 active:shadow-inner outline-none focus:outline-none focus:ring-0 focus:border-[rgb(var(--border))] flex flex-col border border-[rgb(var(--border))] relative"
+      className="min-w-[280px] h-56 bg-[rgb(var(--card))] rounded-xl overflow-hidden cursor-pointer transition-all duration-200 ease-out hover:bg-[rgb(var(--card))]/80 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] active:bg-[rgb(var(--accent))]/30 active:shadow-inner outline-none focus:outline-none focus:ring-0 focus:border-[rgb(var(--border))] flex flex-col border border-[rgb(var(--border))] relative"
     >
       {/* 启动中加载遮罩 */}
       {aggregatedStatus === WindowStatus.Restoring && (
@@ -206,10 +212,10 @@ export const WindowCard = React.memo<WindowCardProps>(({
         </div>
       )}
 
-      {/* 圆弧形彩色顶部线条 (4px 高度) */}
+      {/* 圆弧形彩色顶部线条 (3px 高度，更大的圆角) */}
       <div
         data-testid="status-bar"
-        className={`h-1 rounded-t-lg ${statusColor}`}
+        className={`h-[3px] rounded-t-xl ${statusColor}`}
       />
 
       {/* 卡片内容 - 占据剩余空间 */}
@@ -253,15 +259,15 @@ export const WindowCard = React.memo<WindowCardProps>(({
           </div>
         </div>
 
-        {/* 第二行：工作目录路径（智能截断，支持换行最多2行） */}
+        {/* 第二行：工作目录路径（小字体，单行显示） */}
         <Tooltip.Provider>
           <Tooltip.Root delayDuration={500}>
             <Tooltip.Trigger asChild>
               <p
                 data-testid="working-directory"
-                className="text-sm font-mono text-[rgb(var(--muted-foreground))] break-all line-clamp-2 pr-1"
+                className="text-xs font-mono text-[rgb(var(--muted-foreground))] truncate pr-1 min-h-[1.25rem]"
               >
-                {truncatedPath}
+                {truncatedPath || '(无工作目录)'}
               </p>
             </Tooltip.Trigger>
             <Tooltip.Portal>
@@ -269,7 +275,7 @@ export const WindowCard = React.memo<WindowCardProps>(({
                 className="bg-[rgb(var(--card))] text-[rgb(var(--foreground))] px-3 py-2 rounded-lg text-sm max-w-md break-all z-50 shadow-xl border border-[rgb(var(--border))]"
                 sideOffset={5}
               >
-                {workingDirectory}
+                {workingDirectory || '(无工作目录)'}
               </Tooltip.Content>
             </Tooltip.Portal>
           </Tooltip.Root>

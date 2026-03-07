@@ -128,6 +128,7 @@ export function registerWindowHandlers(ctx: HandlerContext) {
 
       // 启动 git 分支监听
       if (gitBranchWatcher) {
+        // 不需要 await，让它在后台异步执行
         gitBranchWatcher.watch(windowId, safePath, (gitBranch) => {
           if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('window-git-branch-changed', {
@@ -136,6 +137,8 @@ export function registerWindowHandlers(ctx: HandlerContext) {
               timestamp: new Date().toISOString(),
             });
           }
+        }).catch(error => {
+          console.error('[WindowHandlers] Failed to start git branch watching:', error);
         });
       }
 
@@ -201,6 +204,22 @@ export function registerWindowHandlers(ctx: HandlerContext) {
         ptySubscriptionManager.add(paneId, unsubscribe);
       }
 
+      // 启动 git 分支监听（如果之前没有监听）
+      if (gitBranchWatcher) {
+        // 不需要 await，让它在后台异步执行
+        gitBranchWatcher.watch(windowId, safePath, (gitBranch) => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('window-git-branch-changed', {
+              windowId,
+              gitBranch,
+              timestamp: new Date().toISOString(),
+            });
+          }
+        }).catch(error => {
+          console.error('[WindowHandlers] Failed to start git branch watching:', error);
+        });
+      }
+
       return successResponse({
         pid: handle.pid,
         status: WindowStatus.WaitingForInput,
@@ -244,6 +263,11 @@ export function registerWindowHandlers(ctx: HandlerContext) {
 
       // 停止项目配置文件监听
       projectConfigWatcher.stopWatching(windowId);
+
+      // 停止 git 分支监听
+      if (gitBranchWatcher) {
+        gitBranchWatcher.unwatch(windowId);
+      }
 
       return successResponse();
     } catch (error) {

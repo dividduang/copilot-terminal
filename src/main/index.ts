@@ -148,6 +148,8 @@ function createWindow() {
           statusPoller,
           autoSaveManager,
           ptySubscriptionManager,
+          fileWatcherService,
+          gitBranchWatcher,
           currentWorkspace,
         };
 
@@ -278,6 +280,8 @@ app.on('window-all-closed', () => {
         statusPoller,
         autoSaveManager,
         ptySubscriptionManager,
+        fileWatcherService,
+        gitBranchWatcher,
         currentWorkspace,
       }).catch(error => {
         console.error('[Main] Shutdown failed:', error);

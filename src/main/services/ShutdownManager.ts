@@ -4,6 +4,8 @@ import { StatusPoller } from './StatusPoller';
 import { AutoSaveManagerImpl } from './AutoSaveManager';
 import { PtySubscriptionManager } from './PtySubscriptionManager';
 import { projectConfigWatcher } from './ProjectConfigWatcher';
+import { FileWatcherService } from './FileWatcherService';
+import { GitBranchWatcher } from './GitBranchWatcher';
 import { Workspace } from '../types/workspace';
 
 /**
@@ -16,6 +18,8 @@ export interface ShutdownContext {
   statusPoller: StatusPoller | null;
   autoSaveManager: AutoSaveManagerImpl | null;
   ptySubscriptionManager: PtySubscriptionManager | null;
+  fileWatcherService: FileWatcherService | null;
+  gitBranchWatcher: GitBranchWatcher | null;
   currentWorkspace: Workspace | null;
 }
 
@@ -158,6 +162,8 @@ export class ShutdownManager {
     context.autoSaveManager?.stopAutoSave();
     context.statusPoller?.stopPolling();
     projectConfigWatcher.stopAll(); // 停止所有项目配置文件监听
+    context.gitBranchWatcher?.unwatchAll(); // 停止所有 git 分支监听
+    context.fileWatcherService?.destroy(); // 销毁文件监听服务
   }
 
   /**
