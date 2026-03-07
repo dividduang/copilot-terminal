@@ -5,6 +5,7 @@ import { execSync } from 'child_process';
 import { IProcessManager, TerminalConfig, ProcessHandle, ProcessInfo, ProcessStatus } from '../types/process';
 import { StatusDetectorImpl, IStatusDetector } from './StatusDetector';
 import { WindowStatus } from '../../shared/types/window';
+import { getLatestEnvironmentVariables } from '../utils/environment';
 
 // 尝试导入 node-pty，如果失败则使用 mock
 let pty: any;
@@ -30,6 +31,7 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
   private processes: Map<number, ProcessInfo>;
   private ptys: Map<number, any>;
   private ptyDisposables: Map<number, Array<{ dispose: () => void }>>;
+  private ptyOutputBuffers: Map<number, string[]>; // 缓存 PTY 初始输出
   private nextPid: number;
   private statusDetector: IStatusDetector;
 
@@ -38,6 +40,7 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     this.processes = new Map();
     this.ptys = new Map();
     this.ptyDisposables = new Map();
+    this.ptyOutputBuffers = new Map();
     this.nextPid = 1000;  // Start from 1000 for mock PIDs
     this.statusDetector = new StatusDetectorImpl();
     this.statusDetector.startPolling();
@@ -82,11 +85,31 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     this.processes.set(pid, processInfo);
     this.ptys.set(pid, ptyProcess);
 
+    // 初始化输出缓冲区，用于缓存早期输出（避免竞态条件导致数据丢失）
+    this.ptyOutputBuffers.set(pid, []);
+
     // Start tracking this PID before registering listeners (avoids race condition)
     this.statusDetector.trackPid(pid);
 
+    // 立即开始缓存 PTY 输出（在任何订阅之前）
+    const bufferDisposable = ptyProcess.onData((data: string) => {
+      const buffer = this.ptyOutputBuffers.get(pid);
+      if (buffer) {
+        buffer.push(data);
+        // 限制缓冲区大小，避免内存泄漏（最多缓存 100 条消息）
+        if (buffer.length > 100) {
+          buffer.shift();
+        }
+      }
+    });
+
     // Register PTY listeners for status detection and save disposables
     const disposables: Array<{ dispose: () => void }> = [];
+
+    // 保存缓冲区监听器
+    if (bufferDisposable && typeof bufferDisposable.dispose === 'function') {
+      disposables.push(bufferDisposable);
+    }
 
     const onDataDisposable = ptyProcess.onData((data: string) => {
       this.statusDetector.onPtyData(pid, data);
@@ -139,6 +162,9 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
       });
       this.ptyDisposables.delete(pid);
     }
+
+    // 清理输出缓冲区
+    this.ptyOutputBuffers.delete(pid);
 
     // 实际终止 PTY 进程
     const ptyProcess = this.ptys.get(pid);
@@ -241,6 +267,8 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
 
   /**
    * 订阅 PTY 数据输出，返回取消订阅函数
+   *
+   * 注意：首次订阅时会先发送缓存的初始输出，避免竞态条件导致数据丢失
    */
   subscribePtyData(pid: number, callback: (data: string) => void): () => void {
     const pty = this.ptys.get(pid);
@@ -255,6 +283,19 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
         // 不要让错误中断 PTY 数据流
       }
     };
+
+    // 先发送缓存的初始输出（如果有）
+    const buffer = this.ptyOutputBuffers.get(pid);
+    if (buffer && buffer.length > 0) {
+      // 使用 setImmediate 异步发送，避免阻塞
+      setImmediate(() => {
+        for (const data of buffer) {
+          safeCallback(data);
+        }
+      });
+      // 清空缓冲区，避免重复发送
+      this.ptyOutputBuffers.delete(pid);
+    }
 
     // node-pty 的 onData 返回一个 disposable 对象
     const disposable = pty.onData(safeCallback);
@@ -515,8 +556,11 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     const shell = this.getDefaultShell();
     const command = config.command || shell;
 
+    // 获取最新的系统环境变量（Windows 从注册表读取，macOS/Linux 使用 process.env）
+    const latestEnv = getLatestEnvironmentVariables();
+
     // 清理环境变量，移除可能导致冲突的变量
-    const cleanEnv = { ...process.env };
+    const cleanEnv = { ...latestEnv };
     delete cleanEnv.CLAUDECODE; // 移除 Claude Code 环境变量，避免嵌套会话检测
     delete cleanEnv.VSCODE_INJECTION; // 移除 VS Code 注入变量
 
