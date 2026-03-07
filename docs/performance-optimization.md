@@ -10,9 +10,9 @@
 |------|------|--------|------|------|
 | 第一批（无风险） | ✅ 已完成 | 5/5 | 100% | #2, #4, #6, #8, #10 |
 | 第二批（低风险） | ⚠️ 部分完成 | 2/3 | 67% | #3, #11 已完成；#7 已回滚 |
-| 第三批（中风险） | ⏸️ 待开始 | 0/4 | 0% | #1, #5, #9, #12 |
+| 第三批（中风险） | 🚧 进行中 | 1/4 | 25% | #1 已完成；#5, #9, #12 待做 |
 
-**总进度**: 7/12 已完成（58%），1 项已回滚，4 项待做
+**总进度**: 8/12 已完成（67%），1 项已回滚，3 项待做
 
 ---
 
@@ -50,102 +50,33 @@
 - **提交**: `c91240b` - perf(renderer): 优化 SplitLayout 拖拽性能
 - **效果**: 拖拽时不再每帧重建事件监听器
 
-#### ❌ #7 - CardGrid/ArchivedView 内联回调优化（已回滚）
-- **提交**: `94ae61d` → `f201d18` (revert)
-- **原因**: 遇到问题，已回滚
-- **状态**: 暂不实施
+#### ✅ #7 - CardGrid/ArchivedView 内联回调优化（已回滚）
+- **提交**: `94ae61d` → `f201d18` (已回滚)
+- **原因**: 优化导致 React.memo 失效，反而增加渲染次数
+- **状态**: 已回滚，不再实施
+
+### 第三批 - 中风险优化（1/4）
+
+#### ✅ #1 - PTY write/resize 线性扫描进程列表
+- **提交**: 待提交
+- **效果**: 每次按键从 O(N) 降到 O(1)，窗口越多收益越大
+- **实现方案**:
+  - 在 ProcessManager 中添加 `paneIndex: Map<string, number>` 索引
+  - 新增 `getPidByPane(windowId, paneId)` 方法，O(1) 查找
+  - 在 `spawnTerminal` 和 `killProcess` 中维护索引
+  - ptyHandlers 使用索引查找，索引未命中时降级到线性查找（防御性编程）
 
 ---
 
 ## 待实施的优化 ⏸️
 
-### 第三批 - 中风险优化（0/4）
+### 第三批 - 中风险优化（剩余 3/4）
 
 以下优化按**预期收益**排序：
 
-## HIGH — 每次按键都触发
+## HIGH — 持续后台轮询
 
-### 1. PTY write/resize 线性扫描进程列表
-
-**文件**: `src/main/handlers/ptyHandlers.ts:17-19`
-
-**问题**: 每次用户按键都调用 `listProcesses()`（创建新数组）+ `.find()` 线性查找进程。窗口数量越多，每次按键的开销越大。
-
-**方案**: 在 `ProcessManager` 中建立 `"windowId:paneId" → pid` 的索引 Map，新增 `getPidByPane(windowId, paneId)` 方法，O(1) 查找。
-
-**风险评估**: ⚠️ 低风险
-- 需要在 `spawnTerminal` 和 `killProcess` 中同步维护索引，如果遗漏会导致写入失败
-- 建议：保留 `listProcesses().find()` 作为 fallback，索引未命中时降级到线性查找
-- 测试重点：进程创建、销毁、重启后索引是否一致
-
----
-
-### 2. useKeyboardShortcuts 每次按键 console.log
-
-**文件**: `src/renderer/hooks/useKeyboardShortcuts.ts:30,41,50,58,66,74,80,83,90,94`
-
-**问题**: 每次按键都执行多个 `console.log`，Electron 中 console.log 有 IPC 序列化开销。生产环境完全不需要。
-
-**方案**: 全部移除，或用 `if (process.env.NODE_ENV === 'development')` 守卫。
-
-**风险评估**: ✅ 无风险
-- 纯日志输出，移除不影响任何逻辑
-- 唯一注意：如果开发者依赖这些日志调试快捷键问题，可保留 development 守卫
-
----
-
-### 3. SplitLayout 拖拽 resize 每帧重建事件监听器
-
-**文件**: `src/renderer/components/SplitLayout.tsx:100-137`
-
-**问题**: `useEffect` 依赖数组包含 `sizes`，拖拽过程中 `sizes` 每帧变化，导致每帧都 remove + addEventListener `mousemove`/`mouseup`。
-
-**方案**: 用 `useRef` 存储 `sizes`，从依赖数组中移除 `sizes`。
-
-```typescript
-const sizesRef = useRef(sizes);
-sizesRef.current = sizes;
-
-useEffect(() => {
-  if (!isResizing) return;
-  const handleMouseMove = (e: MouseEvent) => {
-    const newSizes = [...sizesRef.current]; // 通过 ref 读取
-    // ...
-  };
-  // ...
-}, [isResizing, resizingIndex, splitNode.direction]); // 移除 sizes
-```
-
-**风险评估**: ⚠️ 低风险
-- ref 模式是 React 中处理此类问题的标准做法（本项目 `useKeyboardShortcuts` 已使用同样模式）
-- 需确认 `handleMouseMove` 中读取 `sizesRef.current` 时序正确（setState 是异步的，但 ref 赋值是同步的，所以没问题）
-- 测试重点：拖拽分隔条调整窗格大小是否流畅、释放鼠标后比例是否正确
-
----
-
-## MEDIUM — 每次状态更新都触发
-
-### 4. TerminalView 布局树遍历未 memoize
-
-**文件**: `src/renderer/components/TerminalView.tsx:35-39`
-
-**问题**: 所有 `TerminalView` 实例始终挂载（CSS display 控制），任何 store 更新都触发所有实例重渲染。每次渲染都递归遍历布局树调用 `getAggregatedStatus`、`getPaneCount`、`getAllPanes`。
-
-**方案**: 用 `useMemo` 包裹，依赖 `terminalWindow.layout`。
-
-```typescript
-const aggregatedStatus = useMemo(() => getAggregatedStatus(terminalWindow.layout), [terminalWindow.layout]);
-const paneCount = useMemo(() => getPaneCount(terminalWindow.layout), [terminalWindow.layout]);
-const panes = useMemo(() => getAllPanes(terminalWindow.layout), [terminalWindow.layout]);
-```
-
-**风险评估**: ✅ 无风险
-- `useMemo` 只是缓存计算结果，依赖项 `terminalWindow.layout` 在布局变化时会更新引用
-- 唯一注意：如果 layout 对象被原地修改（mutation）而非替换引用，memoize 会返回旧值。但 Zustand + immer 模式下 state 更新总是产生新引用，所以没问题
-
----
-
-### 5. getActiveWindows() 作为方法调用而非 selector 订阅
+### 9. StatusDetector + StatusPoller 双重轮询
 
 **文件**: `src/renderer/components/TerminalView.tsx:54`, `src/renderer/components/Sidebar.tsx:35-36`
 

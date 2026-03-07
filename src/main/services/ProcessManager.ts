@@ -32,6 +32,7 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
   private ptys: Map<number, any>;
   private ptyDisposables: Map<number, Array<{ dispose: () => void }>>;
   private ptyOutputBuffers: Map<number, string[]>; // 缓存 PTY 初始输出
+  private paneIndex: Map<string, number>; // "windowId:paneId" → pid 索引，用于 O(1) 查找
   private nextPid: number;
   private statusDetector: IStatusDetector;
 
@@ -41,6 +42,7 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     this.ptys = new Map();
     this.ptyDisposables = new Map();
     this.ptyOutputBuffers = new Map();
+    this.paneIndex = new Map();
     this.nextPid = 1000;  // Start from 1000 for mock PIDs
     this.statusDetector = new StatusDetectorImpl();
     this.statusDetector.startPolling();
@@ -84,6 +86,10 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     };
     this.processes.set(pid, processInfo);
     this.ptys.set(pid, ptyProcess);
+
+    // 维护 paneIndex 索引，用于 O(1) 查找
+    const paneKey = this.getPaneKey(config.windowId, config.paneId);
+    this.paneIndex.set(paneKey, pid);
 
     // 初始化输出缓冲区，用于缓存早期输出（避免竞态条件导致数据丢失）
     this.ptyOutputBuffers.set(pid, []);
@@ -166,6 +172,10 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     // 清理输出缓冲区
     this.ptyOutputBuffers.delete(pid);
 
+    // 清理 paneIndex 索引
+    const paneKey = this.getPaneKey(processInfo.windowId, processInfo.paneId);
+    this.paneIndex.delete(paneKey);
+
     // 实际终止 PTY 进程
     const ptyProcess = this.ptys.get(pid);
     if (ptyProcess && typeof ptyProcess.kill === 'function') {
@@ -216,6 +226,23 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
    */
   listProcesses(): ProcessInfo[] {
     return Array.from(this.processes.values());
+  }
+
+  /**
+   * 通过 windowId 和 paneId 查找 PID（O(1) 查找）
+   *
+   * @returns PID 或 null（如果未找到）
+   */
+  getPidByPane(windowId: string, paneId?: string): number | null {
+    const paneKey = this.getPaneKey(windowId, paneId);
+    return this.paneIndex.get(paneKey) ?? null;
+  }
+
+  /**
+   * 生成 paneIndex 的 key
+   */
+  private getPaneKey(windowId: string | undefined, paneId: string | undefined): string {
+    return `${windowId ?? ''}:${paneId ?? ''}`;
   }
 
   /**
@@ -410,6 +437,7 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     // 不等待进程退出，直接清理
     this.processes.clear();
     this.ptys.clear();
+    this.paneIndex.clear();
 
     console.log('[ProcessManager] Destroy completed');
   }

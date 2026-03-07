@@ -14,15 +14,24 @@ export function registerPtyHandlers(ctx: HandlerContext) {
       if (!processManager) {
         throw new Error('ProcessManager not initialized');
       }
-      const processes = processManager.listProcesses();
-      const found = processes.find(p =>
-        p.windowId === windowId && (paneId ? p.paneId === paneId : true)
-      );
-      if (!found) {
-        // 窗口可能处于 Paused 状态（没有 PTY 进程），这是正常的，静默忽略
-        return successResponse();
+
+      // 使用 O(1) 索引查找 PID
+      let pid = processManager.getPidByPane(windowId, paneId);
+
+      // 如果索引未命中，降级到线性查找（防御性编程）
+      if (pid === null) {
+        const processes = processManager.listProcesses();
+        const found = processes.find(p =>
+          p.windowId === windowId && (paneId ? p.paneId === paneId : true)
+        );
+        if (!found) {
+          // 窗口可能处于 Paused 状态（没有 PTY 进程），这是正常的，静默忽略
+          return successResponse();
+        }
+        pid = found.pid;
       }
-      processManager.writeToPty(found.pid, data);
+
+      processManager.writeToPty(pid, data);
       return successResponse();
     } catch (error) {
       return errorResponse(error);
@@ -35,15 +44,24 @@ export function registerPtyHandlers(ctx: HandlerContext) {
       if (!processManager) {
         throw new Error('ProcessManager not initialized');
       }
-      const processes = processManager.listProcesses();
-      const found = processes.find(p =>
-        p.windowId === windowId && (paneId ? p.paneId === paneId : true)
-      );
-      if (!found) {
-        // 窗口可能处于 Paused 状态（没有 PTY 进程），这是正常的，静默忽略
-        return successResponse();
+
+      // 使用 O(1) 索引查找 PID
+      let pid = processManager.getPidByPane(windowId, paneId);
+
+      // 如果索引未命中，降级到线性查找（防御性编程）
+      if (pid === null) {
+        const processes = processManager.listProcesses();
+        const found = processes.find(p =>
+          p.windowId === windowId && (paneId ? p.paneId === paneId : true)
+        );
+        if (!found) {
+          // 窗口可能处于 Paused 状态（没有 PTY 进程），这是正常的，静默忽略
+          return successResponse();
+        }
+        pid = found.pid;
       }
-      processManager.resizePty(found.pid, cols, rows);
+
+      processManager.resizePty(pid, cols, rows);
       return successResponse();
     } catch (error) {
       return errorResponse(error);
