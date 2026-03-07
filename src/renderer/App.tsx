@@ -11,12 +11,13 @@ import { useWindowStore } from './stores/windowStore';
 import { useViewSwitcher } from './hooks/useViewSwitcher';
 import { useWindowSwitcher } from './hooks/useWindowSwitcher';
 import { useWorkspaceRestore } from './hooks/useWorkspaceRestore';
-import { subscribeToPaneStatusChange } from './api/events';
+import { subscribeToPaneStatusChange, subscribeToWindowGitBranchChange } from './api/events';
 import { Window } from './types/window';
 
 function App() {
   const windows = useWindowStore((state) => state.windows);
   const updatePane = useWindowStore((state) => state.updatePane);
+  const updateWindow = useWindowStore((state) => state.updateWindow);
   const storeActiveWindowId = useWindowStore((state) => state.activeWindowId);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentTab, setCurrentTab] = useState<'active' | 'archived'>('active');
@@ -55,6 +56,32 @@ function App() {
       unsubscribe();
     };
   }, [updatePane]);
+
+  // 订阅主进程推送的 git 分支变化事件
+  useEffect(() => {
+    const unsubscribe = subscribeToWindowGitBranchChange((windowId, gitBranch) => {
+      updateWindow(windowId, { gitBranch });
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [updateWindow]);
+
+  // 订阅主进程推送的项目配置更新事件
+  useEffect(() => {
+    if (!window.electronAPI?.onProjectConfigUpdated) return;
+
+    const handleProjectConfigUpdate = (_event: unknown, payload: { windowId: string; projectConfig: unknown }) => {
+      console.log('[App] Project config updated for window:', payload.windowId);
+      updateWindow(payload.windowId, { projectConfig: payload.projectConfig });
+    };
+
+    window.electronAPI.onProjectConfigUpdated(handleProjectConfigUpdate);
+
+    return () => {
+      window.electronAPI?.offProjectConfigUpdated?.(handleProjectConfigUpdate);
+    };
+  }, [updateWindow]);
 
   const handleCreateWindow = useCallback(() => {
     setIsDialogOpen(true);

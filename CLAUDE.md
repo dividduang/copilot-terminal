@@ -40,8 +40,7 @@ npm test
    - `TerminalView`: xterm.js integration, handles PTY I/O, includes sidebar and quick switcher
    - `WindowCard`: Displays window status, controls (start/pause/archive/delete)
    - `Sidebar`: Collapsible window list in terminal view
-   - `QuickSwitcher`: Ctrl+P search panel for quick window switching
-   - `TabSwitcher`: Ctrl+Tab MRU-based window cycling
+   - `QuickSwitcher`: Ctrl+Tab search panel for quick window switching
 
 ### Key Data Flow
 
@@ -98,21 +97,17 @@ Terminal view includes multiple ways to switch between windows:
    - Supports drag-to-resize (150-400px)
    - Shows archived windows in separate section
 
-2. **Quick Switcher** (Ctrl+P):
+2. **Quick Switcher** (Ctrl+Tab):
    - Fuzzy search by window name or path
-   - Keyboard navigation (↑↓ or Ctrl+N/P)
+   - Keyboard navigation (↑↓ or Tab)
    - Highlights matching characters
    - Shows all windows including archived
+   - Displays project links and IDE icons for each window
 
-3. **Tab Cycling** (Ctrl+Tab / Ctrl+Shift+Tab):
-   - Cycles through windows in MRU (Most Recently Used) order
-   - Hold Ctrl and press Tab repeatedly to cycle
-   - Release Ctrl to switch to selected window
-   - Shows horizontal preview of recent windows
-
-4. **Keyboard Shortcuts**:
+3. **Keyboard Shortcuts**:
    - `Ctrl+B`: Toggle sidebar expand/collapse
    - `Ctrl+1~9`: Switch to Nth window in sidebar
+   - `Ctrl+Tab`: Open quick switcher
    - `Ctrl+Enter` / `Shift+Enter`: Insert newline in terminal (for apps like Claude Code)
 
 **MRU List**: Maintained in `windowStore.mruList`, updated on every window switch. Persisted to workspace.json.

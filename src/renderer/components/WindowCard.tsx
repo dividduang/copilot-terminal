@@ -9,6 +9,7 @@ import { getAllPanes, getAggregatedStatus, getPaneCount } from '../utils/layoutH
 import { StatusDot } from './StatusDot';
 import { IDEIcon } from './icons/IDEIcons';
 import { useIDESettings } from '../hooks/useIDESettings';
+import { ProjectLinks } from './ProjectLinks';
 
 interface WindowCardProps {
   window: Window;
@@ -277,38 +278,6 @@ export const WindowCard = React.memo<WindowCardProps>(({
         {/* 分割线 */}
         <div className="border-t border-[rgb(var(--border))]" />
 
-        {/* 项目链接（如果存在） */}
-        {window.projectConfig && window.projectConfig.links.length > 0 && (
-          <>
-            <div className="flex flex-wrap gap-1.5">
-              {window.projectConfig.links.slice(0, 6).map((link) => (
-                <Tooltip.Provider key={link.name}>
-                  <Tooltip.Root delayDuration={300}>
-                    <Tooltip.Trigger asChild>
-                      <button
-                        onClick={(e) => handleOpenLink(e, link.url)}
-                        className="flex items-center gap-1 px-2 py-1 text-xs text-[rgb(var(--foreground))] bg-[rgb(var(--secondary))] rounded hover:bg-[rgb(var(--accent))] transition-colors focus:outline-none focus:ring-1 focus:ring-[rgb(var(--ring))]"
-                      >
-                        <ExternalLink size={12} />
-                        <span className="truncate max-w-[80px]">{link.name}</span>
-                      </button>
-                    </Tooltip.Trigger>
-                    <Tooltip.Portal>
-                      <Tooltip.Content
-                        className="bg-[rgb(var(--card))] text-[rgb(var(--foreground))] px-2 py-1 rounded text-xs z-50 shadow-xl border border-[rgb(var(--border))] max-w-xs break-all"
-                        sideOffset={5}
-                      >
-                        {link.name}
-                      </Tooltip.Content>
-                    </Tooltip.Portal>
-                  </Tooltip.Root>
-                </Tooltip.Provider>
-              ))}
-            </div>
-            <div className="border-t border-[rgb(var(--border))]" />
-          </>
-        )}
-
         {/* 第三行：时间信息 */}
         <div className="flex flex-col gap-1 flex-1">
           <div className="flex items-center justify-between">
@@ -329,6 +298,13 @@ export const WindowCard = React.memo<WindowCardProps>(({
           </div>
         </div>
       </div>
+
+      {/* 项目链接（如果存在） - 移到底部 */}
+      {window.projectConfig && window.projectConfig.links.length > 0 && (
+        <div className="px-4 py-2 bg-[rgb(var(--card))] border-t border-[rgb(var(--border))] flex-shrink-0">
+          <ProjectLinks links={window.projectConfig.links} variant="card" maxDisplay={6} />
+        </div>
+      )}
 
       {/* 底部按钮栏 */}
       <div className="flex items-center gap-1.5 px-4 py-3 bg-[rgb(var(--secondary))] border-t border-[rgb(var(--border))] flex-shrink-0">
@@ -403,7 +379,7 @@ export const WindowCard = React.memo<WindowCardProps>(({
                     onClick={(e) => handleButtonClick(e, () => onOpenInIDE?.(ide.id, workingDirectory))}
                     className="flex items-center justify-center w-8 h-8 text-[rgb(var(--foreground))] bg-[rgb(var(--card))] rounded hover:bg-[rgb(var(--accent))] transition-colors focus:outline-none focus:ring-0 border-0"
                   >
-                    <IDEIcon icon={ide.icon || ''} size={ide.command === 'code' ? 24 : 16} />
+                    <IDEIcon icon={ide.icon || ''} size={16} />
                   </button>
                 </Tooltip.Trigger>
                 <Tooltip.Portal>

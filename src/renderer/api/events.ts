@@ -13,6 +13,12 @@ export interface PaneStatusChangedPayload {
   timestamp: string;
 }
 
+export interface WindowGitBranchChangedPayload {
+  windowId: string;
+  gitBranch: string | undefined;
+  timestamp: string;
+}
+
 /**
  * 订阅窗口状态变化事件
  * @param callback 状态变化回调，接收 windowId 和新状态
@@ -48,5 +54,24 @@ export function subscribeToPaneStatusChange(
 
   return () => {
     window.electronAPI.offPaneStatusChanged(handler);
+  };
+}
+
+/**
+ * 订阅窗口 git 分支变化事件
+ * @param callback 分支变化回调，接收 windowId 和新分支名
+ * @returns 取消订阅函数
+ */
+export function subscribeToWindowGitBranchChange(
+  callback: (windowId: string, gitBranch: string | undefined) => void
+): () => void {
+  const handler = (_event: unknown, payload: WindowGitBranchChangedPayload) => {
+    callback(payload.windowId, payload.gitBranch);
+  };
+
+  window.electronAPI.onWindowGitBranchChanged(handler);
+
+  return () => {
+    window.electronAPI.offWindowGitBranchChanged(handler);
   };
 }

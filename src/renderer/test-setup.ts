@@ -26,6 +26,8 @@ Object.defineProperty(window, 'electronAPI', {
     offWindowStatusChanged: vi.fn(),
     onPaneStatusChanged: vi.fn(),
     offPaneStatusChanged: vi.fn(),
+    onWindowGitBranchChanged: vi.fn(),
+    offWindowGitBranchChanged: vi.fn(),
     ptyWrite: vi.fn().mockResolvedValue(undefined),
     ptyResize: vi.fn().mockResolvedValue(undefined),
     onPtyData: vi.fn(),

@@ -46,6 +46,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   offPaneStatusChanged: (callback: (event: unknown, payload: unknown) => void) =>
     ipcRenderer.removeListener('pane-status-changed', callback),
+  onWindowGitBranchChanged: (callback: (event: unknown, payload: unknown) => void) => {
+    ipcRenderer.on('window-git-branch-changed', callback);
+  },
+  offWindowGitBranchChanged: (callback: (event: unknown, payload: unknown) => void) =>
+    ipcRenderer.removeListener('window-git-branch-changed', callback),
+
+  // Project config updates
+  onProjectConfigUpdated: (callback: (event: unknown, payload: { windowId: string; projectConfig: unknown }) => void) => {
+    ipcRenderer.on('project-config-updated', callback);
+  },
+  offProjectConfigUpdated: (callback: (event: unknown, payload: { windowId: string; projectConfig: unknown }) => void) => {
+    ipcRenderer.removeListener('project-config-updated', callback);
+  },
 
   // PTY I/O
   ptyWrite: (windowId: string, paneId: string | undefined, data: string) =>

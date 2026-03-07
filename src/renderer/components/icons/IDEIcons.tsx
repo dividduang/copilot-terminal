@@ -8,6 +8,10 @@ interface IconProps {
 /**
  * 动态IDE图标组件
  * 从IDE安装目录加载实际图标
+ *
+ * 图标缩放策略：
+ * - VSCode 图标通常有较多透明边距，需要放大显示
+ * - 其他 IDE 图标相对饱满，使用标准尺寸
  */
 export const IDEIcon: React.FC<{ icon: string; size?: number; className?: string }> = ({
   icon,
@@ -16,6 +20,13 @@ export const IDEIcon: React.FC<{ icon: string; size?: number; className?: string
 }) => {
   const [iconSrc, setIconSrc] = useState<string>('');
   const [loading, setLoading] = useState(true);
+
+  // 判断是否是 VSCode 图标（通过路径特征）
+  const isVSCodeIcon = icon.toLowerCase().includes('code') || icon.toLowerCase().includes('vscode');
+
+  // VSCode 图标需要额外放大 1.5 倍来补偿透明边距
+  const scaleFactor = isVSCodeIcon ? 1.5 : 1.0;
+  const displaySize = Math.round(size * scaleFactor);
 
   useEffect(() => {
     const loadIcon = async () => {
@@ -70,10 +81,15 @@ export const IDEIcon: React.FC<{ icon: string; size?: number; className?: string
     <img
       src={iconSrc}
       alt="IDE Icon"
-      width={size}
-      height={size}
+      width={displaySize}
+      height={displaySize}
       className={className}
-      style={{ objectFit: 'contain' }}
+      style={{
+        objectFit: 'contain',
+        // 使用负 margin 让放大的图标居中显示，不超出容器
+        marginLeft: isVSCodeIcon ? `-${Math.round((displaySize - size) / 2)}px` : '0',
+        marginTop: isVSCodeIcon ? `-${Math.round((displaySize - size) / 2)}px` : '0',
+      }}
     />
   );
 };

@@ -3,16 +3,15 @@ import { v4 as uuidv4 } from 'uuid';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { ArrowLeft, SplitSquareHorizontal, SplitSquareVertical, Folder, Archive, Pause } from 'lucide-react';
 import { Window, Pane, WindowStatus } from '../types/window';
-import { getAggregatedStatus, getPaneCount, getAllPanes } from '../utils/layoutHelpers';
-import { getStatusLabel, getStatusTextColor } from '../utils/statusHelpers';
+import { getAggregatedStatus, getAllPanes } from '../utils/layoutHelpers';
 import { Sidebar } from './Sidebar';
 import { QuickSwitcher } from './QuickSwitcher';
 import { SplitLayout } from './SplitLayout';
-import { StatusDot } from './StatusDot';
 import { useWindowStore } from '../stores/windowStore';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { IDEIcon } from './icons/IDEIcons';
 import { useIDESettings } from '../hooks/useIDESettings';
+import { ProjectLinks } from './ProjectLinks';
 
 export interface TerminalViewProps {
   window: Window;
@@ -33,9 +32,6 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
 }) => {
   const { enabledIDEs } = useIDESettings();
   const aggregatedStatus = useMemo(() => getAggregatedStatus(terminalWindow.layout), [terminalWindow.layout]);
-  const statusLabel = getStatusLabel(aggregatedStatus);
-  const statusTextColor = getStatusTextColor(aggregatedStatus);
-  const paneCount = useMemo(() => getPaneCount(terminalWindow.layout), [terminalWindow.layout]);
   const panes = useMemo(() => getAllPanes(terminalWindow.layout), [terminalWindow.layout]);
 
   // 切换面板状态
@@ -107,12 +103,12 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
   const handlePaneClose = useCallback(
     (paneId: string) => {
       // 如果只有一个窗格，不允许关闭
-      if (paneCount <= 1) {
+      if (panes.length <= 1) {
         return;
       }
       closePaneInWindow(terminalWindow.id, paneId);
     },
-    [terminalWindow.id, paneCount, closePaneInWindow]
+    [terminalWindow.id, panes.length, closePaneInWindow]
   );
 
   // 处理拆分窗格
@@ -297,27 +293,35 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
               </Tooltip.Root>
             </Tooltip.Provider>
 
-            {/* 窗口名称 */}
+            {/* 窗口名称和 git 分支 */}
             <div className="flex items-center gap-2">
               <span className="text-zinc-100 font-medium text-sm">{terminalWindow.name}</span>
-              <span className="text-xs text-zinc-500">({paneCount} 个窗格)</span>
-            </div>
-
-            {/* 状态 - 始终显示圆点 */}
-            <div className="flex items-center gap-1.5">
-              {panes.map((pane, index) => (
-                <StatusDot
-                  key={pane.id}
-                  status={pane.status}
-                  size="sm"
-                  title={`窗格 ${index + 1}: ${getStatusLabel(pane.status)}`}
-                />
-              ))}
+              {terminalWindow.gitBranch && (
+                <span className="text-xs text-zinc-400 flex items-center gap-1">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M11.75 2.5a.75.75 0 100 1.5.75.75 0 000-1.5zm-2.25.75a2.25 2.25 0 113 2.122V6A2.5 2.5 0 0110 8.5H6a1 1 0 00-1 1v1.128a2.251 2.251 0 11-1.5 0V5.372a2.25 2.25 0 111.5 0v1.836A2.492 2.492 0 016 7h4a1 1 0 001-1v-.628A2.25 2.25 0 019.5 3.25zM4.25 12a.75.75 0 100 1.5.75.75 0 000-1.5zM3.5 3.25a.75.75 0 111.5 0 .75.75 0 01-1.5 0z"/>
+                  </svg>
+                  {terminalWindow.gitBranch}
+                </span>
+              )}
             </div>
           </div>
 
           {/* 右侧按钮组 */}
           <div className="flex items-center gap-2">
+            {/* 项目链接 */}
+            {terminalWindow.projectConfig && terminalWindow.projectConfig.links.length > 0 && (
+              <>
+                <ProjectLinks
+                  links={terminalWindow.projectConfig.links}
+                  variant="toolbar"
+                  maxDisplay={6}
+                />
+                {/* 分隔线 */}
+                <div className="w-px h-4 bg-zinc-700" />
+              </>
+            )}
+
             {/* 动态渲染启用的 IDE 图标 */}
             {enabledIDEs.map((ide) => (
               <Tooltip.Provider key={ide.id}>
@@ -328,7 +332,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
                       className="flex items-center justify-center w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-100 transition-colors"
                       title={`在 ${ide.name} 中打开`}
                     >
-                      <IDEIcon icon={ide.icon || ''} size={ide.command === 'code' ? 18 : 14} />
+                      <IDEIcon icon={ide.icon || ''} size={14} />
                     </button>
                   </Tooltip.Trigger>
                   <Tooltip.Portal>

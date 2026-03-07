@@ -1,11 +1,13 @@
 import React, { useMemo } from 'react';
-import { Activity, Keyboard, Pause, Archive, Folder } from 'lucide-react';
+import { Activity, Keyboard, Pause, Archive, Folder, ExternalLink } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { Window, WindowStatus } from '../types/window';
 import { highlightMatches } from '../utils/fuzzySearch';
 import { getAggregatedStatus, getAllPanes } from '../utils/layoutHelpers';
 import { StatusDot } from './StatusDot';
+import { IDEIcon } from './icons/IDEIcons';
+import { useIDESettings } from '../hooks/useIDESettings';
 
 interface QuickSwitcherItemProps {
   window: Window;
@@ -130,6 +132,8 @@ export const QuickSwitcherItem: React.FC<QuickSwitcherItemProps> = ({
   isSelected,
   query,
 }) => {
+  const { enabledIDEs } = useIDESettings();
+
   // 获取窗口的聚合状态和所有窗格
   const aggregatedStatus = useMemo(() => getAggregatedStatus(terminalWindow.layout), [terminalWindow.layout]);
   const panes = useMemo(() => getAllPanes(terminalWindow.layout), [terminalWindow.layout]);
@@ -188,6 +192,36 @@ export const QuickSwitcherItem: React.FC<QuickSwitcherItemProps> = ({
     e.stopPropagation(); // 阻止事件冒泡，避免触发窗口切换
     if (workingDirectory && window.electronAPI?.openFolder) {
       window.electronAPI.openFolder(workingDirectory);
+    }
+  };
+
+  // 打开外部链接
+  const handleOpenLink = (e: React.MouseEvent, url: string) => {
+    e.stopPropagation(); // 阻止事件冒泡，避免触发窗口切换
+    if (window.electronAPI?.openExternalUrl) {
+      window.electronAPI.openExternalUrl(url)
+        .then(() => {
+          console.log('URL opened successfully:', url);
+        })
+        .catch((error: Error) => {
+          console.error('Failed to open URL:', error);
+        });
+    }
+  };
+
+  // 在 IDE 中打开
+  const handleOpenInIDE = (e: React.MouseEvent, ide: string) => {
+    e.stopPropagation(); // 阻止事件冒泡，避免触发窗口切换
+    if (workingDirectory && window.electronAPI?.openInIDE) {
+      window.electronAPI.openInIDE(ide, workingDirectory)
+        .then((response) => {
+          if (!response.success) {
+            console.error(`Failed to open in ${ide}:`, response.error);
+          }
+        })
+        .catch((error: Error) => {
+          console.error(`Failed to open in ${ide}:`, error);
+        });
     }
   };
 
@@ -271,6 +305,46 @@ export const QuickSwitcherItem: React.FC<QuickSwitcherItemProps> = ({
                 />
               ))}
             </div>
+          </div>
+
+          {/* 项目链接和 IDE 图标 */}
+          <div className="flex items-center gap-2">
+            {/* 项目链接 */}
+            {terminalWindow.projectConfig && terminalWindow.projectConfig.links.length > 0 && (
+              <div className="flex items-center gap-1">
+                {terminalWindow.projectConfig.links.slice(0, 4).map((link) => (
+                  <button
+                    key={link.name}
+                    onClick={(e) => handleOpenLink(e, link.url)}
+                    className="flex items-center justify-center w-4 h-4 rounded bg-zinc-700 text-zinc-400 hover:bg-zinc-600 hover:text-zinc-200 transition-colors cursor-pointer"
+                    title={link.name}
+                  >
+                    <ExternalLink size={10} />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* 分隔线 */}
+            {terminalWindow.projectConfig && terminalWindow.projectConfig.links.length > 0 && enabledIDEs.length > 0 && (
+              <div className="w-px h-3 bg-zinc-600" />
+            )}
+
+            {/* IDE 图标 */}
+            {enabledIDEs.length > 0 && (
+              <div className="flex items-center gap-1">
+                {enabledIDEs.slice(0, 3).map((ide) => (
+                  <button
+                    key={ide.id}
+                    onClick={(e) => handleOpenInIDE(e, ide.id)}
+                    className="flex items-center justify-center w-4 h-4 hover:opacity-70 transition-opacity cursor-pointer"
+                    title={`在 ${ide.name} 中打开`}
+                  >
+                    <IDEIcon icon={ide.icon || ''} size={12} />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

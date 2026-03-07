@@ -14,7 +14,7 @@ interface QuickSwitcherProps {
 }
 
 /**
- * 快速切换面板组件
+ * 快速切换面板组件（Ctrl+Tab）
  * 支持搜索和键盘导航
  */
 export const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
@@ -147,8 +147,7 @@ export const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
           break;
       }
 
-      // Vim 风格导航（Ctrl+N 向下，Ctrl+P 向上）
-      // 注意：不拦截 Ctrl+P，让它用于关闭面板
+      // Vim 风格导航（Ctrl+N 向下）
       if (e.ctrlKey && e.key === 'n') {
         e.preventDefault();
         e.stopPropagation();
@@ -264,7 +263,7 @@ export const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
               </span>
             </div>
             <div className="text-zinc-600">
-              Ctrl+P 快速切换
+              Ctrl+Tab 快速切换
             </div>
           </div>
         </div>

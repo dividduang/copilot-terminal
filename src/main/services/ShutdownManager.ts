@@ -3,6 +3,7 @@ import { ProcessManager } from './ProcessManager';
 import { StatusPoller } from './StatusPoller';
 import { AutoSaveManagerImpl } from './AutoSaveManager';
 import { PtySubscriptionManager } from './PtySubscriptionManager';
+import { projectConfigWatcher } from './ProjectConfigWatcher';
 import { Workspace } from '../types/workspace';
 
 /**
@@ -156,6 +157,7 @@ export class ShutdownManager {
   private async stopServices(context: ShutdownContext): Promise<void> {
     context.autoSaveManager?.stopAutoSave();
     context.statusPoller?.stopPolling();
+    projectConfigWatcher.stopAll(); // 停止所有项目配置文件监听
   }
 
   /**

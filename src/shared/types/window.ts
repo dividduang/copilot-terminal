@@ -63,6 +63,7 @@ export interface Window {
   lastActiveAt: string;          // 最后活跃时间
   archived?: boolean;            // 是否已归档
   projectConfig?: ProjectConfig; // 项目配置（从 copilot.json 读取）
+  gitBranch?: string;            // Git 分支名称（如果是 git 仓库）
 }
 
 /**

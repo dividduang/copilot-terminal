@@ -5,6 +5,7 @@ import { PathValidator } from '../utils/pathValidator';
 import { getDefaultShell } from '../utils/shell';
 import { scanSubfolders } from '../utils/folderScanner';
 import { readProjectConfig } from '../utils/project-config';
+import { projectConfigWatcher } from '../services/ProjectConfigWatcher';
 import { WindowStatus } from '../../shared/types/window';
 import { successResponse, errorResponse } from './HandlerResponse';
 
@@ -95,7 +96,7 @@ export function registerWindowHandlers(ctx: HandlerContext) {
       };
 
       // 将新窗格添加到 StatusPoller
-      statusPoller?.addWindow(windowId, handle.pid, paneId);
+      statusPoller?.addWindow(windowId, handle.pid, paneId, safePath);
 
       // 订阅 PTY 数据，推送到渲染进程
       const unsubscribe = processManager.subscribePtyData(handle.pid, (data: string) => {
@@ -113,6 +114,16 @@ export function registerWindowHandlers(ctx: HandlerContext) {
       if (ptySubscriptionManager) {
         ptySubscriptionManager.add(paneId, unsubscribe);
       }
+
+      // 启动项目配置文件监听
+      projectConfigWatcher.startWatching(windowId, safePath, (updatedConfig) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('project-config-updated', {
+            windowId,
+            projectConfig: updatedConfig
+          });
+        }
+      });
 
       return successResponse(window);
     } catch (error) {
@@ -157,7 +168,7 @@ export function registerWindowHandlers(ctx: HandlerContext) {
       }
 
       // 将窗格添加到 StatusPoller
-      statusPoller?.addWindow(windowId, handle.pid, paneId);
+      statusPoller?.addWindow(windowId, handle.pid, paneId, safePath);
 
       // 订阅 PTY 数据，推送到渲染进程
       const unsubscribe = processManager.subscribePtyData(handle.pid, (data: string) => {
@@ -216,6 +227,9 @@ export function registerWindowHandlers(ctx: HandlerContext) {
       if (statusPoller) {
         statusPoller.removeWindow(windowId);
       }
+
+      // 停止项目配置文件监听
+      projectConfigWatcher.stopWatching(windowId);
 
       return successResponse();
     } catch (error) {
