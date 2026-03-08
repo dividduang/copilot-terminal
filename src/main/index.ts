@@ -99,9 +99,10 @@ function createWindow() {
     }
   }, 5000);
 
-  // 开发环境加载 dev server,生产环境加载打包文件
+  // 开发环境加载 dev server，优先读取环境变量，避免 localhost 在不同系统下解析差异
   if (process.env.NODE_ENV === 'development') {
-    mainWindow.loadURL('http://localhost:5173'); // Vite dev server
+    const devServerUrl = process.env.VITE_DEV_SERVER_URL || 'http://127.0.0.1:5173';
+    mainWindow.loadURL(devServerUrl);
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
