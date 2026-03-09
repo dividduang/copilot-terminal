@@ -9,6 +9,8 @@ type PtyDataSubscriber = (payload: PtyDataPayload) => void;
 type ElectronPtyHandler = (event: unknown, payload: PtyDataPayload) => void;
 
 const subscribersByPaneKey = new Map<string, Set<PtyDataSubscriber>>();
+const earlyDataBuffers = new Map<string, PtyDataPayload[]>();
+const EARLY_BUFFER_LIMIT = 100;
 let globalPtyHandler: ElectronPtyHandler | null = null;
 
 function getPaneKey(windowId: string, paneId?: string): string {
@@ -24,6 +26,12 @@ function ensureGlobalSubscription(): void {
     const paneKey = getPaneKey(payload.windowId, payload.paneId);
     const subscribers = subscribersByPaneKey.get(paneKey);
     if (!subscribers || subscribers.size === 0) {
+      const buffer = earlyDataBuffers.get(paneKey) ?? [];
+      buffer.push(payload);
+      if (buffer.length > EARLY_BUFFER_LIMIT) {
+        buffer.shift();
+      }
+      earlyDataBuffers.set(paneKey, buffer);
       return;
     }
 
@@ -41,18 +49,7 @@ function ensureGlobalSubscription(): void {
   window.electronAPI.onPtyData(globalPtyHandler);
 }
 
-function cleanupGlobalSubscriptionIfIdle(): void {
-  if (subscribersByPaneKey.size > 0) {
-    return;
-  }
-
-  if (!globalPtyHandler) {
-    return;
-  }
-
-  window.electronAPI.offPtyData(globalPtyHandler);
-  globalPtyHandler = null;
-}
+ensureGlobalSubscription();
 
 /**
  * 按 windowId + paneId 订阅 PTY 数据。
@@ -76,6 +73,14 @@ export function subscribeToPanePtyData(
   subscribers.add(subscriber);
   subscribersByPaneKey.set(paneKey, subscribers);
 
+  const earlyData = earlyDataBuffers.get(paneKey);
+  if (earlyData && earlyData.length > 0) {
+    for (const payload of earlyData) {
+      subscriber(payload);
+    }
+    earlyDataBuffers.delete(paneKey);
+  }
+
   return () => {
     const currentSubscribers = subscribersByPaneKey.get(paneKey);
     if (!currentSubscribers) {
@@ -86,8 +91,6 @@ export function subscribeToPanePtyData(
     if (currentSubscribers.size === 0) {
       subscribersByPaneKey.delete(paneKey);
     }
-
-    cleanupGlobalSubscriptionIfIdle();
   };
 }
 

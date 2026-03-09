@@ -3,6 +3,7 @@ import { platform } from 'os';
 import { existsSync } from 'fs';
 import { execSync } from 'child_process';
 import { IProcessManager, TerminalConfig, ProcessHandle, ProcessInfo, ProcessStatus } from '../types/process';
+import { Settings } from '../types/workspace';
 import { StatusDetectorImpl, IStatusDetector } from './StatusDetector';
 import { WindowStatus } from '../../shared/types/window';
 import { getLatestEnvironmentVariables } from '../utils/environment';
@@ -39,8 +40,9 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
   private cachedSpawnEnv: NodeJS.ProcessEnv | null;
   private cachedSpawnEnvAt: number;
   private readonly SPAWN_ENV_CACHE_TTL_MS = 30000;
+  private readonly getSettings: (() => Settings | null | undefined) | null;
 
-  constructor() {
+  constructor(getSettings?: () => Settings | null | undefined) {
     super();
     this.processes = new Map();
     this.ptys = new Map();
@@ -52,12 +54,63 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     this.cachedDefaultShell = null;
     this.cachedSpawnEnv = null;
     this.cachedSpawnEnvAt = 0;
-    // 注意：不再启动 StatusDetector 的内部轮询，由 StatusPoller 统一管理轮询
+    this.getSettings = getSettings ?? null;
+    // ??????? StatusDetector ??????? StatusPoller ??????
+  }
+
+  async warmupConPtyDll(): Promise<void> {
+    if (platform() !== 'win32' || !pty) {
+      return;
+    }
+
+    if (!this.shouldUseBundledConptyDll()) {
+      console.log('[ProcessManager] Skipping ConPTY DLL warmup because bundled conpty.dll is disabled');
+      return;
+    }
+
+    const warmupStartAt = Date.now();
+    console.log('[ProcessManager] Starting ConPTY DLL warmup...');
+
+    try {
+      const dummyPty = pty.spawn('cmd.exe', ['/c', 'exit'], {
+        name: 'xterm-256color',
+        cols: 80,
+        rows: 30,
+        cwd: process.cwd(),
+        env: process.env,
+        useConpty: true,
+        useConptyDll: true,
+      });
+
+      await new Promise<void>((resolve) => {
+        const timeout = setTimeout(() => {
+          try {
+            dummyPty.kill();
+          } catch {}
+          resolve();
+        }, 1000);
+
+        const disposable = dummyPty.onExit?.(() => {
+          clearTimeout(timeout);
+          resolve();
+        });
+
+        if (!disposable) {
+          clearTimeout(timeout);
+          setTimeout(resolve, 100);
+        }
+      });
+
+      console.log(`[ProcessManager] ConPTY DLL warmup completed in ${Date.now() - warmupStartAt}ms`);
+    } catch (error) {
+      console.error('[ProcessManager] ConPTY DLL warmup failed:', error);
+    }
   }
 
   /**
-   * 创建新的终端进程
+   * ????????
    */
+
   async spawnTerminal(config: TerminalConfig): Promise<ProcessHandle> {
     const spawnStartAt = Date.now();
     console.log(`[ProcessManager] Starting spawn for windowId=${config.windowId}, paneId=${config.paneId}`);
@@ -706,8 +759,12 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     };
 
     if (platform() === 'win32') {
+      const useBundledConptyDll = this.shouldUseBundledConptyDll();
       ptySpawnOptions.useConpty = true;
-      ptySpawnOptions.useConptyDll = true;
+      if (useBundledConptyDll) {
+        ptySpawnOptions.useConptyDll = true;
+      }
+      console.log(`[ProcessManager] useConptyDll=${useBundledConptyDll}`);
     }
 
     const ptySpawnStartAt = Date.now();
@@ -715,5 +772,21 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     console.log(`[ProcessManager] pty.spawn() took ${Date.now() - ptySpawnStartAt}ms`);
 
     return ptyProcess;
+  }
+
+  private shouldUseBundledConptyDll(): boolean {
+    if (platform() !== 'win32') {
+      return false;
+    }
+
+    const override = process.env.AUSOME_USE_CONPTY_DLL?.trim().toLowerCase();
+    if (override === '1' || override === 'true') {
+      return true;
+    }
+    if (override === '0' || override === 'false') {
+      return false;
+    }
+
+    return this.getSettings?.()?.terminal?.useBundledConptyDll ?? false;
   }
 }

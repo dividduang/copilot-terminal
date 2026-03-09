@@ -19,7 +19,8 @@ describe('ptyDataBus', () => {
     expect(window.electronAPI.offPtyData).toHaveBeenCalledTimes(0);
 
     unsubscribeB();
-    expect(window.electronAPI.offPtyData).toHaveBeenCalledTimes(1);
+    expect(window.electronAPI.onPtyData).toHaveBeenCalledTimes(1);
+    expect(window.electronAPI.offPtyData).toHaveBeenCalledTimes(0);
   });
 
   it('dispatches payload only to the matched pane subscriber', async () => {
@@ -48,6 +49,28 @@ describe('ptyDataBus', () => {
 
     unsubscribeA();
     unsubscribeB();
+  });
+
+  it('replays buffered payloads after a late subscription', async () => {
+    let registeredHandler:
+      | ((event: unknown, payload: { windowId: string; paneId?: string; data: string }) => void)
+      | undefined;
+
+    vi.mocked(window.electronAPI.onPtyData).mockImplementation((handler) => {
+      registeredHandler = handler as typeof registeredHandler;
+    });
+
+    const { subscribeToPanePtyData } = await import('../ptyDataBus');
+
+    registeredHandler?.(null, { windowId: 'win-1', paneId: 'pane-a', data: 'buffered-output' });
+
+    const paneACallback = vi.fn();
+    const unsubscribe = subscribeToPanePtyData('win-1', 'pane-a', paneACallback);
+
+    expect(paneACallback).toHaveBeenCalledTimes(1);
+    expect(paneACallback).toHaveBeenCalledWith('buffered-output');
+
+    unsubscribe();
   });
 });
 

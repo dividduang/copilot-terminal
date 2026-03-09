@@ -212,6 +212,7 @@ const LayoutNodeRenderer: React.FC<LayoutNodeRendererProps> = ({
     const isActive = layout.id === activePaneId;
     return (
       <TerminalPane
+        key={`${layout.id}:${layout.pane.pid ?? 'none'}`}
         windowId={windowId}
         pane={layout.pane}
         isActive={isActive}

@@ -15,6 +15,7 @@ import { useWorkspaceRestore } from './hooks/useWorkspaceRestore';
 import { subscribeToPaneStatusChange, subscribeToWindowGitBranchChange } from './api/events';
 import { Window } from './types/window';
 import { I18nProvider } from './i18n';
+import './api/ptyDataBus';
 
 function AppContent() {
   const windows = useWindowStore((state) => state.windows);

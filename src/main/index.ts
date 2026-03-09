@@ -178,7 +178,11 @@ app.whenReady().then(async () => {
   autoSaveManager = new AutoSaveManagerImpl();
 
   // 初始化 ProcessManager
-  processManager = new ProcessManager();
+  processManager = new ProcessManager(() => currentWorkspace?.settings ?? null);
+
+  processManager.warmupConPtyDll().catch((error) => {
+    console.error('[Main] ConPTY DLL warmup failed:', error);
+  });
 
   // 初始化 PtySubscriptionManager
   ptySubscriptionManager = new PtySubscriptionManager();
@@ -227,6 +231,10 @@ app.whenReady().then(async () => {
   try {
     const workspace = await workspaceManager.loadWorkspace();
     currentWorkspace = workspace;
+
+    processManager.warmupConPtyDll().catch((error) => {
+      console.error('[Main] ConPTY DLL warmup after workspace load failed:', error);
+    });
 
     // 启动自动保存
     if (autoSaveManager && workspaceManager) {

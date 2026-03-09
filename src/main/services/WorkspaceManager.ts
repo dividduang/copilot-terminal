@@ -524,6 +524,9 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
       ...settings,
       language: this.resolveLanguage(settings?.language),
       ides: settings?.ides ?? defaults.ides,
+      terminal: {
+        useBundledConptyDll: settings?.terminal?.useBundledConptyDll ?? defaults.terminal?.useBundledConptyDll ?? false,
+      },
     };
   }
 
@@ -535,6 +538,9 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
       autoSaveInterval: 5,
       language: this.resolveLanguage(),
       ides: scanInstalledIDEs(),
+      terminal: {
+        useBundledConptyDll: false,
+      },
     };
   }
 

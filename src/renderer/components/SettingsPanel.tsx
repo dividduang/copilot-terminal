@@ -46,6 +46,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) =
     showContext: true,
     showCost: true,
   });
+  const [terminalSettings, setTerminalSettings] = useState({
+    useBundledConptyDll: false,
+  });
 
   // 加载设置
   useEffect(() => {
@@ -70,6 +73,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) =
             showModel: response.data.statusLine.showModel ?? true,
             showContext: response.data.statusLine.showContext ?? true,
             showCost: response.data.statusLine.showCost ?? true,
+          });
+        }
+
+        if (response.data.terminal) {
+          setTerminalSettings({
+            useBundledConptyDll: response.data.terminal.useBundledConptyDll ?? false,
           });
         }
       }
@@ -312,6 +321,17 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) =
     }
   };
 
+  const handleTerminalSettingsChange = async (updates: Partial<typeof terminalSettings>) => {
+    const newConfig = { ...terminalSettings, ...updates };
+    setTerminalSettings(newConfig);
+
+    try {
+      await window.electronAPI.updateSettings({ terminal: newConfig });
+    } catch (error) {
+      console.error('Failed to update terminal settings:', error);
+    }
+  };
+
   const handleToggleStatusLine = async (enabled: boolean) => {
     await handleStatusLineConfigChange({ enabled });
 
@@ -431,6 +451,22 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) =
                           </Select.Content>
                         </Select.Portal>
                       </Select.Root>
+                    </div>
+
+                    <div className="p-4 bg-zinc-800/50 rounded-lg border border-zinc-700/50">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <h3 className="text-sm font-semibold text-zinc-100 mb-1">{t('settings.general.bundledConptyTitle')}</h3>
+                          <p className="text-xs text-zinc-400">{t('settings.general.bundledConptyDescription')}</p>
+                        </div>
+                        <Switch.Root
+                          checked={terminalSettings.useBundledConptyDll}
+                          onCheckedChange={(checked) => handleTerminalSettingsChange({ useBundledConptyDll: checked })}
+                          className="w-11 h-6 bg-zinc-700 rounded-full relative data-[state=checked]:bg-blue-600 transition-colors flex-shrink-0"
+                        >
+                          <Switch.Thumb className="block w-5 h-5 bg-white rounded-full transition-transform translate-x-0.5 data-[state=checked]:translate-x-[22px]" />
+                        </Switch.Root>
+                      </div>
                     </div>
                   </div>
                 </Tabs.Content>

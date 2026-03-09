@@ -31,6 +31,10 @@ export interface StatusLineConfig {
 /**
  * 工作区设置
  */
+export interface TerminalSettings {
+  useBundledConptyDll: boolean;
+}
+
 export interface Settings {
   notificationsEnabled: boolean;
   theme: 'dark' | 'light';
@@ -38,7 +42,8 @@ export interface Settings {
   autoSaveInterval: number;  // 自动保存间隔（分钟）
   language?: AppLanguage;
   ides: IDEConfig[];         // IDE 配置列表
-  statusLine?: StatusLineConfig;  // Claude Code StatusLine 配置
+  statusLine?: StatusLineConfig;
+  terminal?: TerminalSettings;  // Claude Code StatusLine 配置
 }
 
 /**

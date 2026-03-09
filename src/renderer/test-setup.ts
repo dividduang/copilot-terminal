@@ -38,7 +38,7 @@ Object.defineProperty(window, 'electronAPI', {
     switchToUnifiedView: vi.fn().mockResolvedValue(undefined),
     onViewChanged: vi.fn(),
     offViewChanged: vi.fn(),
-    getSettings: vi.fn().mockResolvedValue({ success: true, data: { language: 'zh-CN', ides: [], quickNav: { items: [] } } }),
+    getSettings: vi.fn().mockResolvedValue({ success: true, data: { language: 'zh-CN', ides: [], quickNav: { items: [] }, terminal: { useBundledConptyDll: false } } }),
     updateSettings: vi.fn().mockResolvedValue({ success: true, data: {} }),
     getSupportedIDENames: vi.fn().mockResolvedValue({ success: true, data: [] }),
     scanIDEs: vi.fn().mockResolvedValue({ success: true, data: [] }),
