@@ -1,55 +1,62 @@
 /* xterm.js styles */
 @import '@xterm/xterm/css/xterm.css';
 
-/* 移除 xterm.js 默认的 padding，让终端占满容器 */
+/* Remove xterm.js default padding so the terminal fills the container */
 .xterm {
   padding: 0 !important;
-  overflow: hidden !important; /* 防止内容溢出导致晃动 */
-  max-width: 100% !important; /* 防止被撑大 */
+  overflow: hidden !important;
+  max-width: 100% !important;
 }
 
 .xterm .xterm-viewport {
   overflow-y: auto;
-  overflow-x: hidden !important; /* 防止横向溢出 */
+  overflow-x: hidden !important;
   max-width: 100% !important;
 }
 
-/* 移除 xterm-screen 的 padding，避免 FitAddon 计算列数时出现偏差 */
+/* Keep FitAddon measurements accurate and prevent content overflow */
 .xterm .xterm-screen {
   padding: 0 !important;
-  overflow: hidden !important; /* 防止内容溢出 */
+  overflow: hidden !important;
   max-width: 100% !important;
 }
 
-/* 防止输入法导致的横向滚动 */
+/* Avoid horizontal scrolling caused by IME/input quirks */
 .xterm .xterm-rows {
   overflow: hidden !important;
   max-width: 100% !important;
 }
 
-/* 自定义 xterm.js 的滚动条样式 - 细线风格，悬浮时变宽 */
+/* Keep the terminal scrollbar fixed at 4px and support old/new xterm DOM */
+.xterm .xterm-scrollable-element > .xterm-scrollbar,
 .xterm .xterm-scrollable-element > .scrollbar {
-  width: 3px !important; /* 默认宽度 - 超细线 */
+  width: 4px !important;
   background: transparent !important;
-  transition: width 0.2s ease !important; /* 宽度变化动画 */
 }
 
-/* 悬浮时滚动条变宽 */
+.xterm .xterm-scrollable-element > .xterm-scrollbar:hover,
 .xterm .xterm-scrollable-element > .scrollbar:hover {
-  width: 12px !important; /* 悬浮时宽度 */
+  width: 4px !important;
 }
 
+.xterm .xterm-scrollable-element > .xterm-scrollbar > .xterm-slider,
 .xterm .xterm-scrollable-element > .scrollbar > .slider {
-  background: rgba(255, 255, 255, 0.2) !important; /* 滚动条颜色 */
-  border-radius: 3px !important;
-  width: 100% !important; /* 占满滚动条宽度 */
+  width: 4px !important;
+  background: rgba(255, 255, 255, 0.2) !important;
+  border-radius: 999px !important;
   transition: background 0.2s ease !important;
 }
 
+.xterm .xterm-scrollable-element > .xterm-scrollbar > .xterm-slider:hover,
 .xterm .xterm-scrollable-element > .scrollbar > .slider:hover {
   background: rgba(255, 255, 255, 0.3) !important;
 }
 
+.xterm .xterm-scrollable-element > .xterm-scrollbar > .xterm-slider:active,
 .xterm .xterm-scrollable-element > .scrollbar > .slider:active {
   background: rgba(255, 255, 255, 0.4) !important;
+}
+
+.xterm .xterm-decoration-overview-ruler {
+  display: none !important;
 }
