@@ -1,0 +1,4 @@
+#!/bin/sh
+# tmux - Unix wrapper for tmux-shim.js
+# This file must be on PATH so that "tmux" resolves to this shim.
+exec node "$(dirname "$0")/tmux-shim.js" "$@"

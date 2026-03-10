@@ -2,11 +2,13 @@ import { EventEmitter } from 'events';
 import { platform } from 'os';
 import { existsSync } from 'fs';
 import { execSync } from 'child_process';
+import * as path from 'path';
 import { IProcessManager, TerminalConfig, ProcessHandle, ProcessInfo, ProcessStatus } from '../types/process';
 import { Settings } from '../types/workspace';
 import { StatusDetectorImpl, IStatusDetector } from './StatusDetector';
 import { WindowStatus } from '../../shared/types/window';
 import { getLatestEnvironmentVariables } from '../utils/environment';
+import { ITmuxCompatService, TmuxPaneId } from '../../shared/types/tmux';
 
 // 尝试导入 node-pty，如果失败则使用 mock
 let pty: any;
@@ -41,8 +43,9 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
   private cachedSpawnEnvAt: number;
   private readonly SPAWN_ENV_CACHE_TTL_MS = 30000;
   private readonly getSettings: (() => Settings | null | undefined) | null;
+  private tmuxCompatService: ITmuxCompatService | null;
 
-  constructor(getSettings?: () => Settings | null | undefined) {
+  constructor(getSettings?: () => Settings | null | undefined, tmuxCompatService?: ITmuxCompatService) {
     super();
     this.processes = new Map();
     this.ptys = new Map();
@@ -55,7 +58,15 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     this.cachedSpawnEnv = null;
     this.cachedSpawnEnvAt = 0;
     this.getSettings = getSettings ?? null;
+    this.tmuxCompatService = tmuxCompatService ?? null;
     // ??????? StatusDetector ??????? StatusPoller ??????
+  }
+
+  /**
+   * 设置 TmuxCompatService（解决循环依赖：ProcessManager 和 TmuxCompatService 互相引用）
+   */
+  setTmuxCompatService(service: ITmuxCompatService): void {
+    this.tmuxCompatService = service;
   }
 
   async warmupConPtyDll(): Promise<void> {
@@ -749,6 +760,27 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     // 注入窗口 ID 环境变量（供 statusLine 插件使用）
     cleanEnv.AUSOME_TERMINAL_WINDOW_ID = config.windowId;
 
+    // 合并用户提供的环境变量（如果有）
+    if (config.env) {
+      Object.assign(cleanEnv, config.env);
+    }
+
+    // 注入 tmux 兼容环境变量（如果启用）
+    if (this.shouldEnableTmuxCompat()) {
+      const tmuxEnv = this.buildTmuxEnvironment(config);
+      Object.assign(cleanEnv, tmuxEnv);
+
+      if (process.env.AUSOME_TMUX_DEBUG === '1') {
+        console.log('[ProcessManager] Injected tmux environment:', {
+          TMUX: cleanEnv.TMUX,
+          TMUX_PANE: cleanEnv.TMUX_PANE,
+          AUSOME_TERMINAL_WINDOW_ID: cleanEnv.AUSOME_TERMINAL_WINDOW_ID,
+          AUSOME_TERMINAL_PANE_ID: cleanEnv.AUSOME_TERMINAL_PANE_ID,
+          AUSOME_TMUX_RPC: cleanEnv.AUSOME_TMUX_RPC,
+        });
+      }
+    }
+
     // 创建真实的 PTY 进程
     const ptySpawnOptions: Record<string, unknown> = {
       name: 'xterm-256color',
@@ -788,5 +820,94 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     }
 
     return this.getSettings?.()?.terminal?.useBundledConptyDll ?? false;
+  }
+
+  /**
+   * 检查是否启用 tmux 兼容模式
+   */
+  private shouldEnableTmuxCompat(): boolean {
+    const settings = this.getSettings?.();
+    return settings?.tmux?.enabled ?? false;
+  }
+
+  /**
+   * 构建 tmux 环境变量
+   */
+  private buildTmuxEnvironment(config: TerminalConfig): Partial<NodeJS.ProcessEnv> {
+    if (!this.tmuxCompatService) {
+      console.warn('[ProcessManager] TmuxCompatService not available, skipping tmux environment injection');
+      return {};
+    }
+
+    if (!config.windowId || !config.paneId) {
+      console.warn('[ProcessManager] windowId or paneId missing, skipping tmux environment injection');
+      return {};
+    }
+
+    // 分配 tmux pane ID
+    const tmuxPaneId = this.tmuxCompatService.allocatePaneId();
+
+    // 注册 pane 映射
+    this.tmuxCompatService.registerPane(tmuxPaneId, config.windowId, config.paneId);
+
+    // 获取 RPC socket 路径
+    const rpcSocketPath = this.getRpcSocketPath(config.windowId);
+
+    // 构建 TMUX 环境变量
+    const tmuxSocketPath = platform() === 'win32'
+      ? `\\\\.\\pipe\\ausome-tmux-default`
+      : `/tmp/tmux-${process.getuid?.() ?? 1000}/default`;
+
+    const tmuxValue = `${tmuxSocketPath},${process.pid},0`;
+
+    // 构建 PATH（将 fake tmux 目录添加到前面）
+    const settings = this.getSettings?.();
+    const autoInjectPath = settings?.tmux?.autoInjectPath ?? true;
+
+    let newPath = process.env.PATH || '';
+    if (autoInjectPath) {
+      const fakeTmuxDir = this.getFakeTmuxDir();
+      newPath = `${fakeTmuxDir}${path.delimiter}${process.env.PATH}`;
+    }
+
+    return {
+      TMUX: tmuxValue,
+      TMUX_PANE: tmuxPaneId,
+      AUSOME_TERMINAL_WINDOW_ID: config.windowId,
+      AUSOME_TERMINAL_PANE_ID: config.paneId,
+      AUSOME_TMUX_RPC: rpcSocketPath,
+      PATH: newPath,
+    };
+  }
+
+  /**
+   * 获取 fake tmux 目录
+   */
+  private getFakeTmuxDir(): string {
+    // 开发环境
+    if (process.env.NODE_ENV === 'development') {
+      return path.join(__dirname, '../../resources/bin');
+    }
+
+    // 生产环境
+    try {
+      const { app } = require('electron');
+      return path.join(app.getAppPath(), 'resources', 'bin');
+    } catch (error) {
+      console.error('[ProcessManager] Failed to get app path:', error);
+      // 回退到相对路径
+      return path.join(__dirname, '../../resources/bin');
+    }
+  }
+
+  /**
+   * 获取 RPC socket 路径
+   */
+  private getRpcSocketPath(windowId: string): string {
+    if (platform() === 'win32') {
+      return `\\\\.\\pipe\\ausome-tmux-${windowId}`;
+    } else {
+      return `/tmp/ausome-tmux-${windowId}.sock`;
+    }
   }
 }

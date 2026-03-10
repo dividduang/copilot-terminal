@@ -6,6 +6,7 @@ import { PtySubscriptionManager } from './PtySubscriptionManager';
 import { projectConfigWatcher } from './ProjectConfigWatcher';
 import { FileWatcherService } from './FileWatcherService';
 import { GitBranchWatcher } from './GitBranchWatcher';
+import { TmuxCompatService } from './TmuxCompatService';
 import { Workspace } from '../types/workspace';
 
 /**
@@ -20,6 +21,7 @@ export interface ShutdownContext {
   ptySubscriptionManager: PtySubscriptionManager | null;
   fileWatcherService: FileWatcherService | null;
   gitBranchWatcher: GitBranchWatcher | null;
+  tmuxCompatService: TmuxCompatService | null;
   currentWorkspace: Workspace | null;
 }
 
@@ -164,6 +166,7 @@ export class ShutdownManager {
     projectConfigWatcher.stopAll(); // 停止所有项目配置文件监听
     context.gitBranchWatcher?.unwatchAll(); // 停止所有 git 分支监听
     context.fileWatcherService?.destroy(); // 销毁文件监听服务
+    context.tmuxCompatService?.destroy(); // 销毁 tmux 兼容服务（内部会关闭 RPC 服务器）
   }
 
   /**

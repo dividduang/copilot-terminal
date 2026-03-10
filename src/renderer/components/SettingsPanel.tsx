@@ -36,7 +36,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) =
   const [quickNavItems, setQuickNavItems] = useState<QuickNavItem[]>([]);
   const [editingNavItem, setEditingNavItem] = useState<QuickNavItem | null>(null);
   const [showNavDialog, setShowNavDialog] = useState(false);
-  const [currentTab, setCurrentTab] = useState<'general' | 'ide' | 'quicknav' | 'statusline'>('general');
+  const [currentTab, setCurrentTab] = useState<'general' | 'ide' | 'quicknav' | 'statusline' | 'tmux'>('general');
 
   // StatusLine 配置状态
   const [statusLineConfig, setStatusLineConfig] = useState({
@@ -48,6 +48,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) =
   });
   const [terminalSettings, setTerminalSettings] = useState({
     useBundledConptyDll: false,
+  });
+
+  // tmux 兼容模式配置状态
+  const [tmuxSettings, setTmuxSettings] = useState({
+    enabled: true,
+    autoInjectPath: true,
+    enableForAllPanes: false,
   });
 
   // 加载设置
@@ -79,6 +86,15 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) =
         if (response.data.terminal) {
           setTerminalSettings({
             useBundledConptyDll: response.data.terminal.useBundledConptyDll ?? false,
+          });
+        }
+
+        // 加载 tmux 兼容模式配置
+        if (response.data.tmux) {
+          setTmuxSettings({
+            enabled: response.data.tmux.enabled ?? true,
+            autoInjectPath: response.data.tmux.autoInjectPath ?? true,
+            enableForAllPanes: response.data.tmux.enableForAllPanes ?? false,
           });
         }
       }
@@ -332,6 +348,17 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) =
     }
   };
 
+  const handleTmuxSettingsChange = async (updates: Partial<typeof tmuxSettings>) => {
+    const newConfig = { ...tmuxSettings, ...updates };
+    setTmuxSettings(newConfig);
+
+    try {
+      await window.electronAPI.updateSettings({ tmux: newConfig });
+    } catch (error) {
+      console.error('Failed to update tmux settings:', error);
+    }
+  };
+
   const handleToggleStatusLine = async (enabled: boolean) => {
     await handleStatusLineConfigChange({ enabled });
 
@@ -386,7 +413,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) =
           {/* 主内容区域：左侧 Tab + 右侧内容 */}
           <div className="flex-1 flex overflow-hidden">
             {/* 左侧 Tab 列表 */}
-            <Tabs.Root value={currentTab} onValueChange={(value) => setCurrentTab(value as 'general' | 'ide' | 'quicknav' | 'statusline')} className="flex flex-1 overflow-hidden">
+            <Tabs.Root value={currentTab} onValueChange={(value) => setCurrentTab(value as 'general' | 'ide' | 'quicknav' | 'statusline' | 'tmux')} className="flex flex-1 overflow-hidden">
               <Tabs.List className="flex flex-col w-48 border-r border-zinc-800 bg-zinc-900/30 flex-shrink-0">
                 <Tabs.Trigger
                   value="general"
@@ -411,6 +438,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) =
                   className="px-6 py-4 text-left text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50 data-[state=active]:text-zinc-100 data-[state=active]:bg-zinc-800 data-[state=active]:border-r-2 data-[state=active]:border-blue-500 transition-colors"
                 >
                   {t('settings.tab.statusLine')}
+                </Tabs.Trigger>
+                <Tabs.Trigger
+                  value="tmux"
+                  className="px-6 py-4 text-left text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50 data-[state=active]:text-zinc-100 data-[state=active]:bg-zinc-800 data-[state=active]:border-r-2 data-[state=active]:border-blue-500 transition-colors"
+                >
+                  {t('settings.tab.tmux')}
                 </Tabs.Trigger>
               </Tabs.List>
 
@@ -746,6 +779,59 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) =
                         </div>
                       </div>
                     </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </Tabs.Content>
+
+          {/* tmux 兼容模式 Tab */}
+          <Tabs.Content value="tmux" className="flex-1 overflow-y-auto p-6 data-[state=inactive]:hidden">
+            <div className="max-w-2xl space-y-6">
+              {/* 启用开关 */}
+              <div className="flex items-center justify-between p-4 bg-zinc-800/50 rounded-lg border border-zinc-700/50">
+                <div>
+                  <h3 className="text-sm font-semibold text-zinc-100 mb-1">{t('settings.tmux.enableTitle')}</h3>
+                  <p className="text-xs text-zinc-400">{t('settings.tmux.enableDescription')}</p>
+                </div>
+                <Switch.Root
+                  checked={tmuxSettings.enabled}
+                  onCheckedChange={(checked) => handleTmuxSettingsChange({ enabled: checked })}
+                  className="w-11 h-6 bg-zinc-700 rounded-full relative data-[state=checked]:bg-blue-600 transition-colors flex-shrink-0"
+                >
+                  <Switch.Thumb className="block w-5 h-5 bg-white rounded-full transition-transform translate-x-0.5 data-[state=checked]:translate-x-[22px]" />
+                </Switch.Root>
+              </div>
+
+              {/* 子选项（仅在启用时显示） */}
+              {tmuxSettings.enabled && (
+                <>
+                  <div className="flex items-center justify-between p-4 bg-zinc-800/50 rounded-lg border border-zinc-700/50">
+                    <div>
+                      <h3 className="text-sm font-semibold text-zinc-100 mb-1">{t('settings.tmux.autoInjectPathTitle')}</h3>
+                      <p className="text-xs text-zinc-400">{t('settings.tmux.autoInjectPathDescription')}</p>
+                    </div>
+                    <Switch.Root
+                      checked={tmuxSettings.autoInjectPath}
+                      onCheckedChange={(checked) => handleTmuxSettingsChange({ autoInjectPath: checked })}
+                      className="w-11 h-6 bg-zinc-700 rounded-full relative data-[state=checked]:bg-blue-600 transition-colors flex-shrink-0"
+                    >
+                      <Switch.Thumb className="block w-5 h-5 bg-white rounded-full transition-transform translate-x-0.5 data-[state=checked]:translate-x-[22px]" />
+                    </Switch.Root>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 bg-zinc-800/50 rounded-lg border border-zinc-700/50">
+                    <div>
+                      <h3 className="text-sm font-semibold text-zinc-100 mb-1">{t('settings.tmux.enableForAllPanesTitle')}</h3>
+                      <p className="text-xs text-zinc-400">{t('settings.tmux.enableForAllPanesDescription')}</p>
+                    </div>
+                    <Switch.Root
+                      checked={tmuxSettings.enableForAllPanes}
+                      onCheckedChange={(checked) => handleTmuxSettingsChange({ enableForAllPanes: checked })}
+                      className="w-11 h-6 bg-zinc-700 rounded-full relative data-[state=checked]:bg-blue-600 transition-colors flex-shrink-0"
+                    >
+                      <Switch.Thumb className="block w-5 h-5 bg-white rounded-full transition-transform translate-x-0.5 data-[state=checked]:translate-x-[22px]" />
+                    </Switch.Root>
                   </div>
                 </>
               )}

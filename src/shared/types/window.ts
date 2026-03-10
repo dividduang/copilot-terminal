@@ -24,6 +24,28 @@ export interface Pane {
   status: WindowStatus;          // 当前状态
   pid: number | null;            // 进程 PID
   lastOutput?: string;           // 最新输出摘要（前 100 字符）
+
+  // tmux 兼容层扩展字段（用于 Claude Code Agent Teams）
+  /** Pane 标题（通过 tmux select-pane -T 设置） */
+  title?: string;
+
+  /** 边框颜色（通过 tmux select-pane -P 或 set-option 设置） */
+  borderColor?: string;
+
+  /** 团队名称（Claude Agent Teams） */
+  teamName?: string;
+
+  /** Agent ID（唯一标识符） */
+  agentId?: string;
+
+  /** Agent 名称（显示名称） */
+  agentName?: string;
+
+  /** Agent 颜色（用于 UI 标识） */
+  agentColor?: string;
+
+  /** Teammate 模式：tmux（真实 tmux）、in-process（进程内模拟）、auto（自动检测） */
+  teammateMode?: 'tmux' | 'in-process' | 'auto';
 }
 
 /**

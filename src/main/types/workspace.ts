@@ -35,6 +35,20 @@ export interface TerminalSettings {
   useBundledConptyDll: boolean;
 }
 
+/**
+ * tmux 兼容模式配置
+ */
+export interface TmuxSettings {
+  /** 是否启用 tmux 兼容模式 */
+  enabled: boolean;
+
+  /** 是否自动注入 PATH */
+  autoInjectPath: boolean;
+
+  /** 是否为所有 pane 启用（false 则仅为 Claude 专用 pane 启用） */
+  enableForAllPanes: boolean;
+}
+
 export interface Settings {
   notificationsEnabled: boolean;
   theme: 'dark' | 'light';
@@ -43,7 +57,8 @@ export interface Settings {
   language?: AppLanguage;
   ides: IDEConfig[];         // IDE 配置列表
   statusLine?: StatusLineConfig;
-  terminal?: TerminalSettings;  // Claude Code StatusLine 配置
+  terminal?: TerminalSettings;  // 终端配置
+  tmux?: TmuxSettings;       // tmux 兼容模式配置
 }
 
 /**

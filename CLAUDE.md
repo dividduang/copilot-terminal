@@ -30,6 +30,8 @@ npm test
    - `WorkspaceManager`: Persists/restores workspace state to JSON file
    - `AutoSaveManager`: Auto-saves workspace every 5 seconds
    - `ViewSwitcher`: Handles unified view ↔ terminal view transitions
+   - `TmuxCompatService`: Handles fake tmux commands for Claude Code Agent Teams
+   - `TmuxRpcServer`: Named Pipe/Unix Socket RPC server for tmux shim communication
 
 2. **Preload** (`src/preload/index.ts`): Security bridge using `contextBridge`
    - Exposes controlled IPC API as `window.electronAPI`
@@ -173,6 +175,28 @@ Global quick navigation panel for frequently accessed URLs and folders:
 
 See `docs/quick-nav-feature.md` for detailed documentation.
 
+### tmux Compatibility Layer (Claude Code Agent Teams)
+
+Provides fake tmux environment so Claude Code can use its Agent Teams multi-pane workflow inside Copilot Terminal. Three-layer architecture:
+
+1. **Fake tmux Shim** (`resources/bin/tmux-shim.js` + `tmux.cmd`/`tmux`): Intercepts `tmux` commands, sends JSON RPC to main process via Named Pipe (Windows) or Unix Socket.
+
+2. **TmuxRpcServer** (`src/main/services/TmuxRpcServer.ts`): One pipe/socket per window. Receives RPC requests, delegates to TmuxCompatService, returns JSON responses.
+
+3. **TmuxCompatService** (`src/main/services/TmuxCompatService.ts`): Core service. Uses `TmuxCommandParser` to parse argv, routes to handler methods (`handleSplitWindow`, `handleSendKeys`, etc.), operates on windowStore and ProcessManager.
+
+**Key types**: `src/shared/types/tmux.ts` — `TmuxCommand` enum, `ParsedTmuxCommand`, `ITmuxCompatService`, `TmuxPaneMetadata`, etc.
+
+**Environment variables injected per pane**: `TMUX`, `TMUX_PANE`, `AUSOME_TMUX_RPC`, `AUSOME_TERMINAL_WINDOW_ID`, `AUSOME_TERMINAL_PANE_ID`. PATH is prepended with shim directory.
+
+**Supported P0 commands**: `-V`, `display-message`, `list-panes`, `split-window`, `send-keys`, `select-layout`, `select-pane`, `resize-pane`, `kill-pane`, `set-option`.
+
+**Pane UI enhancements** (`src/renderer/components/TerminalPane.tsx`): Displays agent title (via `select-pane -T`), status-colored top border, custom border color (via `set-option pane-border-style`).
+
+**Debug**: Set `AUSOME_TMUX_DEBUG=1` in pane for shim-side logging. Set `debug: true` in TmuxCompatServiceConfig for main-process logging.
+
+See `docs/tmux-user-guide.md`, `docs/tmux-developer-guide.md`, `docs/tmux-compat-architecture.md` for full documentation.
+
 ## Important File Paths
 
 - Workspace persistence: `%APPDATA%/copilot-terminal/workspace.json`
@@ -192,3 +216,6 @@ See `docs/quick-nav-feature.md` for detailed documentation.
 3. **Don't** use `pidusage` for process monitoring - use PTY output detection
 4. **Don't** auto-start PTY processes on workspace restore - let user start manually
 5. **Don't** use `before-quit` event for cleanup - use `window.on('close')` instead (Windows compatibility)
+6. **Don't** implement full tmux protocol - only support the command subset Claude Code actually uses (see P0 list in tmux section)
+7. **Don't** forget to call `registerPane()` after creating a new pane via tmux split-window - the pane ID mapping is required for subsequent commands
+8. **Don't** use real tmux on Windows - the fake shim is the only supported path

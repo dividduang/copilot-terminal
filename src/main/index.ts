@@ -13,6 +13,7 @@ import { initProjectConfigWatcher } from './services/ProjectConfigWatcher';
 import { Workspace } from './types/workspace';
 import { registerAllHandlers } from './handlers';
 import { HandlerContext } from './handlers/HandlerContext';
+import { TmuxCompatService } from './services/TmuxCompatService';
 
 let mainWindow: BrowserWindow | null = null;
 let processManager: ProcessManager | null = null;
@@ -24,6 +25,7 @@ let ptySubscriptionManager: PtySubscriptionManager | null = null;
 let shutdownManager: ShutdownManager | null = null;
 let fileWatcherService: FileWatcherService | null = null;
 let gitBranchWatcher: GitBranchWatcher | null = null;
+let tmuxCompatService: TmuxCompatService | null = null;
 let currentWorkspace: Workspace | null = null; // 缓存当前工作区状态
 
 // 退出标志，防止重复执行退出逻辑
@@ -151,6 +153,7 @@ function createWindow() {
           ptySubscriptionManager,
           fileWatcherService,
           gitBranchWatcher,
+          tmuxCompatService,
           currentWorkspace,
         };
 
@@ -183,6 +186,21 @@ app.whenReady().then(async () => {
   processManager.warmupConPtyDll().catch((error) => {
     console.error('[Main] ConPTY DLL warmup failed:', error);
   });
+
+  // 初始化 TmuxCompatService（内部会创建 TmuxRpcServer）
+  tmuxCompatService = new TmuxCompatService({
+    processManager: processManager as any,
+    getWindowStore: () => currentWorkspace ?? { windows: [] },
+    updateWindowStore: (updater: (state: any) => void) => {
+      if (currentWorkspace) {
+        updater(currentWorkspace);
+      }
+    },
+    debug: process.env.AUSOME_TMUX_DEBUG === '1',
+  });
+
+  // 将 tmuxCompatService 注入 ProcessManager（解决循环依赖）
+  processManager.setTmuxCompatService(tmuxCompatService);
 
   // 初始化 PtySubscriptionManager
   ptySubscriptionManager = new PtySubscriptionManager();
@@ -292,6 +310,7 @@ app.on('window-all-closed', () => {
         ptySubscriptionManager,
         fileWatcherService,
         gitBranchWatcher,
+        tmuxCompatService,
         currentWorkspace,
       }).catch(error => {
         console.error('[Main] Shutdown failed:', error);

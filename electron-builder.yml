@@ -10,6 +10,7 @@ files:
   - node_modules/**/*
 asarUnpack:
   - dist/statusline/**/*
+  - resources/bin/**/*
 npmRebuild: false
 buildDependenciesFromSource: false
 win:
