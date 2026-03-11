@@ -45,6 +45,8 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
   private readonly SPAWN_ENV_CACHE_TTL_MS = 30000;
   private readonly getSettings: (() => Settings | null | undefined) | null;
   private tmuxCompatService: ITmuxCompatService | null;
+  private conPtyWarmupPromise: Promise<void> | null;
+  private conPtyWarmupCompleted: boolean;
 
   constructor(getSettings?: () => Settings | null | undefined, tmuxCompatService?: ITmuxCompatService) {
     super();
@@ -59,6 +61,8 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     this.cachedSpawnEnvAt = 0;
     this.getSettings = getSettings ?? null;
     this.tmuxCompatService = tmuxCompatService ?? null;
+    this.conPtyWarmupPromise = null;
+    this.conPtyWarmupCompleted = false;
     // ??????? StatusDetector ??????? StatusPoller ??????
   }
 
@@ -70,6 +74,23 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
   }
 
   async warmupConPtyDll(): Promise<void> {
+    if (this.conPtyWarmupCompleted) {
+      return;
+    }
+
+    if (this.conPtyWarmupPromise) {
+      return this.conPtyWarmupPromise;
+    }
+
+    this.conPtyWarmupPromise = this.performConPtyDllWarmup().finally(() => {
+      this.conPtyWarmupCompleted = true;
+      this.conPtyWarmupPromise = null;
+    });
+
+    return this.conPtyWarmupPromise;
+  }
+
+  private async performConPtyDllWarmup(): Promise<void> {
     if (platform() !== 'win32' || !pty) {
       return;
     }

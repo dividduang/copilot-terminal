@@ -286,10 +286,6 @@ app.whenReady().then(async () => {
     const workspace = await workspaceManager.loadWorkspace();
     currentWorkspace = workspace;
 
-    processManager.warmupConPtyDll().catch((error) => {
-      console.error('[Main] ConPTY DLL warmup after workspace load failed:', error);
-    });
-
     // 启动自动保存
     if (autoSaveManager && workspaceManager) {
       autoSaveManager.startAutoSave(workspaceManager, () => {

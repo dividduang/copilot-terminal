@@ -13,6 +13,48 @@ describe('ProcessManager', () => {
     processManager = new ProcessManager();
   });
 
+  describe('warmupConPtyDll', () => {
+    it('runs ConPTY warmup only once per process manager', async () => {
+      if (process.platform !== 'win32') {
+        return;
+      }
+
+      const ptyModule = (() => {
+        try {
+          return require('node-pty');
+        } catch {
+          return require('@homebridge/node-pty-prebuilt-multiarch');
+        }
+      })();
+
+      const spawnSpy = vi.spyOn(ptyModule, 'spawn');
+      spawnSpy.mockImplementation(() => {
+        let exitHandler: (() => void) | undefined;
+        queueMicrotask(() => exitHandler?.());
+
+        return {
+          onExit: (handler: () => void) => {
+            exitHandler = handler;
+            return { dispose: vi.fn() };
+          },
+          kill: vi.fn(),
+        } as any;
+      });
+
+      try {
+        await Promise.all([
+          processManager.warmupConPtyDll(),
+          processManager.warmupConPtyDll(),
+        ]);
+        await processManager.warmupConPtyDll();
+
+        expect(spawnSpy).toHaveBeenCalledOnce();
+      } finally {
+        spawnSpy.mockRestore();
+      }
+    });
+  });
+
   describe('spawnTerminal', () => {
     it('creates a new terminal process with valid config', async () => {
       const config = {
