@@ -3,7 +3,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import * as Select from '@radix-ui/react-select';
 import * as Switch from '@radix-ui/react-switch';
 import * as Tabs from '@radix-ui/react-tabs';
-import { X, Plus, Trash2, Search, Check, ChevronDown, Globe, Folder, Edit2, GripVertical, FolderOpen } from 'lucide-react';
+import { X, Plus, Trash2, Search, Check, ChevronDown, Globe, Folder, Edit2, FolderOpen, Languages, Compass, Plug, Wrench, Monitor, Command } from 'lucide-react';
 import { IDEIcon } from './icons/IDEIcons';
 import { notifyIDESettingsUpdated } from '../hooks/useIDESettings';
 import { QuickNavItem } from '../../shared/types/quick-nav';
@@ -24,6 +24,9 @@ interface SettingsPanelProps {
   onClose: () => void;
 }
 
+type SettingsTab = 'general' | 'quicknav' | 'statusline' | 'advanced';
+type QuickNavSubTab = 'ide' | 'custom';
+
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) => {
   const { language, setLanguage, t } = useI18n();
   const isWindows = window.electronAPI.platform === 'win32';
@@ -37,7 +40,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) =
   const [quickNavItems, setQuickNavItems] = useState<QuickNavItem[]>([]);
   const [editingNavItem, setEditingNavItem] = useState<QuickNavItem | null>(null);
   const [showNavDialog, setShowNavDialog] = useState(false);
-  const [currentTab, setCurrentTab] = useState<'general' | 'ide' | 'quicknav' | 'statusline' | 'tmux'>('general');
+  const [currentTab, setCurrentTab] = useState<SettingsTab>('general');
+  const [quickNavTab, setQuickNavTab] = useState<QuickNavSubTab>('ide');
 
   // StatusLine 配置状态
   const [statusLineConfig, setStatusLineConfig] = useState({
@@ -49,6 +53,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) =
   });
   const [terminalSettings, setTerminalSettings] = useState({
     useBundledConptyDll: true,
+    defaultShellProgram: '',
   });
 
   // tmux 兼容模式配置状态
@@ -60,44 +65,42 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) =
 
   // 加载设置
   useEffect(() => {
-    if (open) {
-      loadSettings();
-      loadSupportedIDENames();
+    if (!open) {
+      setShowAddDialog(false);
+      setShowNavDialog(false);
+      setEditingIDE(null);
+      setEditingNavItem(null);
+      return;
     }
+
+    loadSettings();
+    loadSupportedIDENames();
   }, [open]);
 
   const loadSettings = async () => {
     try {
       const response = await window.electronAPI.getSettings();
       if (response.success && response.data) {
-        setIDEs(response.data.ides || []);
-        setQuickNavItems((response.data.quickNav?.items || []).sort((a: QuickNavItem, b: QuickNavItem) => a.order - b.order));
+        const settings = response.data;
 
-        // 加载 StatusLine 配置（合并默认值）
-        if (response.data.statusLine) {
-          setStatusLineConfig({
-            enabled: response.data.statusLine.enabled ?? false,
-            format: response.data.statusLine.format ?? 'full',
-            showModel: response.data.statusLine.showModel ?? true,
-            showContext: response.data.statusLine.showContext ?? true,
-            showCost: response.data.statusLine.showCost ?? true,
-          });
-        }
-
-        if (response.data.terminal) {
-          setTerminalSettings({
-            useBundledConptyDll: response.data.terminal.useBundledConptyDll ?? true,
-          });
-        }
-
-        // 加载 tmux 兼容模式配置
-        if (response.data.tmux) {
-          setTmuxSettings({
-            enabled: response.data.tmux.enabled ?? true,
-            autoInjectPath: response.data.tmux.autoInjectPath ?? true,
-            enableForAllPanes: response.data.tmux.enableForAllPanes ?? false,
-          });
-        }
+        setIDEs(settings.ides || []);
+        setQuickNavItems([...(settings.quickNav?.items || [])].sort((a: QuickNavItem, b: QuickNavItem) => a.order - b.order));
+        setStatusLineConfig({
+          enabled: settings.statusLine?.enabled ?? false,
+          format: settings.statusLine?.format ?? 'full',
+          showModel: settings.statusLine?.showModel ?? true,
+          showContext: settings.statusLine?.showContext ?? true,
+          showCost: settings.statusLine?.showCost ?? true,
+        });
+        setTerminalSettings({
+          useBundledConptyDll: settings.terminal?.useBundledConptyDll ?? true,
+          defaultShellProgram: settings.terminal?.defaultShellProgram ?? '',
+        });
+        setTmuxSettings({
+          enabled: settings.tmux?.enabled ?? true,
+          autoInjectPath: settings.tmux?.autoInjectPath ?? true,
+          enableForAllPanes: settings.tmux?.enableForAllPanes ?? false,
+        });
       }
     } catch (error) {
       console.error('Failed to load settings:', error);
@@ -318,7 +321,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) =
   const handleBrowseFolder = async () => {
     try {
       const result = await window.electronAPI.selectDirectory();
-      if (result.success && result.data) {
+      if (result?.success && result.data) {
         handlePathChange(result.data);
       }
     } catch (error) {
@@ -394,631 +397,782 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) =
     await setLanguage(nextLanguage as AppLanguage);
   }, [setLanguage]);
 
+  const handleSettingsOpenChange = useCallback((nextOpen: boolean) => {
+    if (!nextOpen) {
+      onClose();
+    }
+  }, [onClose]);
+
+  const handleAddDialogChange = useCallback((nextOpen: boolean) => {
+    setShowAddDialog(nextOpen);
+    if (!nextOpen) {
+      setEditingIDE(null);
+    }
+  }, []);
+
+  const handleNavDialogChange = useCallback((nextOpen: boolean) => {
+    setShowNavDialog(nextOpen);
+    if (!nextOpen) {
+      setEditingNavItem(null);
+    }
+  }, []);
+
+  const navigationTabs = [
+    {
+      value: 'general' as SettingsTab,
+      label: t('settings.tab.general'),
+      icon: Languages,
+    },
+    {
+      value: 'quicknav' as SettingsTab,
+      label: t('settings.tab.quickNav'),
+      icon: Compass,
+    },
+    {
+      value: 'statusline' as SettingsTab,
+      label: t('settings.tab.statusLine'),
+      icon: Plug,
+    },
+    {
+      value: 'advanced' as SettingsTab,
+      label: t('settings.tab.advanced'),
+      icon: Wrench,
+    },
+  ];
+
   return (
-    <Dialog.Root open={open} onOpenChange={onClose}>
+    <Dialog.Root open={open} onOpenChange={handleSettingsOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 animate-fade-in" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-5xl h-[85vh] bg-zinc-900 rounded-xl shadow-2xl border border-zinc-800 z-50 overflow-hidden flex flex-col animate-scale-in">
-          {/* 标题栏 */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-900/50 backdrop-blur flex-shrink-0">
-            <Dialog.Title className="text-xl font-semibold text-zinc-100">
-              {t('settings.title')}
-            </Dialog.Title>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm animate-fade-in" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 flex h-[72vh] w-[94vw] max-h-[720px] max-w-6xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[28px] border border-[rgb(var(--border))] bg-[rgb(var(--background))] shadow-2xl animate-scale-in">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(168,170,88,0.16),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(84,72,31,0.18),_transparent_32%)]" />
+
+          <div className="relative flex items-center justify-between border-b border-[rgb(var(--border))] px-8 py-4">
+            <div>
+              <Dialog.Title className="text-2xl font-semibold text-white">
+                {t('settings.title')}
+              </Dialog.Title>
+              <Dialog.Description className="mt-1 text-sm text-[rgb(var(--muted-foreground))]">
+                {t('settings.panelDescription')}
+              </Dialog.Description>
+            </div>
+
             <Dialog.Close asChild>
-              <button className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100 transition-colors">
+              <button className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--card))] text-[rgb(var(--muted-foreground))] transition-colors hover:bg-[rgb(var(--accent))] hover:text-[rgb(var(--primary))]">
                 <X size={18} />
               </button>
             </Dialog.Close>
           </div>
 
-          {/* 主内容区域：左侧 Tab + 右侧内容 */}
-          <div className="flex-1 flex overflow-hidden">
-            {/* 左侧 Tab 列表 */}
-            <Tabs.Root value={currentTab} onValueChange={(value) => setCurrentTab(value as 'general' | 'ide' | 'quicknav' | 'statusline' | 'tmux')} className="flex flex-1 overflow-hidden">
-              <Tabs.List className="flex flex-col w-48 border-r border-zinc-800 bg-zinc-900/30 flex-shrink-0">
-                <Tabs.Trigger
-                  value="general"
-                  className="px-6 py-4 text-left text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50 data-[state=active]:text-zinc-100 data-[state=active]:bg-zinc-800 data-[state=active]:border-r-2 data-[state=active]:border-blue-500 transition-colors"
-                >
-                  {t('settings.tab.general')}
-                </Tabs.Trigger>
-                <Tabs.Trigger
-                  value="ide"
-                  className="px-6 py-4 text-left text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50 data-[state=active]:text-zinc-100 data-[state=active]:bg-zinc-800 data-[state=active]:border-r-2 data-[state=active]:border-blue-500 transition-colors"
-                >
-                  {t('settings.tab.ide')}
-                </Tabs.Trigger>
-                <Tabs.Trigger
-                  value="quicknav"
-                  className="px-6 py-4 text-left text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50 data-[state=active]:text-zinc-100 data-[state=active]:bg-zinc-800 data-[state=active]:border-r-2 data-[state=active]:border-blue-500 transition-colors"
-                >
-                  {t('settings.tab.quickNav')}
-                </Tabs.Trigger>
-                <Tabs.Trigger
-                  value="statusline"
-                  className="px-6 py-4 text-left text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50 data-[state=active]:text-zinc-100 data-[state=active]:bg-zinc-800 data-[state=active]:border-r-2 data-[state=active]:border-blue-500 transition-colors"
-                >
-                  {t('settings.tab.statusLine')}
-                </Tabs.Trigger>
-                <Tabs.Trigger
-                  value="tmux"
-                  className="px-6 py-4 text-left text-sm font-medium text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50 data-[state=active]:text-zinc-100 data-[state=active]:bg-zinc-800 data-[state=active]:border-r-2 data-[state=active]:border-blue-500 transition-colors"
-                >
-                  {t('settings.tab.tmux')}
-                </Tabs.Trigger>
+          <Tabs.Root value={currentTab} onValueChange={(value) => setCurrentTab(value as SettingsTab)} className="relative flex min-h-0 flex-1 overflow-hidden">
+            <aside className="flex w-[168px] flex-col border-r border-[rgb(var(--border))] bg-[rgb(var(--sidebar))]">
+              <Tabs.List className="flex flex-1 flex-col gap-1.5 p-2.5">
+                {navigationTabs.map(({ value, label, icon: Icon }) => (
+                  <Tabs.Trigger
+                    key={value}
+                    value={value}
+                    className="group rounded-xl border border-transparent bg-transparent px-3 py-2 text-left transition-colors hover:bg-[rgb(var(--accent))] data-[state=active]:border-[rgb(var(--border))] data-[state=active]:bg-[rgb(var(--accent))]"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-xl bg-[rgb(var(--secondary))] text-[rgb(var(--muted-foreground))] transition-colors group-data-[state=active]:bg-[rgb(var(--card))] group-data-[state=active]:text-[rgb(var(--primary))]">
+                        <Icon size={16} />
+                      </div>
+                      <div className="min-w-0 text-sm font-semibold text-[rgb(var(--foreground))] group-data-[state=active]:text-[rgb(var(--primary))]">{label}</div>
+                    </div>
+                  </Tabs.Trigger>
+                ))}
               </Tabs.List>
+            </aside>
 
-              {/* 右侧内容区域 */}
-              <div className="flex-1 overflow-hidden flex flex-col">
-                <Tabs.Content value="general" className="flex-1 overflow-y-auto p-6 data-[state=inactive]:hidden">
-                  <div className="max-w-xl space-y-6">
-                    <div className="p-4 bg-zinc-800/50 rounded-lg border border-zinc-700/50">
-                      <div className="mb-4">
-                        <h3 className="text-sm font-semibold text-zinc-100 mb-1">{t('settings.general.languageTitle')}</h3>
-                        <p className="text-xs text-zinc-400">{t('settings.general.languageDescription')}</p>
+            <div className="flex-1 overflow-hidden bg-[rgb(var(--background))]">
+              <Tabs.Content value="general" className="h-full overflow-y-auto px-8 py-8 data-[state=inactive]:hidden">
+                <div className="mx-auto max-w-3xl space-y-6">
+                  <section className="rounded-[24px] border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.24)]">
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgb(var(--accent))] text-[rgb(var(--primary))]">
+                        <Languages size={22} />
+                      </div>
+                      <div className="flex-1">
+                        <div className="mb-5">
+                          <h3 className="text-base font-semibold text-white">{t('settings.general.languageTitle')}</h3>
+                          <p className="mt-2 text-sm leading-6 text-[rgb(var(--muted-foreground))]">{t('settings.general.languageDescription')}</p>
+                        </div>
+
+                        <Select.Root value={language} onValueChange={handleLanguageChange}>
+                          <Select.Trigger className="flex w-full items-center justify-between rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--secondary))] px-4 py-3 text-left text-[rgb(var(--foreground))] transition-colors hover:bg-[rgb(var(--accent))] focus:outline-none focus:border-[rgb(var(--ring))]">
+                            <Select.Value />
+                            <Select.Icon>
+                              <ChevronDown size={16} className="text-[rgb(var(--muted-foreground))]" />
+                            </Select.Icon>
+                          </Select.Trigger>
+
+                          <Select.Portal>
+                            <Select.Content
+                              position="popper"
+                              side="bottom"
+                              align="start"
+                              sideOffset={6}
+                              className="z-[80] w-[var(--radix-select-trigger-width)] overflow-hidden rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--card))] shadow-2xl"
+                            >
+                              <Select.Viewport className="p-1">
+                                <Select.Item value="zh-CN" className="cursor-pointer rounded-xl px-3 py-2 text-[rgb(var(--foreground))] outline-none transition-colors hover:bg-[rgb(var(--accent))]">
+                                  <Select.ItemText>{t('settings.language.zhCN')}</Select.ItemText>
+                                </Select.Item>
+                                <Select.Item value="en-US" className="cursor-pointer rounded-xl px-3 py-2 text-[rgb(var(--foreground))] outline-none transition-colors hover:bg-[rgb(var(--accent))]">
+                                  <Select.ItemText>{t('settings.language.enUS')}</Select.ItemText>
+                                </Select.Item>
+                              </Select.Viewport>
+                            </Select.Content>
+                          </Select.Portal>
+                        </Select.Root>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="rounded-[24px] border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.24)]">
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgb(var(--accent))] text-[rgb(var(--primary))]">
+                        <Command size={22} />
+                      </div>
+                      <div className="flex-1">
+                        <div className="mb-5">
+                          <h3 className="text-base font-semibold text-white">{t('settings.general.defaultShellTitle')}</h3>
+                          <p className="mt-2 text-sm leading-6 text-[rgb(var(--muted-foreground))]">{t('settings.general.defaultShellDescription')}</p>
+                        </div>
+
+                        <label htmlFor="default-shell-program" className="mb-2 block text-sm font-medium text-[rgb(var(--foreground))]">
+                          {t('settings.general.defaultShellLabel')}
+                        </label>
+                        <input
+                          id="default-shell-program"
+                          type="text"
+                          value={terminalSettings.defaultShellProgram}
+                          onChange={(event) => setTerminalSettings((prev) => ({ ...prev, defaultShellProgram: event.target.value }))}
+                          onBlur={(event) => handleTerminalSettingsChange({ defaultShellProgram: event.target.value })}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter') {
+                              event.currentTarget.blur()
+                            }
+                          }}
+                          placeholder={t('settings.general.defaultShellPlaceholder')}
+                          className="w-full rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--secondary))] px-4 py-3 text-[rgb(var(--foreground))] placeholder:text-[rgb(var(--muted-foreground))] focus:border-[rgb(var(--ring))] focus:outline-none"
+                        />
+                        <p className="mt-2 text-xs leading-5 text-[rgb(var(--muted-foreground))]">{t('settings.general.defaultShellHint')}</p>
+                      </div>
+                    </div>
+                  </section>
+                </div>
+              </Tabs.Content>
+
+              <Tabs.Content value="quicknav" className="h-full overflow-y-auto px-8 py-8 data-[state=inactive]:hidden">
+                <div className="mx-auto max-w-5xl space-y-6">
+                  <Tabs.Root value={quickNavTab} onValueChange={(value) => setQuickNavTab(value as QuickNavSubTab)} className="space-y-6">
+                    <Tabs.List className="inline-flex rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-1">
+                      <Tabs.Trigger
+                        value="ide"
+                        className="rounded-xl px-4 py-2 text-sm font-medium text-[rgb(var(--muted-foreground))] transition-colors hover:text-white data-[state=active]:bg-[rgb(var(--accent))] data-[state=active]:text-[rgb(var(--primary))]"
+                      >
+                        {t('settings.quickNav.ideTab')}
+                      </Tabs.Trigger>
+                      <Tabs.Trigger
+                        value="custom"
+                        className="rounded-xl px-4 py-2 text-sm font-medium text-[rgb(var(--muted-foreground))] transition-colors hover:text-white data-[state=active]:bg-[rgb(var(--accent))] data-[state=active]:text-[rgb(var(--primary))]"
+                      >
+                        {t('settings.quickNav.customTab')}
+                      </Tabs.Trigger>
+                    </Tabs.List>
+
+                    <Tabs.Content value="ide" className="space-y-4 data-[state=inactive]:hidden">
+                      <div className="rounded-[24px] border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-6">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                          <div>
+                            <p className="max-w-2xl text-sm leading-6 text-[rgb(var(--muted-foreground))]">{t('settings.quickNav.ideDescription')}</p>
+                          </div>
+
+                          <div className="flex flex-wrap gap-3">
+                            <button
+                              onClick={handleScanAll}
+                              disabled={scanning}
+                              className="inline-flex items-center gap-2 rounded-2xl bg-[rgb(var(--primary))] px-4 py-3 text-sm font-medium text-[rgb(var(--primary-foreground))] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:bg-[rgb(var(--muted))] disabled:text-[rgb(var(--muted-foreground))]"
+                            >
+                              <Search size={16} />
+                              {scanning ? t('common.loading') : t('settings.ide.scan')}
+                            </button>
+                            <button
+                              onClick={handleAddIDE}
+                              className="inline-flex items-center gap-2 rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--secondary))] px-4 py-3 text-sm font-medium text-[rgb(var(--foreground))] transition-colors hover:bg-[rgb(var(--accent))] hover:text-[rgb(var(--primary))]"
+                            >
+                              <Plus size={16} />
+                              {t('settings.ide.addCustom')}
+                            </button>
+                          </div>
+                        </div>
                       </div>
 
-                      <Select.Root value={language} onValueChange={handleLanguageChange}>
-                        <Select.Trigger className="w-full flex items-center justify-between px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-100 focus:outline-none focus:border-blue-500 transition-colors">
-                          <Select.Value />
-                          <Select.Icon>
-                            <ChevronDown size={16} className="text-zinc-400" />
-                          </Select.Icon>
-                        </Select.Trigger>
+                      {ides.length === 0 ? (
+                        <div className="rounded-[24px] border border-dashed border-[rgb(var(--border))] bg-[rgb(var(--secondary))]/40 px-6 py-16 text-center">
+                          <Monitor size={40} className="mx-auto text-[rgb(var(--muted-foreground))] opacity-50" />
+                          <p className="mt-5 text-lg font-medium text-[rgb(var(--foreground))]">{t('settings.ide.emptyTitle')}</p>
+                          <p className="mt-2 text-sm text-[rgb(var(--muted-foreground))]">{t('settings.ide.emptyDescription')}</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {ides.map((ide) => (
+                            <div
+                              key={ide.id}
+                              className="rounded-[24px] border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-5 transition-colors hover:border-[rgb(var(--primary))]"
+                            >
+                              <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+                                <div className="flex min-w-0 flex-1 items-center gap-4">
+                                  <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--secondary))]">
+                                    <IDEIcon icon={ide.icon || ''} size={30} className="text-[rgb(var(--foreground))]" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <h3 className="text-base font-semibold text-white">{ide.name}</h3>
+                                      {ide.path && (
+                                        <span className="rounded-full border border-[rgba(168,170,88,0.20)] bg-[rgba(168,170,88,0.10)] px-2 py-0.5 text-[11px] font-medium text-[rgb(var(--primary))]">
+                                          {t('settings.ide.found')}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="mt-2 text-sm text-[rgb(var(--muted-foreground))]">{t('settings.ide.commandPrefix', { command: ide.command })}</p>
+                                    {ide.path && (
+                                      <p className="mt-1 truncate text-xs text-[rgb(var(--muted-foreground))]" title={ide.path}>
+                                        {ide.path}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
 
-                        <Select.Portal>
-                          <Select.Content
-                            position="popper"
-                            side="bottom"
-                            align="start"
-                            sideOffset={6}
-                            className="z-[80] w-[var(--radix-select-trigger-width)] overflow-hidden bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl"
-                          >
-                            <Select.Viewport className="p-1">
-                              <Select.Item value="zh-CN" className="px-3 py-2 rounded-md text-zinc-100 hover:bg-zinc-800 outline-none cursor-pointer">
-                                <Select.ItemText>{t('settings.language.zhCN')}</Select.ItemText>
-                              </Select.Item>
-                              <Select.Item value="en-US" className="px-3 py-2 rounded-md text-zinc-100 hover:bg-zinc-800 outline-none cursor-pointer">
-                                <Select.ItemText>{t('settings.language.enUS')}</Select.ItemText>
-                              </Select.Item>
-                            </Select.Viewport>
-                          </Select.Content>
-                        </Select.Portal>
-                      </Select.Root>
-                    </div>
+                                <div className="flex items-center justify-end gap-3">
+                                  <Switch.Root
+                                    checked={ide.enabled}
+                                    onCheckedChange={(checked) => handleToggleIDE(ide.id, checked)}
+                                    className="relative h-7 w-12 rounded-full bg-[rgb(var(--muted))] transition-colors data-[state=checked]:bg-[rgb(var(--primary))]"
+                                  >
+                                    <Switch.Thumb className="block h-6 w-6 translate-x-0.5 rounded-full bg-white transition-transform data-[state=checked]:translate-x-[22px]" />
+                                  </Switch.Root>
+                                  <button
+                                    onClick={() => {
+                                      setEditingIDE(ide);
+                                      setShowAddDialog(true);
+                                    }}
+                                    className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--secondary))] text-[rgb(var(--muted-foreground))] transition-colors hover:bg-[rgb(var(--accent))] hover:text-[rgb(var(--primary))]"
+                                    title={t('common.edit')}
+                                  >
+                                    <Edit2 size={16} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteIDE(ide.id)}
+                                    className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[rgba(255,92,92,0.14)] bg-[rgba(255,92,92,0.08)] text-[rgb(var(--muted-foreground))] transition-colors hover:border-[rgba(255,92,92,0.34)] hover:bg-[rgba(255,92,92,0.14)] hover:text-[rgb(255,214,214)]"
+                                    title={t('common.delete')}
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </Tabs.Content>
 
-                    {isWindows && (
-                      <div className="p-4 bg-zinc-800/50 rounded-lg border border-zinc-700/50">
-                        <div className="flex items-center justify-between gap-4">
+                    <Tabs.Content value="custom" className="space-y-4 data-[state=inactive]:hidden">
+                      <div className="rounded-[24px] border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-6">
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                           <div>
-                            <h3 className="text-sm font-semibold text-zinc-100 mb-1">{t('settings.general.bundledConptyTitle')}</h3>
-                            <p className="text-xs text-zinc-400">{t('settings.general.bundledConptyDescription')}</p>
+                            <p className="max-w-2xl text-sm leading-6 text-[rgb(var(--muted-foreground))]">{t('settings.quickNav.customDescription')}</p>
                           </div>
+
+                          <button
+                            onClick={handleAddNavItem}
+                            className="inline-flex items-center gap-2 rounded-2xl bg-[rgb(var(--primary))] px-4 py-3 text-sm font-medium text-[rgb(var(--primary-foreground))] transition-opacity hover:opacity-90"
+                          >
+                            <Plus size={16} />
+                            {t('settings.quickNav.add')}
+                          </button>
+                        </div>
+                      </div>
+
+                      {quickNavItems.length === 0 ? (
+                        <div className="rounded-[24px] border border-dashed border-[rgb(var(--border))] bg-[rgb(var(--secondary))]/40 px-6 py-16 text-center">
+                          <Globe size={40} className="mx-auto text-[rgb(var(--muted-foreground))] opacity-50" />
+                          <p className="mt-5 text-lg font-medium text-[rgb(var(--foreground))]">{t('settings.quickNav.emptyTitle')}</p>
+                          <p className="mt-2 text-sm text-[rgb(var(--muted-foreground))]">{t('settings.quickNav.emptyDescription')}</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {quickNavItems.map((item) => (
+                            <div
+                              key={item.id}
+                              className="rounded-[24px] border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-5 transition-colors hover:border-[rgb(var(--primary))]"
+                            >
+                              <div className="flex flex-col gap-4 md:flex-row md:items-center">
+                                <div className="flex min-w-0 flex-1 items-center gap-4">
+                                  <div className={`flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl border ${
+                                    item.type === 'url'
+                                      ? 'border-[rgb(var(--border))] bg-[rgb(var(--accent))] text-[rgb(var(--primary))]'
+                                      : 'border-[rgb(var(--border))] bg-[rgb(var(--accent))] text-[rgb(var(--primary))]'
+                                  }`}>
+                                    {item.type === 'url' ? <Globe size={22} /> : <Folder size={22} />}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <h3 className="text-base font-semibold text-white">{item.name}</h3>
+                                      <span className="rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--secondary))] px-2 py-0.5 text-[11px] font-medium text-[rgb(var(--muted-foreground))]">
+                                        {item.type === 'url' ? t('common.url') : t('common.folder')}
+                                      </span>
+                                    </div>
+                                    <p className="mt-2 truncate text-sm text-[rgb(var(--muted-foreground))]" title={item.path}>
+                                      {item.path}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center justify-end gap-3">
+                                  <button
+                                    onClick={() => handleEditNavItem(item)}
+                                    className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--secondary))] text-[rgb(var(--muted-foreground))] transition-colors hover:bg-[rgb(var(--accent))] hover:text-[rgb(var(--primary))]"
+                                    title={t('common.edit')}
+                                  >
+                                    <Edit2 size={16} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteNavItem(item.id)}
+                                    className="flex h-10 w-10 items-center justify-center rounded-2xl border border-[rgba(255,92,92,0.14)] bg-[rgba(255,92,92,0.08)] text-[rgb(var(--muted-foreground))] transition-colors hover:border-[rgba(255,92,92,0.34)] hover:bg-[rgba(255,92,92,0.14)] hover:text-[rgb(255,214,214)]"
+                                    title={t('common.delete')}
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </Tabs.Content>
+                  </Tabs.Root>
+                </div>
+              </Tabs.Content>
+
+              <Tabs.Content value="statusline" className="h-full overflow-y-auto px-8 py-8 data-[state=inactive]:hidden">
+                <div className="mx-auto max-w-5xl space-y-6">
+                  <section className="rounded-[24px] border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-6">
+                    <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+                      <div className="flex items-start gap-4">
+                        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-[rgb(var(--accent))] text-[rgb(var(--primary))]">
+                          <Plug size={22} />
+                        </div>
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="text-base font-semibold text-white">{t('settings.statusLine.pluginName')}</h3>
+                            <span className="rounded-full border border-[rgba(168,170,88,0.20)] bg-[rgba(168,170,88,0.10)] px-2 py-0.5 text-[11px] font-medium text-[rgb(var(--primary))]">
+                              {t('settings.statusLine.builtInBadge')}
+                            </span>
+                          </div>
+                          <p className="mt-2 max-w-2xl text-sm leading-6 text-[rgb(var(--muted-foreground))]">{t('settings.statusLine.pageDescription')}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4 rounded-[24px] border border-[rgb(var(--border))] bg-[rgb(var(--secondary))] px-5 py-4 xl:min-w-[296px]">
+                        <div>
+                          <div className="text-sm font-medium text-white">{t('settings.statusLine.enableTitle')}</div>
+                          <div className="mt-1 text-xs text-[rgb(var(--muted-foreground))]">{t('settings.statusLine.enableDescription')}</div>
+                        </div>
+                        <Switch.Root
+                          checked={statusLineConfig.enabled}
+                          onCheckedChange={handleToggleStatusLine}
+                          className="relative h-7 w-12 rounded-full bg-[rgb(var(--muted))] transition-colors data-[state=checked]:bg-[rgb(var(--primary))]"
+                        >
+                          <Switch.Thumb className="block h-6 w-6 translate-x-0.5 rounded-full bg-white transition-transform data-[state=checked]:translate-x-[22px]" />
+                        </Switch.Root>
+                      </div>
+                    </div>
+                  </section>
+
+                  {statusLineConfig.enabled ? (
+                    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+                      <div className="rounded-[24px] border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-6">
+                        <h3 className="text-base font-semibold text-white">{t('settings.statusLine.displayFormat')}</h3>
+                        <p className="mt-2 text-sm leading-6 text-[rgb(var(--muted-foreground))]">{t('settings.statusLine.enableDescription')}</p>
+
+                        <div className="mt-5 space-y-3">
+                          <label className="flex cursor-pointer items-start gap-4 rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--secondary))] p-4 transition-colors hover:bg-[rgb(var(--accent))]">
+                            <input
+                              type="radio"
+                              name="format"
+                              value="full"
+                              checked={statusLineConfig.format === 'full'}
+                              onChange={() => handleStatusLineConfigChange({ format: 'full' })}
+                              className="mt-1 h-4 w-4 text-[rgb(var(--primary))]"
+                            />
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-white">{t('settings.statusLine.full')}</div>
+                              <div className="mt-2 rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--background))] px-3 py-2 font-mono text-xs text-[rgb(var(--muted-foreground))]">
+                                Model: Sonnet 4.6 | Context: 45% | Cost: $0.25
+                              </div>
+                            </div>
+                          </label>
+
+                          <label className="flex cursor-pointer items-start gap-4 rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--secondary))] p-4 transition-colors hover:bg-[rgb(var(--accent))]">
+                            <input
+                              type="radio"
+                              name="format"
+                              value="compact"
+                              checked={statusLineConfig.format === 'compact'}
+                              onChange={() => handleStatusLineConfigChange({ format: 'compact' })}
+                              className="mt-1 h-4 w-4 text-[rgb(var(--primary))]"
+                            />
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-white">{t('settings.statusLine.compact')}</div>
+                              <div className="mt-2 rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--background))] px-3 py-2 font-mono text-xs text-[rgb(var(--muted-foreground))]">
+                                Sonnet 4.6 • 45% • $0.25
+                              </div>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="space-y-6">
+                        <div className="rounded-[24px] border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-6">
+                          <h3 className="text-base font-semibold text-white">{t('settings.statusLine.displayContent')}</h3>
+                          <div className="mt-5 space-y-3">
+                            <label className="flex items-center gap-3 rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--secondary))] p-4">
+                              <input
+                                type="checkbox"
+                                checked={statusLineConfig.showModel}
+                                className="h-4 w-4 text-[rgb(var(--primary))]"
+                                disabled
+                              />
+                              <div>
+                                <div className="text-sm font-medium text-white">{t('settings.statusLine.modelName')}</div>
+                                <div className="mt-1 text-xs text-[rgb(var(--muted-foreground))]">{t('settings.statusLine.required')}</div>
+                              </div>
+                            </label>
+
+                            <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--secondary))] p-4 transition-colors hover:bg-[rgb(var(--accent))]">
+                              <input
+                                type="checkbox"
+                                checked={statusLineConfig.showContext}
+                                onChange={(event) => handleStatusLineConfigChange({ showContext: event.target.checked })}
+                                className="h-4 w-4 text-[rgb(var(--primary))]"
+                              />
+                              <div>
+                                <div className="text-sm font-medium text-white">{t('settings.statusLine.contextPercentage')}</div>
+                                <div className="mt-1 text-xs text-[rgb(var(--muted-foreground))]">{t('settings.statusLine.contextExample')}</div>
+                              </div>
+                            </label>
+
+                            <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--secondary))] p-4 transition-colors hover:bg-[rgb(var(--accent))]">
+                              <input
+                                type="checkbox"
+                                checked={statusLineConfig.showCost}
+                                onChange={(event) => handleStatusLineConfigChange({ showCost: event.target.checked })}
+                                className="h-4 w-4 text-[rgb(var(--primary))]"
+                              />
+                              <div>
+                                <div className="text-sm font-medium text-white">{t('settings.statusLine.cost')}</div>
+                                <div className="mt-1 text-xs text-[rgb(var(--muted-foreground))]">{t('settings.statusLine.costExample')}</div>
+                              </div>
+                            </label>
+                          </div>
+                        </div>
+
+                        <div className="rounded-[28px] border border-[rgba(168,170,88,0.24)] bg-[rgba(168,170,88,0.10)] p-5">
+                          <div className="flex items-start gap-3">
+                            <div className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-[rgb(var(--primary))] text-[rgb(var(--primary-foreground))]">
+                              <Check size={14} />
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium text-[rgb(var(--primary))]">{t('settings.statusLine.savedTitle')}</div>
+                              <div className="mt-1 text-xs leading-5 text-[rgb(var(--muted-foreground))]">{t('settings.statusLine.savedDescription')}</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-[24px] border border-dashed border-[rgb(var(--border))] bg-[rgb(var(--secondary))]/40 px-6 py-14 text-center">
+                      <Plug size={40} className="mx-auto text-[rgb(var(--muted-foreground))] opacity-50" />
+                      <p className="mt-5 text-lg font-medium text-[rgb(var(--foreground))]">{t('settings.statusLine.enableTitle')}</p>
+                      <p className="mt-2 text-sm text-[rgb(var(--muted-foreground))]">{t('settings.statusLine.enableDescription')}</p>
+                    </div>
+                  )}
+                </div>
+              </Tabs.Content>
+
+              <Tabs.Content value="advanced" className="h-full overflow-y-auto px-8 py-8 data-[state=inactive]:hidden">
+                <div className="mx-auto max-w-5xl space-y-6">
+                  <section className="rounded-[24px] border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-6">
+                    {isWindows ? (
+                      <div className="rounded-[24px] border border-[rgb(var(--border))] bg-[rgb(var(--secondary))] p-5">
+                        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                          <div className="flex items-start gap-4">
+                            <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-[rgb(var(--accent))] text-[rgb(var(--primary))]">
+                              <Wrench size={20} />
+                            </div>
+                            <div>
+                              <h4 className="text-base font-semibold text-white">{t('settings.general.bundledConptyTitle')}</h4>
+                              <p className="mt-2 max-w-3xl text-sm leading-6 text-[rgb(var(--muted-foreground))]">{t('settings.general.bundledConptyDescription')}</p>
+                            </div>
+                          </div>
+
                           <Switch.Root
                             checked={terminalSettings.useBundledConptyDll}
                             onCheckedChange={(checked) => handleTerminalSettingsChange({ useBundledConptyDll: checked })}
-                            className="w-11 h-6 bg-zinc-700 rounded-full relative data-[state=checked]:bg-blue-600 transition-colors flex-shrink-0"
+                            className="relative h-7 w-12 flex-shrink-0 rounded-full bg-[rgb(var(--muted))] transition-colors data-[state=checked]:bg-[rgb(var(--primary))]"
                           >
-                            <Switch.Thumb className="block w-5 h-5 bg-white rounded-full transition-transform translate-x-0.5 data-[state=checked]:translate-x-[22px]" />
+                            <Switch.Thumb className="block h-6 w-6 translate-x-0.5 rounded-full bg-white transition-transform data-[state=checked]:translate-x-[22px]" />
                           </Switch.Root>
                         </div>
                       </div>
+                    ) : (
+                      <div className="rounded-[24px] border border-dashed border-[rgb(var(--border))] bg-[rgb(var(--secondary))]/40 p-5">
+                        <div className="flex items-start gap-4">
+                          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[rgb(var(--secondary))] text-[rgb(var(--muted-foreground))]">
+                            <Monitor size={20} />
+                          </div>
+                          <div>
+                            <div className="text-base font-semibold text-white">{t('settings.advanced.windowsOnlyTitle')}</div>
+                            <p className="mt-2 text-sm leading-6 text-[rgb(var(--muted-foreground))]">{t('settings.advanced.windowsOnlyDescription')}</p>
+                          </div>
+                        </div>
+                      </div>
                     )}
-                  </div>
-                </Tabs.Content>
+                  </section>
 
-                {/* IDE 设置 Tab */}
-                <Tabs.Content value="ide" className="flex-1 overflow-y-auto p-6 data-[state=inactive]:hidden">
-                  {/* 扫描按钮 */}
-                  <div className="mb-6 flex items-center gap-3">
-              <button
-                onClick={handleScanAll}
-                disabled={scanning}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white rounded-lg transition-colors font-medium"
-              >
-                <Search size={16} />
-                {scanning ? t('common.loading') : t('settings.ide.scan')}
-              </button>
-              <button
-                onClick={handleAddIDE}
-                className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 rounded-lg transition-colors font-medium"
-              >
-                <Plus size={16} />
-                {t('settings.ide.addCustom')}
-              </button>
-            </div>
-
-            {/* IDE 列表 */}
-            <div className="space-y-3">
-              {ides.length === 0 ? (
-                <div className="text-center py-12 text-zinc-500">
-                  <p className="text-lg mb-2">{t('settings.ide.emptyTitle')}</p>
-                  <p className="text-sm">{t('settings.ide.emptyDescription')}</p>
-                </div>
-              ) : (
-                ides.map((ide) => (
-                  <div
-                    key={ide.id}
-                    className="flex items-center gap-4 p-4 bg-zinc-800/50 rounded-lg border border-zinc-700/50 hover:border-zinc-600 transition-colors"
-                  >
-                    {/* IDE 图标 */}
-                    <div className="flex-shrink-0">
-                      <IDEIcon icon={ide.icon || ''} size={32} />
-                    </div>
-
-                    {/* IDE 信息 */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-sm font-semibold text-zinc-100">{ide.name}</h3>
-                        {ide.path && (
-                          <span className="text-xs px-2 py-0.5 bg-green-900/30 text-green-400 rounded">
-                            {t('settings.ide.found')}
-                          </span>
-                        )}
+                  <section className="rounded-[24px] border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-6">
+                    <div className="mb-5 flex items-start gap-4">
+                      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-[rgb(var(--accent))] text-[rgb(var(--primary))]">
+                        <Command size={20} />
                       </div>
-                      <p className="text-xs text-zinc-400 truncate">
-                        {ide.path || t('settings.ide.commandPrefix', { command: ide.command })}
-                      </p>
-                    </div>
-
-                    {/* 操作按钮 */}
-                    <div className="flex items-center gap-3">
-                      <Switch.Root
-                        checked={ide.enabled}
-                        onCheckedChange={(checked) => handleToggleIDE(ide.id, checked)}
-                        className="w-11 h-6 bg-zinc-700 rounded-full relative data-[state=checked]:bg-blue-600 transition-colors"
-                      >
-                        <Switch.Thumb className="block w-5 h-5 bg-white rounded-full transition-transform translate-x-0.5 data-[state=checked]:translate-x-[22px]" />
-                      </Switch.Root>
-
-                      <button
-                        onClick={() => handleDeleteIDE(ide.id)}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-900/30 text-zinc-400 hover:text-red-400 transition-colors"
-                        title={t('common.delete')}
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-                </Tabs.Content>
-
-                {/* 快捷导航 Tab */}
-                <Tabs.Content value="quicknav" className="flex-1 overflow-y-auto p-6 data-[state=inactive]:hidden">
-            {/* 添加按钮 */}
-            <div className="mb-6">
-              <button
-                onClick={handleAddNavItem}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
-              >
-                <Plus size={16} />
-                {t('settings.quickNav.add')}
-              </button>
-            </div>
-
-            {/* 快捷导航列表 */}
-            <div className="space-y-3">
-              {quickNavItems.length === 0 ? (
-                <div className="text-center py-12 text-zinc-500">
-                  <Globe size={48} className="mx-auto mb-4 opacity-50" />
-                  <p className="text-lg mb-2">{t('settings.quickNav.emptyTitle')}</p>
-                  <p className="text-sm">{t('settings.quickNav.emptyDescription')}</p>
-                </div>
-              ) : (
-                quickNavItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center gap-4 p-4 bg-zinc-800/50 rounded-lg border border-zinc-700/50 hover:border-zinc-600 transition-colors"
-                  >
-                    {/* 拖拽手柄 */}
-                    <div className="flex-shrink-0 text-zinc-600 cursor-move">
-                      <GripVertical size={20} />
-                    </div>
-
-                    {/* 图标 */}
-                    <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-lg bg-zinc-700/50">
-                      {item.type === 'url' ? (
-                        <Globe size={20} className="text-blue-400" />
-                      ) : (
-                        <Folder size={20} className="text-yellow-400" />
-                      )}
-                    </div>
-
-                    {/* 信息 */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-sm font-semibold text-zinc-100">{item.name}</h3>
-                        <span className={`text-xs px-2 py-0.5 rounded ${
-                          item.type === 'url'
-                            ? 'bg-blue-900/30 text-blue-400'
-                            : 'bg-yellow-900/30 text-yellow-400'
-                        }`}>
-                          {item.type === 'url' ? t('common.url') : t('common.folder')}
-                        </span>
+                      <div>
+                        <h3 className="text-base font-semibold text-white">{t('settings.advanced.tmuxSection')}</h3>
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-[rgb(var(--muted-foreground))]">{t('settings.advanced.tmuxDescription')}</p>
                       </div>
-                      <p className="text-xs text-zinc-400 truncate" title={item.path}>
-                        {item.path}
-                      </p>
                     </div>
 
-                    {/* 操作按钮 */}
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleEditNavItem(item)}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-700 text-zinc-400 hover:text-zinc-100 transition-colors"
-                        title={t('common.edit')}
-                      >
-                        <Edit2 size={16} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteNavItem(item.id)}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-900/30 text-zinc-400 hover:text-red-400 transition-colors"
-                        title={t('common.delete')}
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </Tabs.Content>
+                    <div className="space-y-4">
+                      <div className="rounded-[24px] border border-[rgb(var(--border))] bg-[rgb(var(--secondary))] p-5">
+                        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                          <div className="flex items-start gap-4">
+                            <div>
+                              <h4 className="text-base font-semibold text-white">{t('settings.tmux.enableTitle')}</h4>
+                              <p className="mt-2 text-sm leading-6 text-[rgb(var(--muted-foreground))]">{t('settings.tmux.enableDescription')}</p>
+                            </div>
+                          </div>
 
-          {/* StatusLine Tab */}
-          <Tabs.Content value="statusline" className="flex-1 overflow-y-auto p-6 data-[state=inactive]:hidden">
-            <div className="max-w-2xl space-y-6">
-              {/* 启用开关 */}
-              <div className="flex items-center justify-between p-4 bg-zinc-800/50 rounded-lg border border-zinc-700/50">
-                <div>
-                  <h3 className="text-sm font-semibold text-zinc-100 mb-1">{t('settings.statusLine.enableTitle')}</h3>
-                  <p className="text-xs text-zinc-400">{t('settings.statusLine.enableDescription')}</p>
-                </div>
-                <Switch.Root
-                  checked={statusLineConfig.enabled}
-                  onCheckedChange={handleToggleStatusLine}
-                  className="w-11 h-6 bg-zinc-700 rounded-full relative data-[state=checked]:bg-blue-600 transition-colors"
-                >
-                  <Switch.Thumb className="block w-5 h-5 bg-white rounded-full transition-transform translate-x-0.5 data-[state=checked]:translate-x-[22px]" />
-                </Switch.Root>
-              </div>
+                          <Switch.Root
+                            checked={tmuxSettings.enabled}
+                            onCheckedChange={(checked) => handleTmuxSettingsChange({ enabled: checked })}
+                            className="relative h-7 w-12 flex-shrink-0 rounded-full bg-[rgb(var(--muted))] transition-colors data-[state=checked]:bg-[rgb(var(--primary))]"
+                          >
+                            <Switch.Thumb className="block h-6 w-6 translate-x-0.5 rounded-full bg-white transition-transform data-[state=checked]:translate-x-[22px]" />
+                          </Switch.Root>
+                        </div>
+                      </div>
 
-              {/* 配置选项（仅在启用时显示） */}
-              {statusLineConfig.enabled && (
-                <>
-                  {/* 显示格式 */}
-                  <div className="space-y-3">
-                    <h3 className="text-sm font-semibold text-zinc-100">{t('settings.statusLine.displayFormat')}</h3>
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-3 p-3 bg-zinc-800/30 rounded-lg border border-zinc-700/50 hover:border-zinc-600 cursor-pointer transition-colors">
-                        <input
-                          type="radio"
-                          name="format"
-                          value="full"
-                          checked={statusLineConfig.format === 'full'}
-                          onChange={(e) => handleStatusLineConfigChange({ format: e.target.value as 'full' })}
-                          className="w-4 h-4 text-blue-600"
-                        />
-                        <div className="flex-1">
-                          <div className="text-sm text-zinc-100 mb-1">{t('settings.statusLine.full')}</div>
-                          <div className="text-xs font-mono text-zinc-400 bg-zinc-900/50 px-2 py-1 rounded">
-                            Model: Sonnet 4.6 | Context: 45% | Cost: $0.25
+                      <div className={`grid gap-4 lg:grid-cols-2 ${!tmuxSettings.enabled ? 'opacity-50' : ''}`}>
+                        <div className="rounded-[24px] border border-[rgb(var(--border))] bg-[rgb(var(--secondary))] p-5">
+                          <div className="flex items-center justify-between gap-4">
+                            <div>
+                              <h4 className="text-base font-semibold text-white">{t('settings.tmux.autoInjectPathTitle')}</h4>
+                              <p className="mt-2 text-sm leading-6 text-[rgb(var(--muted-foreground))]">{t('settings.tmux.autoInjectPathDescription')}</p>
+                            </div>
+                            <Switch.Root
+                              checked={tmuxSettings.autoInjectPath}
+                              disabled={!tmuxSettings.enabled}
+                              onCheckedChange={(checked) => handleTmuxSettingsChange({ autoInjectPath: checked })}
+                              className="relative h-7 w-12 flex-shrink-0 rounded-full bg-[rgb(var(--muted))] transition-colors data-[state=checked]:bg-[rgb(var(--primary))] disabled:cursor-not-allowed disabled:opacity-70"
+                            >
+                              <Switch.Thumb className="block h-6 w-6 translate-x-0.5 rounded-full bg-white transition-transform data-[state=checked]:translate-x-[22px]" />
+                            </Switch.Root>
                           </div>
                         </div>
-                      </label>
-                      <label className="flex items-center gap-3 p-3 bg-zinc-800/30 rounded-lg border border-zinc-700/50 hover:border-zinc-600 cursor-pointer transition-colors">
-                        <input
-                          type="radio"
-                          name="format"
-                          value="compact"
-                          checked={statusLineConfig.format === 'compact'}
-                          onChange={(e) => handleStatusLineConfigChange({ format: e.target.value as 'compact' })}
-                          className="w-4 h-4 text-blue-600"
-                        />
-                        <div className="flex-1">
-                          <div className="text-sm text-zinc-100 mb-1">{t('settings.statusLine.compact')}</div>
-                          <div className="text-xs font-mono text-zinc-400 bg-zinc-900/50 px-2 py-1 rounded">
-                            Sonnet 4.6 • 45% • $0.25
+
+                        <div className="rounded-[24px] border border-[rgb(var(--border))] bg-[rgb(var(--secondary))] p-5">
+                          <div className="flex items-center justify-between gap-4">
+                            <div>
+                              <h4 className="text-base font-semibold text-white">{t('settings.tmux.enableForAllPanesTitle')}</h4>
+                              <p className="mt-2 text-sm leading-6 text-[rgb(var(--muted-foreground))]">{t('settings.tmux.enableForAllPanesDescription')}</p>
+                            </div>
+                            <Switch.Root
+                              checked={tmuxSettings.enableForAllPanes}
+                              disabled={!tmuxSettings.enabled}
+                              onCheckedChange={(checked) => handleTmuxSettingsChange({ enableForAllPanes: checked })}
+                              className="relative h-7 w-12 flex-shrink-0 rounded-full bg-[rgb(var(--muted))] transition-colors data-[state=checked]:bg-[rgb(var(--primary))] disabled:cursor-not-allowed disabled:opacity-70"
+                            >
+                              <Switch.Thumb className="block h-6 w-6 translate-x-0.5 rounded-full bg-white transition-transform data-[state=checked]:translate-x-[22px]" />
+                            </Switch.Root>
                           </div>
                         </div>
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* 显示内容 */}
-                  <div className="space-y-3">
-                    <h3 className="text-sm font-semibold text-zinc-100">{t('settings.statusLine.displayContent')}</h3>
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-3 p-3 bg-zinc-800/30 rounded-lg border border-zinc-700/50">
-                        <input
-                          type="checkbox"
-                          checked={statusLineConfig.showModel}
-                          className="w-4 h-4 text-blue-600"
-                          disabled
-                        />
-                        <div className="flex-1">
-                          <div className="text-sm text-zinc-100">{t('settings.statusLine.modelName')}</div>
-                          <div className="text-xs text-zinc-400">{t('settings.statusLine.required')}</div>
-                        </div>
-                      </label>
-                      <label className="flex items-center gap-3 p-3 bg-zinc-800/30 rounded-lg border border-zinc-700/50 hover:border-zinc-600 cursor-pointer transition-colors">
-                        <input
-                          type="checkbox"
-                          checked={statusLineConfig.showContext}
-                          onChange={(e) => handleStatusLineConfigChange({ showContext: e.target.checked })}
-                          className="w-4 h-4 text-blue-600"
-                        />
-                        <div className="flex-1">
-                          <div className="text-sm text-zinc-100">{t('settings.statusLine.contextPercentage')}</div>
-                          <div className="text-xs text-zinc-400">{t('settings.statusLine.contextExample')}</div>
-                        </div>
-                      </label>
-                      <label className="flex items-center gap-3 p-3 bg-zinc-800/30 rounded-lg border border-zinc-700/50 hover:border-zinc-600 cursor-pointer transition-colors">
-                        <input
-                          type="checkbox"
-                          checked={statusLineConfig.showCost}
-                          onChange={(e) => handleStatusLineConfigChange({ showCost: e.target.checked })}
-                          className="w-4 h-4 text-blue-600"
-                        />
-                        <div className="flex-1">
-                          <div className="text-sm text-zinc-100">{t('settings.statusLine.cost')}</div>
-                          <div className="text-xs text-zinc-400">{t('settings.statusLine.costExample')}</div>
-                        </div>
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* 配置状态 */}
-                  <div className="p-4 bg-green-900/20 border border-green-700/50 rounded-lg">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-5 h-5 rounded-full bg-green-600 flex items-center justify-center mt-0.5">
-                        <Check size={14} className="text-white" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-sm font-medium text-green-100 mb-1">{t('settings.statusLine.savedTitle')}</div>
-                        <div className="text-xs text-green-200/70">
-                          {t('settings.statusLine.savedDescription')}
-                        </div>
                       </div>
                     </div>
-                  </div>
-                </>
-              )}
-            </div>
-          </Tabs.Content>
-
-          {/* tmux 兼容模式 Tab */}
-          <Tabs.Content value="tmux" className="flex-1 overflow-y-auto p-6 data-[state=inactive]:hidden">
-            <div className="max-w-2xl space-y-6">
-              {/* 启用开关 */}
-              <div className="flex items-center justify-between p-4 bg-zinc-800/50 rounded-lg border border-zinc-700/50">
-                <div>
-                  <h3 className="text-sm font-semibold text-zinc-100 mb-1">{t('settings.tmux.enableTitle')}</h3>
-                  <p className="text-xs text-zinc-400">{t('settings.tmux.enableDescription')}</p>
+                  </section>
                 </div>
-                <Switch.Root
-                  checked={tmuxSettings.enabled}
-                  onCheckedChange={(checked) => handleTmuxSettingsChange({ enabled: checked })}
-                  className="w-11 h-6 bg-zinc-700 rounded-full relative data-[state=checked]:bg-blue-600 transition-colors flex-shrink-0"
-                >
-                  <Switch.Thumb className="block w-5 h-5 bg-white rounded-full transition-transform translate-x-0.5 data-[state=checked]:translate-x-[22px]" />
-                </Switch.Root>
-              </div>
-
-              {/* 子选项（仅在启用时显示） */}
-              {tmuxSettings.enabled && (
-                <>
-                  <div className="flex items-center justify-between p-4 bg-zinc-800/50 rounded-lg border border-zinc-700/50">
-                    <div>
-                      <h3 className="text-sm font-semibold text-zinc-100 mb-1">{t('settings.tmux.autoInjectPathTitle')}</h3>
-                      <p className="text-xs text-zinc-400">{t('settings.tmux.autoInjectPathDescription')}</p>
-                    </div>
-                    <Switch.Root
-                      checked={tmuxSettings.autoInjectPath}
-                      onCheckedChange={(checked) => handleTmuxSettingsChange({ autoInjectPath: checked })}
-                      className="w-11 h-6 bg-zinc-700 rounded-full relative data-[state=checked]:bg-blue-600 transition-colors flex-shrink-0"
-                    >
-                      <Switch.Thumb className="block w-5 h-5 bg-white rounded-full transition-transform translate-x-0.5 data-[state=checked]:translate-x-[22px]" />
-                    </Switch.Root>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-zinc-800/50 rounded-lg border border-zinc-700/50">
-                    <div>
-                      <h3 className="text-sm font-semibold text-zinc-100 mb-1">{t('settings.tmux.enableForAllPanesTitle')}</h3>
-                      <p className="text-xs text-zinc-400">{t('settings.tmux.enableForAllPanesDescription')}</p>
-                    </div>
-                    <Switch.Root
-                      checked={tmuxSettings.enableForAllPanes}
-                      onCheckedChange={(checked) => handleTmuxSettingsChange({ enableForAllPanes: checked })}
-                      className="w-11 h-6 bg-zinc-700 rounded-full relative data-[state=checked]:bg-blue-600 transition-colors flex-shrink-0"
-                    >
-                      <Switch.Thumb className="block w-5 h-5 bg-white rounded-full transition-transform translate-x-0.5 data-[state=checked]:translate-x-[22px]" />
-                    </Switch.Root>
-                  </div>
-                </>
-              )}
+              </Tabs.Content>
             </div>
-          </Tabs.Content>
-              </div>
-            </Tabs.Root>
-          </div>
+          </Tabs.Root>
         </Dialog.Content>
       </Dialog.Portal>
 
-      {/* 添加/编辑 IDE 对话框 */}
-          <Dialog.Root open={showAddDialog} onOpenChange={setShowAddDialog}>
-            <Dialog.Portal>
-              <Dialog.Overlay className="fixed inset-0 bg-black/50 z-[60]" />
-              <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] bg-zinc-800 rounded-xl shadow-2xl border border-zinc-700 z-[70] p-6">
-                <Dialog.Title className="text-lg font-semibold text-zinc-100 mb-4">
-                  {editingIDE?.id ? t('settings.ideDialog.editTitle') : t('settings.ideDialog.addTitle')}
-                </Dialog.Title>
+      <Dialog.Root open={showAddDialog} onOpenChange={handleAddDialogChange}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-[70] w-[92vw] max-w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-[28px] border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-6 shadow-2xl">
+            <Dialog.Title className="text-xl font-semibold text-white">
+              {editingIDE?.id ? t('settings.ideDialog.editTitle') : t('settings.ideDialog.addTitle')}
+            </Dialog.Title>
 
-                <div className="space-y-4">
-                  {/* IDE 名称选择 */}
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-300 mb-2">
-                      {t('settings.ideDialog.nameLabel')}
-                    </label>
-                    <Select.Root
-                      value={editingIDE?.name || ''}
-                      onValueChange={(value) => {
-                        setEditingIDE(prev => prev ? { ...prev, name: value } : null);
-                        handleScanSpecific(value);
-                      }}
-                    >
-                      <Select.Trigger className="w-full flex items-center justify-between px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-100 hover:border-zinc-600 transition-colors">
-                        <Select.Value placeholder={t('settings.ideDialog.namePlaceholder')} />
-                        <Select.Icon>
-                          <ChevronDown size={16} />
-                        </Select.Icon>
-                      </Select.Trigger>
-                      <Select.Portal>
-                        <Select.Content className="bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl overflow-hidden z-[80]">
-                          <Select.Viewport className="p-1">
-                            {supportedIDENames.map((name) => (
-                              <Select.Item
-                                key={name}
-                                value={name}
-                                className="px-3 py-2 text-sm text-zinc-100 hover:bg-zinc-700 rounded cursor-pointer outline-none flex items-center justify-between"
-                              >
-                                <Select.ItemText>{name}</Select.ItemText>
-                                <Select.ItemIndicator>
-                                  <Check size={14} />
-                                </Select.ItemIndicator>
-                              </Select.Item>
-                            ))}
-                          </Select.Viewport>
-                        </Select.Content>
-                      </Select.Portal>
-                    </Select.Root>
-                  </div>
+            <div className="mt-6 space-y-4">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-[rgb(var(--foreground))]">{t('settings.ideDialog.nameLabel')}</label>
+                <Select.Root
+                  value={editingIDE?.name || ''}
+                  onValueChange={(value) => {
+                    setEditingIDE((prev) => (prev ? { ...prev, name: value } : null));
+                    handleScanSpecific(value);
+                  }}
+                >
+                  <Select.Trigger className="flex w-full items-center justify-between rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--secondary))] px-4 py-3 text-left text-[rgb(var(--foreground))] transition-colors hover:bg-[rgb(var(--accent))]">
+                    <Select.Value placeholder={t('settings.ideDialog.namePlaceholder')} />
+                    <Select.Icon>
+                      <ChevronDown size={16} />
+                    </Select.Icon>
+                  </Select.Trigger>
+                  <Select.Portal>
+                    <Select.Content className="z-[80] overflow-hidden rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--card))] shadow-2xl">
+                      <Select.Viewport className="p-1">
+                        {supportedIDENames.map((name) => (
+                          <Select.Item
+                            key={name}
+                            value={name}
+                            className="flex cursor-pointer items-center justify-between rounded-xl px-3 py-2 text-sm text-[rgb(var(--foreground))] outline-none transition-colors hover:bg-[rgb(var(--accent))]"
+                          >
+                            <Select.ItemText>{name}</Select.ItemText>
+                            <Select.ItemIndicator>
+                              <Check size={14} />
+                            </Select.ItemIndicator>
+                          </Select.Item>
+                        ))}
+                      </Select.Viewport>
+                    </Select.Content>
+                  </Select.Portal>
+                </Select.Root>
+              </div>
 
-                  {/* 命令 */}
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-300 mb-2">
-                      {t('settings.ideDialog.commandLabel')}
-                    </label>
-                    <input
-                      type="text"
-                      value={editingIDE?.command || ''}
-                      onChange={(e) => setEditingIDE(prev => prev ? { ...prev, command: e.target.value } : null)}
-                      placeholder={t('settings.ideDialog.commandPlaceholder')}
-                      className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-500 focus:border-blue-500 focus:outline-none transition-colors"
-                    />
-                  </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-[rgb(var(--foreground))]">{t('settings.ideDialog.commandLabel')}</label>
+                <input
+                  type="text"
+                  value={editingIDE?.command || ''}
+                  onChange={(event) => setEditingIDE((prev) => (prev ? { ...prev, command: event.target.value } : null))}
+                  placeholder={t('settings.ideDialog.commandPlaceholder')}
+                  className="w-full rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--secondary))] px-4 py-3 text-[rgb(var(--foreground))] placeholder:text-[rgb(var(--muted-foreground))] focus:border-[rgb(var(--ring))] focus:outline-none"
+                />
+              </div>
 
-                  {/* 路径 */}
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-300 mb-2">
-                      {t('settings.ideDialog.pathLabel')}
-                    </label>
-                    <input
-                      type="text"
-                      value={editingIDE?.path || ''}
-                      onChange={(e) => setEditingIDE(prev => prev ? { ...prev, path: e.target.value } : null)}
-                      placeholder={t('settings.ideDialog.pathPlaceholder')}
-                      className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-500 focus:border-blue-500 focus:outline-none transition-colors"
-                    />
-                  </div>
-                </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-[rgb(var(--foreground))]">{t('settings.ideDialog.pathLabel')}</label>
+                <input
+                  type="text"
+                  value={editingIDE?.path || ''}
+                  onChange={(event) => setEditingIDE((prev) => (prev ? { ...prev, path: event.target.value } : null))}
+                  placeholder={t('settings.ideDialog.pathPlaceholder')}
+                  className="w-full rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--secondary))] px-4 py-3 text-[rgb(var(--foreground))] placeholder:text-[rgb(var(--muted-foreground))] focus:border-[rgb(var(--ring))] focus:outline-none"
+                />
+              </div>
+            </div>
 
-                <div className="flex items-center justify-end gap-3 mt-6">
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                onClick={() => handleAddDialogChange(false)}
+                className="rounded-2xl px-4 py-2 text-[rgb(var(--muted-foreground))] transition-colors hover:text-white"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={handleSaveIDE}
+                disabled={!editingIDE?.name || !editingIDE?.command}
+                className="rounded-2xl bg-[rgb(var(--primary))] px-4 py-2 font-medium text-[rgb(var(--primary-foreground))] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:bg-[rgb(var(--muted))] disabled:text-[rgb(var(--muted-foreground))]"
+              >
+                {t('common.save')}
+              </button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      <Dialog.Root open={showNavDialog} onOpenChange={handleNavDialogChange}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-[70] w-[92vw] max-w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-[28px] border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-6 shadow-2xl">
+            <Dialog.Title className="text-xl font-semibold text-white">
+              {editingNavItem?.id && quickNavItems.find((item) => item.id === editingNavItem.id)
+                ? t('settings.quickNavDialog.editTitle')
+                : t('settings.quickNavDialog.addTitle')}
+            </Dialog.Title>
+
+            <div className="mt-6 space-y-4">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-[rgb(var(--foreground))]">{t('settings.quickNavDialog.pathLabel')}</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={editingNavItem?.path || ''}
+                    onChange={(event) => handlePathChange(event.target.value)}
+                    placeholder={t('settings.quickNavDialog.pathPlaceholder')}
+                    className="flex-1 rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--secondary))] px-4 py-3 text-[rgb(var(--foreground))] placeholder:text-[rgb(var(--muted-foreground))] focus:border-[rgb(var(--ring))] focus:outline-none"
+                  />
                   <button
-                    onClick={() => setShowAddDialog(false)}
-                    className="px-4 py-2 text-zinc-400 hover:text-zinc-100 transition-colors"
+                    type="button"
+                    onClick={handleBrowseFolder}
+                    className="flex h-[50px] w-[50px] items-center justify-center rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--secondary))] text-[rgb(var(--muted-foreground))] transition-colors hover:bg-[rgb(var(--accent))] hover:text-[rgb(var(--primary))]"
+                    title={t('settings.quickNavDialog.browseFolder')}
                   >
-                    {t('common.cancel')}
-                  </button>
-                  <button
-                    onClick={handleSaveIDE}
-                    disabled={!editingIDE?.name || !editingIDE?.command}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white rounded-lg transition-colors font-medium"
-                  >
-                    {t('common.save')}
-                  </button>
-                </div>
-              </Dialog.Content>
-            </Dialog.Portal>
-          </Dialog.Root>
-
-          {/* 添加/编辑快捷导航对话框 */}
-          <Dialog.Root open={showNavDialog} onOpenChange={setShowNavDialog}>
-            <Dialog.Portal>
-              <Dialog.Overlay className="fixed inset-0 bg-black/50 z-[60]" />
-              <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] bg-zinc-800 rounded-xl shadow-2xl border border-zinc-700 z-[70] p-6">
-                <Dialog.Title className="text-lg font-semibold text-zinc-100 mb-4">
-                  {editingNavItem?.id && quickNavItems.find(i => i.id === editingNavItem.id) ? t('settings.quickNavDialog.editTitle') : t('settings.quickNavDialog.addTitle')}
-                </Dialog.Title>
-
-                <div className="space-y-4">
-                  {/* 路径/URL */}
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-300 mb-2">
-                      {t('settings.quickNavDialog.pathLabel')}
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={editingNavItem?.path || ''}
-                        onChange={(e) => handlePathChange(e.target.value)}
-                        placeholder={t('settings.quickNavDialog.pathPlaceholder')}
-                        className="flex-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-500 focus:border-blue-500 focus:outline-none transition-colors"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleBrowseFolder}
-                        className="flex items-center justify-center w-10 h-10 bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-400 hover:text-zinc-100 hover:border-blue-500 transition-colors"
-                        title={t('settings.quickNavDialog.browseFolder')}
-                      >
-                        <FolderOpen size={18} />
-                      </button>
-                    </div>
-                    {editingNavItem?.path && (
-                      <p className="mt-1 text-xs text-zinc-500">
-                        {t('settings.quickNavDialog.detectedAs', { type: editingNavItem.type === 'url' ? t('common.url') : t('common.folder') })}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* 名称 */}
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-300 mb-2">
-                      {t('settings.quickNavDialog.nameLabel')}
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={editingNavItem?.name || ''}
-                        onChange={(e) => setEditingNavItem(prev => prev ? { ...prev, name: e.target.value } : null)}
-                        placeholder={t('settings.quickNavDialog.namePlaceholder')}
-                        className="flex-1 px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-100 placeholder-zinc-500 focus:border-blue-500 focus:outline-none transition-colors"
-                      />
-                      {/* 占位元素，保持与上方输入框宽度一致 */}
-                      <div className="w-10"></div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end gap-3 mt-6">
-                  <button
-                    onClick={() => setShowNavDialog(false)}
-                    className="px-4 py-2 text-zinc-400 hover:text-zinc-100 transition-colors"
-                  >
-                    {t('common.cancel')}
-                  </button>
-                  <button
-                    onClick={handleSaveNavItem}
-                    disabled={!editingNavItem?.name || !editingNavItem?.path}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 disabled:text-zinc-500 text-white rounded-lg transition-colors font-medium"
-                  >
-                    {t('common.save')}
+                    <FolderOpen size={18} />
                   </button>
                 </div>
-              </Dialog.Content>
-            </Dialog.Portal>
-          </Dialog.Root>
+                {editingNavItem?.path && (
+                  <p className="mt-2 text-xs text-[rgb(var(--muted-foreground))]">
+                    {t('settings.quickNavDialog.detectedAs', {
+                      type: editingNavItem.type === 'url' ? t('common.url') : t('common.folder'),
+                    })}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-[rgb(var(--foreground))]">{t('settings.quickNavDialog.nameLabel')}</label>
+                <input
+                  type="text"
+                  value={editingNavItem?.name || ''}
+                  onChange={(event) => setEditingNavItem((prev) => (prev ? { ...prev, name: event.target.value } : null))}
+                  placeholder={t('settings.quickNavDialog.namePlaceholder')}
+                  className="w-full rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--secondary))] px-4 py-3 text-[rgb(var(--foreground))] placeholder:text-[rgb(var(--muted-foreground))] focus:border-[rgb(var(--ring))] focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                onClick={() => handleNavDialogChange(false)}
+                className="rounded-2xl px-4 py-2 text-[rgb(var(--muted-foreground))] transition-colors hover:text-white"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={handleSaveNavItem}
+                disabled={!editingNavItem?.name || !editingNavItem?.path}
+                className="rounded-2xl bg-[rgb(var(--primary))] px-4 py-2 font-medium text-[rgb(var(--primary-foreground))] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:bg-[rgb(var(--muted))] disabled:text-[rgb(var(--muted-foreground))]"
+              >
+                {t('common.save')}
+              </button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </Dialog.Root>
   );
 };
