@@ -24,6 +24,7 @@ function ensureGlobalSubscription(): void {
 
   globalPtyHandler = (_event, payload) => {
     const paneKey = getPaneKey(payload.windowId, payload.paneId);
+
     const subscribers = subscribersByPaneKey.get(paneKey);
     if (!subscribers || subscribers.size === 0) {
       const buffer = earlyDataBuffers.get(paneKey) ?? [];

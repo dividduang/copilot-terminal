@@ -304,6 +304,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
 
     terminalRef.current = terminal;
     fitAddonRef.current = fitAddon;
+
     // 批量刷新 PTY 输出：每帧最多写一次，降低高频输出时的重绘抖动
     const flushOutput = () => {
       outputFlushFrameRef.current = null;
@@ -393,19 +394,6 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
 
     // 告诉 xterm.js 忽略应用级快捷键
     terminal.attachCustomKeyEventHandler((e: KeyboardEvent) => {
-      // 调试日志：记录 @ 键和 Shift 键的事件
-      if (e.key === '@' || e.key === '2' || (e.shiftKey && e.key === '@')) {
-        console.log('[TerminalPane] Special key event:', {
-          key: e.key,
-          code: e.code,
-          ctrlKey: e.ctrlKey,
-          shiftKey: e.shiftKey,
-          altKey: e.altKey,
-          target: (e.target as HTMLElement)?.className,
-          timestamp: Date.now(),
-        });
-      }
-
       // Ctrl+V：粘贴剪贴板内容
       if (e.type === 'keydown' && e.ctrlKey && e.key.toLowerCase() === 'v' && !e.shiftKey && !e.altKey && !e.metaKey) {
         e.preventDefault(); // 阻止浏览器默认粘贴行为（否则会通过 xterm textarea 触发第二次粘贴）
