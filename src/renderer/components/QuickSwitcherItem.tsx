@@ -200,9 +200,6 @@ export const QuickSwitcherItem: React.FC<QuickSwitcherItemProps> = ({
     e.stopPropagation(); // 阻止事件冒泡，避免触发窗口切换
     if (window.electronAPI?.openExternalUrl) {
       window.electronAPI.openExternalUrl(url)
-        .then(() => {
-          console.log('URL opened successfully:', url);
-        })
         .catch((error: Error) => {
           console.error('Failed to open URL:', error);
         });

@@ -146,26 +146,15 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
    */
 
   async spawnTerminal(config: TerminalConfig): Promise<ProcessHandle> {
-    const spawnStartAt = Date.now();
-    console.log(`[ProcessManager] Starting spawn for windowId=${config.windowId}, paneId=${config.paneId}`);
-
     // Validate working directory
-    const validateStartAt = Date.now();
     if (!existsSync(config.workingDirectory)) {
       throw new Error(`Working directory does not exist: ${config.workingDirectory}`);
     }
-    console.log(`[ProcessManager] Directory validation took ${Date.now() - validateStartAt}ms`);
 
     // Resolve the executable and args that will actually be passed to node-pty.
-    const shellStartAt = Date.now();
     const launchCommand = this.resolveLaunchCommand(config);
-    console.log(
-      `[ProcessManager] Shell detection took ${Date.now() - shellStartAt}ms, command=${launchCommand.command}, file=${launchCommand.file}`
-    );
 
-    const tmuxRpcStartAt = Date.now();
     await this.ensureTmuxRpcServer(config);
-    console.log(`[ProcessManager] Tmux RPC ensure took ${Date.now() - tmuxRpcStartAt}ms (tmuxEnabled=${this.shouldEnableTmuxCompat()})`);
 
 
     // 鍒涘缓 PTY 杩涚▼锛堢湡瀹炴垨 mock锛?
@@ -174,10 +163,8 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
 
     if (pty) {
       // 浣跨敤鐪熷疄鐨?node-pty
-      const ptyCreateStartAt = Date.now();
       ptyProcess = this.createRealPty(config, launchCommand.file, launchCommand.args);
       pid = ptyProcess.pid;
-      console.log(`[ProcessManager] PTY creation took ${Date.now() - ptyCreateStartAt}ms, pid=${pid}`);
     } else {
       // 浣跨敤 mock PTY
       pid = this.nextPid++;
@@ -246,9 +233,6 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
 
     // Emit process-created event
     this.emit('process-created', processInfo);
-
-    const spawnDuration = Date.now() - spawnStartAt;
-    console.log(`[ProcessManager] ✓ spawnTerminal total ${spawnDuration}ms pid=${pid}`);
 
     return {
       pid,
@@ -411,7 +395,6 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
 
     // 鍏堝彂閫佺紦瀛樼殑鍒濆杈撳嚭锛堝鏋滄湁锛?
     const buffer = this.ptyOutputBuffers.get(pid);
-    console.log(`[ProcessManager] subscribePtyData pid=${pid}: buffered=${buffer?.length ?? 0} chunks`);
     if (buffer && buffer.length > 0) {
       // 浣跨敤 setImmediate 寮傛鍙戦€侊紝閬垮厤闃诲
       setImmediate(() => {
@@ -726,9 +709,7 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
    */
   private createRealPty(config: TerminalConfig, executable: string, args: string[]): any {
     // 鑾峰彇鏈€鏂扮殑绯荤粺鐜鍙橀噺锛圵indows 浠庢敞鍐岃〃璇诲彇锛宮acOS/Linux 浣跨敤 process.env锛?
-    const envStartAt = Date.now();
     const latestEnv = this.getSpawnEnvironment();
-    console.log(`[ProcessManager] Environment variable loading took ${Date.now() - envStartAt}ms`);
 
     // 娓呯悊鐜鍙橀噺锛岀Щ闄ゅ彲鑳藉鑷村啿绐佺殑鍙橀噺
     const cleanEnv = { ...latestEnv };
@@ -769,21 +750,14 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     };
 
     if (platform() === 'win32') {
-      const conptyCheckStart = Date.now();
       const useBundledConptyDll = this.shouldUseBundledConptyDll();
-      console.log(`[ProcessManager] ⏱️ ConPTY DLL check took ${Date.now() - conptyCheckStart}ms`);
       ptySpawnOptions.useConpty = true;
       if (useBundledConptyDll) {
         ptySpawnOptions.useConptyDll = true;
       }
-      console.log(`[ProcessManager] 🔧 useConptyDll=${useBundledConptyDll}`);
     }
 
-    const ptySpawnStartAt = Date.now();
-    console.log(`[ProcessManager] 🚀 Calling pty.spawn()...`);
     const ptyProcess = pty.spawn(executable, args, ptySpawnOptions);
-    const ptySpawnDuration = Date.now() - ptySpawnStartAt;
-    console.log(`[ProcessManager] ⏱️ pty.spawn() took ${ptySpawnDuration}ms`);
 
     return ptyProcess;
   }

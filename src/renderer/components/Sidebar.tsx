@@ -190,10 +190,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* 底部设置按钮 */}
         <div className="border-t border-zinc-800 flex-shrink-0">
           <button
-            onClick={() => {
-              console.log('[Sidebar] Settings button clicked');
-              onSettingsClick?.();
-            }}
+            onClick={() => onSettingsClick?.()}
             className={`
               w-full h-10 flex items-center gap-2
               text-zinc-400 hover:text-zinc-100 hover:bg-zinc-700

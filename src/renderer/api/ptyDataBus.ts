@@ -67,14 +67,7 @@ export function subscribeToPanePtyData(
   const paneKey = getPaneKey(windowId, paneId);
   const subscribers = subscribersByPaneKey.get(paneKey) ?? new Set<PtyDataSubscriber>();
 
-  let firstDataReceived = false;
-  const subscribeTime = Date.now();
-
   const subscriber: PtyDataSubscriber = (payload) => {
-    if (!firstDataReceived) {
-      firstDataReceived = true;
-      console.log(`[ptyDataBus:${paneId.slice(0, 8)}] first PTY data received after ${Date.now() - subscribeTime}ms since subscribe`);
-    }
     callback(payload.data);
   };
 
@@ -83,7 +76,6 @@ export function subscribeToPanePtyData(
 
   const earlyData = earlyDataBuffers.get(paneKey);
   if (earlyData && earlyData.length > 0) {
-    console.log(`[ptyDataBus:${paneId.slice(0, 8)}] replaying ${earlyData.length} early buffered messages`);
     for (const payload of earlyData) {
       subscriber(payload);
     }

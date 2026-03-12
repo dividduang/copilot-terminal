@@ -167,9 +167,7 @@ export const CardGrid = React.memo<CardGridProps>(({ onEnterTerminal, onCreateWi
   const openInIDE = useCallback(async (ide: string, win: Window) => {
     const workingDirectory = getCurrentWindowWorkingDirectory(win);
     try {
-      console.log(`Opening ${ide} with path: ${workingDirectory}`);
       const response = await window.electronAPI.openInIDE(ide, workingDirectory);
-      console.log(`openInIDE response:`, response);
       if (!response.success) {
         console.error(`Failed to open in ${ide}:`, response.error);
         // TODO: 显示错误提示

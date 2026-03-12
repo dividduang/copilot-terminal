@@ -405,9 +405,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) =
       // 自动配置 Claude Code
       try {
         const response = await window.electronAPI.statusLineConfigure();
-        if (response.success) {
-          console.log('Claude Code configured successfully');
-        } else {
+        if (!response.success) {
           console.error('Failed to configure Claude Code:', response.error);
         }
       } catch (error) {
@@ -417,9 +415,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) =
       // 移除 Claude Code 配置
       try {
         const response = await window.electronAPI.statusLineRemove();
-        if (response.success) {
-          console.log('Claude Code configuration removed');
-        } else {
+        if (!response.success) {
           console.error('Failed to remove Claude Code configuration:', response.error);
         }
       } catch (error) {

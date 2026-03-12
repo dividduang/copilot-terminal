@@ -1,7 +1,6 @@
 import { ipcMain } from 'electron';
 import { HandlerContext } from './HandlerContext';
 import { successResponse, errorResponse } from './HandlerResponse';
-import { ProcessStatus } from '../types/process';
 
 /**
  * 注册 PTY 通信相关的 IPC handlers
@@ -23,9 +22,7 @@ export function registerPtyHandlers(ctx: HandlerContext) {
       if (pid === null) {
         const processes = processManager.listProcesses();
         const found = processes.find(p =>
-          p.status !== ProcessStatus.Exited &&
-          p.windowId === windowId &&
-          (paneId ? p.paneId === paneId : true)
+          p.windowId === windowId && (paneId ? p.paneId === paneId : true)
         );
         if (!found) {
           // 窗口可能处于 Paused 状态（没有 PTY 进程），这是正常的，静默忽略
@@ -42,8 +39,6 @@ export function registerPtyHandlers(ctx: HandlerContext) {
   });
 
   // PTY resize
-  const resizeTimestamps = new Map<number, number>(); // pid -> spawn时间
-
   ipcMain.handle('pty-resize', async (_event, { windowId, paneId, cols, rows }: { windowId: string; paneId?: string; cols: number; rows: number }) => {
     try {
       if (!processManager) {
@@ -57,9 +52,7 @@ export function registerPtyHandlers(ctx: HandlerContext) {
       if (pid === null) {
         const processes = processManager.listProcesses();
         const found = processes.find(p =>
-          p.status !== ProcessStatus.Exited &&
-          p.windowId === windowId &&
-          (paneId ? p.paneId === paneId : true)
+          p.windowId === windowId && (paneId ? p.paneId === paneId : true)
         );
         if (!found) {
           // 窗口可能处于 Paused 状态（没有 PTY 进程），这是正常的，静默忽略
@@ -68,13 +61,6 @@ export function registerPtyHandlers(ctx: HandlerContext) {
         pid = found.pid;
       }
 
-      // 记录第一次resize的时间作为基准
-      if (!resizeTimestamps.has(pid)) {
-        resizeTimestamps.set(pid, Date.now());
-      }
-      const elapsed = Date.now() - resizeTimestamps.get(pid)!;
-
-      console.log(`[ptyHandlers] pty-resize paneId=${paneId?.slice(0, 8)} pid=${pid} at +${elapsed}ms cols=${cols} rows=${rows}`);
       processManager.resizePty(pid, cols, rows);
       return successResponse();
     } catch (error) {

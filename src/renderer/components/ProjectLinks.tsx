@@ -29,9 +29,6 @@ export const ProjectLinks: React.FC<ProjectLinksProps> = ({
       }
 
       globalThis.electronAPI.openExternalUrl(url)
-        .then(() => {
-          console.log('URL opened successfully:', url);
-        })
         .catch((error: Error) => {
           console.error('Failed to open URL:', error);
         });

@@ -258,9 +258,6 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
   useEffect(() => {
     if (!terminalContainerRef.current) return;
 
-    const xtermT0 = Date.now();
-    console.log(`[TerminalPane:${pane.id.slice(0, 8)}] ▶ xterm useEffect start`);
-
     const terminal = new Terminal({
       cols: 80,
       rows: 30,
@@ -303,7 +300,6 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
     const fitAddon = new FitAddon();
     terminal.loadAddon(fitAddon);
     terminal.open(terminalContainerRef.current);
-    console.log(`[TerminalPane:${pane.id.slice(0, 8)}] xterm open() done at +${Date.now() - xtermT0}ms`);
     const pasteCaptureBlockMs = 300;
 
     terminalRef.current = terminal;
@@ -319,7 +315,6 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
       }
 
       outputBufferRef.current = '';
-      console.log(`[TerminalPane:${pane.id.slice(0, 8)}] writing ${pending.length} bytes to xterm at +${Date.now() - xtermT0}ms`);
       terminalRef.current.write(pending);
     };
 
@@ -367,7 +362,6 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
         return;
       }
 
-      console.log(`[TerminalPane:${pane.id.slice(0, 8)}] fitAddon.fit() at +${Date.now() - xtermT0}ms size=${width}x${height}`);
       lastContainerSizeRef.current = { width, height };
       currentFitAddon.fit();
 
@@ -449,7 +443,9 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
 
     // 监听用户输入
     const disposable = terminal.onData((data) => {
-      if (window.electronAPI && isActiveRef.current) {
+      // Protocol replies (DA/DSR/window reports) also flow through onData and
+      // must reach the PTY even when the pane is not the active one.
+      if (window.electronAPI) {
         window.electronAPI.ptyWrite(windowId, pane.id, data);
       }
     });
@@ -462,7 +458,6 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
     });
 
     const unsubscribePtyData = subscribeToPanePtyData(windowId, pane.id, queueOutput);
-    console.log(`[TerminalPane:${pane.id.slice(0, 8)}] subscribeToPanePtyData done at +${Date.now() - xtermT0}ms`);
 
     // 窗口大小变化时重新调整终端大小
     const handleResize = () => scheduleResize();

@@ -23,6 +23,8 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions) {
       const opts = optionsRef.current;
       const enabled = opts.enabled !== false; // 默认 true
 
+      if (!enabled) return;
+
       // 如果事件来自 xterm.js 的 textarea，只处理明确的快捷键
       const target = e.target as HTMLElement;
       const isXtermTextarea = target?.classList?.contains('xterm-helper-textarea');
@@ -39,8 +41,6 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions) {
           return; // 不是快捷键，直接放行
         }
       }
-
-      if (!enabled) return;
 
       // Ctrl+Tab: 打开快速切换面板
       if (e.ctrlKey && e.key === 'Tab') {

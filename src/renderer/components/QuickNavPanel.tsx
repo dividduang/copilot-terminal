@@ -54,9 +54,9 @@ export const QuickNavPanel: React.FC<QuickNavPanelProps> = ({ open, onClose }) =
   return (
     <Dialog.Root open={open} onOpenChange={onClose}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 animate-fade-in" />
+        <Dialog.Overlay className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[1100] animate-fade-in" />
         <Dialog.Content
-          className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-4xl max-h-[85vh] bg-zinc-900 rounded-xl shadow-2xl border border-zinc-800 z-50 overflow-hidden flex flex-col animate-scale-in"
+          className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-4xl max-h-[85vh] bg-zinc-900 rounded-xl shadow-2xl border border-zinc-800 z-[1100] overflow-hidden flex flex-col animate-scale-in"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
           {/* 标题栏 */}
