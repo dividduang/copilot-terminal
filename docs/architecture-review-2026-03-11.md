@@ -25,6 +25,9 @@
 
 ## 修复进展
 
+- 2026-03-12：已修复问题 6“工作区持久化混入大量运行态字段，且几乎所有 UI 操作都会触发保存”。
+- 修复内容：`src/renderer/stores/windowStore.ts` 不再对 `setActivePane(...)`、`setActiveWindow(...)`、`updateClaudeModel(...)` 以及仅包含 pane 运行态字段的 `updatePane(...)` 触发 autosave；`src/main/services/WorkspaceManager.ts` 在写入 `workspace.json` 前会清洗 pane 的 `status` / `pid` 和窗口级 Claude 运行态字段，避免运行态直接落盘。
+- 回归测试：新增 `src/renderer/stores/__tests__/windowStore.autosave.test.ts`，并补充 `src/main/services/__tests__/WorkspaceManager.test.ts`，覆盖“运行态动作不触发 autosave”和“持久化前剥离运行态字段、加载时重新补齐 pane 状态”。
 - 2026-03-12：已修复问题 5“拖拽调整窗格大小只存在于组件局部状态，不能持久化，也无法回写布局树”。
 - 修复内容：新增 `src/renderer/utils/layoutHelpers.ts` 的 `updateSplitSizes(...)` 和 `src/renderer/stores/windowStore.ts` 的 `updateSplitSizes(...)` action；`src/renderer/components/SplitLayout.tsx` 在拖拽过程中仍使用局部 state 预览，但会在 `mouseup` 时把最终 `sizes` 写回 store 和布局树，并触发 autosave。
 - 回归测试：补充 `src/renderer/utils/__tests__/layoutHelpers.test.ts` 与 `src/renderer/components/__tests__/SplitLayout.test.tsx`，覆盖嵌套 split 的尺寸更新和拖拽结束后写回 store 的路径。
@@ -40,7 +43,7 @@
 - 2026-03-12：已修复问题 3“`StatusPoller` 的活跃窗格优化没有接入运行时，导致可见 pane 也按 5 秒轮询”。
 - 修复内容：新增 `set-active-pane` IPC，把 renderer 当前活动 pane 同步回 main；窗口切换时由 `useViewSwitcher` 发送当前 `activePaneId`，pane 切换时由 `windowStore.setActivePane(...)` 发送更新，切回 unified view 时由主进程调用 `StatusPoller.clearActivePane()` 降回非活跃轮询。
 - 回归测试：新增 `src/main/handlers/__tests__/viewHandlers.test.ts` 与 `src/renderer/stores/__tests__/windowStore.activePaneSync.test.ts`，并补充 `src/renderer/hooks/__tests__/useViewSwitcher.test.ts`、`src/main/services/__tests__/StatusPoller.test.ts`，覆盖 active pane 同步与清空后的轮询节奏。
-- 下一条建议继续修复：问题 6“工作区持久化混入大量运行态字段，且几乎所有 UI 操作都会触发保存”。在当前剩余问题里，这是最直接的 IO 写放大来源。
+- 下一条建议继续修复：问题 7“renderer 类型检查未纳入构建，IPC 合同漂移”。在当前剩余问题里，这一项最容易继续压缩回归面，尤其适合在最近几轮 IPC / store 改动之后补上。
 
 ## 主要问题
 
@@ -235,6 +238,7 @@
 - `npm test -- --run src/main/handlers/__tests__/viewHandlers.test.ts src/main/services/__tests__/StatusPoller.test.ts src/renderer/hooks/__tests__/useViewSwitcher.test.ts src/renderer/stores/__tests__/windowStore.activePaneSync.test.ts` 通过。
 - `npm test -- --run src/renderer/__tests__/App.terminalMounting.test.tsx` 通过。
 - `npm test -- --run src/renderer/utils/__tests__/layoutHelpers.test.ts src/renderer/components/__tests__/SplitLayout.test.tsx` 通过。
+- `npm test -- --run src/renderer/stores/__tests__/windowStore.autosave.test.ts src/main/services/__tests__/WorkspaceManager.test.ts` 通过。
 
 ## 补充说明
 

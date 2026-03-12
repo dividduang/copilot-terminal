@@ -12,6 +12,18 @@ import {
 
 // 全局标志：是否启用自动保存
 let autoSaveEnabled = true;
+const runtimeOnlyPaneFields = new Set<keyof Pane>([
+  'status',
+  'pid',
+  'lastOutput',
+  'title',
+  'borderColor',
+  'activeBorderColor',
+  'teamName',
+  'agentId',
+  'agentName',
+  'agentColor',
+]);
 
 /**
  * 触发自动保存
@@ -29,6 +41,10 @@ function triggerAutoSave(windows: Window[]): void {
  */
 export function setAutoSaveEnabled(enabled: boolean): void {
   autoSaveEnabled = enabled;
+}
+
+function isRuntimeOnlyPaneUpdate(updateKeys: string[]): boolean {
+  return updateKeys.length > 0 && updateKeys.every((key) => runtimeOnlyPaneFields.has(key as keyof Pane));
 }
 
 /**
@@ -180,7 +196,7 @@ export const useWindowStore = create<WindowStore>()(
     // 更新窗格
     updatePane: (windowId, paneId, updates) => {
       const updateKeys = Object.keys(updates);
-      const isStatusOnlyUpdate = updateKeys.length > 0 && updateKeys.every((key) => key === 'status');
+      const isRuntimeOnlyUpdate = isRuntimeOnlyPaneUpdate(updateKeys);
       let didChange = false;
 
       set((state) => {
@@ -202,15 +218,13 @@ export const useWindowStore = create<WindowStore>()(
 
           didChange = true;
           window.layout = updatePaneInLayout(window.layout, paneId, updates);
-          // 状态轮询导致的高频 status 更新不应刷新活跃时间，避免无意义重渲染
-          if (!isStatusOnlyUpdate) {
+          if (!isRuntimeOnlyUpdate) {
             window.lastActiveAt = new Date().toISOString();
           }
         }
       });
 
-      // 仅在结构性变更时触发自动保存
-      if (didChange && !isStatusOnlyUpdate) {
+      if (didChange && !isRuntimeOnlyUpdate) {
         const windows = get().windows;
         triggerAutoSave(windows);
       }
@@ -306,10 +320,6 @@ export const useWindowStore = create<WindowStore>()(
           }
         });
       }
-
-      // 触发自动保存
-      const windows = get().windows;
-      triggerAutoSave(windows);
     },
 
     // 归档窗口
@@ -360,9 +370,6 @@ export const useWindowStore = create<WindowStore>()(
           state.mruList = [id, ...state.mruList.filter(wid => wid !== id)];
         }
       });
-      // 触发自动保存，传递最新的窗口列表
-      const windows = get().windows;
-      triggerAutoSave(windows);
     },
 
     // 清空所有窗口（用于工作区恢复）
@@ -439,8 +446,6 @@ export const useWindowStore = create<WindowStore>()(
           window.claudeCost = cost;
         }
       });
-      // 触发自动保存
-      triggerAutoSave(get().windows);
     },
   }))
 );

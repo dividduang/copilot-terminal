@@ -85,6 +85,55 @@ describe('WorkspaceManager', () => {
       expect(saved.lastSavedAt).toBeTruthy();
     });
 
+    it('should strip runtime pane and Claude fields before writing', async () => {
+      const workspace = {
+        version: '2.0',
+        windows: [
+          {
+            id: 'test-1',
+            name: 'Test Window',
+            layout: {
+              type: 'pane',
+              id: 'pane-1',
+              pane: {
+                id: 'pane-1',
+                cwd: '/test/dir',
+                command: 'claude',
+                status: 'running',
+                pid: 1234,
+                title: 'team-lead',
+              },
+            },
+            activePaneId: 'pane-1',
+            createdAt: '2026-02-28T10:00:00Z',
+            lastActiveAt: '2026-02-28T12:00:00Z',
+            claudeModel: 'Claude Opus 4',
+            claudeModelId: 'claude-opus-4',
+            claudeContextPercentage: 81,
+            claudeCost: 1.23,
+          },
+        ],
+        settings: {
+          notificationsEnabled: true,
+          theme: 'dark',
+          autoSave: true,
+          autoSaveInterval: 5,
+        },
+        lastSavedAt: '',
+      } as Workspace;
+
+      await workspaceManager.saveWorkspace(workspace);
+
+      const saved = await fs.readJson(workspacePath);
+      expect(saved.windows[0].layout.pane).not.toHaveProperty('status');
+      expect(saved.windows[0].layout.pane).not.toHaveProperty('pid');
+      expect(saved.windows[0].layout.pane.title).toBe('team-lead');
+      expect(saved.windows[0]).not.toHaveProperty('claudeModel');
+      expect(saved.windows[0]).not.toHaveProperty('claudeModelId');
+      expect(saved.windows[0]).not.toHaveProperty('claudeContextPercentage');
+      expect(saved.windows[0]).not.toHaveProperty('claudeCost');
+    });
+
     it('should use atomic write (temp file + rename)', async () => {
       const workspace: Workspace = {
         version: '1.0',
@@ -198,6 +247,50 @@ describe('WorkspaceManager', () => {
       const persisted = await fs.readJson(workspacePath);
       expect(persisted.version).toBe('2.0');
       expect(persisted.settings.language).toBe('zh-CN');
+    });
+
+    it('should load persisted workspaces without pane runtime fields', async () => {
+      const workspace = {
+        version: '2.0',
+        windows: [
+          {
+            id: 'test-1',
+            name: 'Persisted Window',
+            layout: {
+              type: 'pane',
+              id: 'pane-1',
+              pane: {
+                id: 'pane-1',
+                cwd: '/test/dir',
+                command: 'claude',
+              },
+            },
+            activePaneId: 'pane-1',
+            createdAt: '2026-02-28T10:00:00Z',
+            lastActiveAt: '2026-02-28T12:00:00Z',
+          },
+        ],
+        settings: {
+          notificationsEnabled: true,
+          theme: 'dark',
+          autoSave: true,
+          autoSaveInterval: 5,
+        },
+        lastSavedAt: '2026-02-28T12:00:00Z',
+      };
+
+      await fs.writeJson(workspacePath, workspace, { spaces: 2 });
+
+      const loaded = await workspaceManager.loadWorkspace();
+      const paneLayout = loaded.windows[0].layout;
+
+      expect(paneLayout.type).toBe('pane');
+      if (paneLayout.type !== 'pane') {
+        throw new Error('expected pane layout');
+      }
+
+      expect(paneLayout.pane.status).toBe('paused');
+      expect(paneLayout.pane.pid).toBeNull();
     });
 
     it('should return default workspace if file does not exist', async () => {

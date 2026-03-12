@@ -80,9 +80,9 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
         }
       }
 
-      // 创建副本并添加时间戳（避免修改输入参数）
+      // 写盘前剥离运行态字段，避免 autosave 把实时状态一并持久化
       const workspaceToSave = {
-        ...workspace,
+        ...this.sanitizeWorkspaceForPersistence(workspace),
         lastSavedAt: new Date().toISOString(),
       };
 
@@ -182,6 +182,48 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
     return {
       ...workspace,
       windows: resetWindows,
+    };
+  }
+
+  private sanitizeWorkspaceForPersistence(workspace: Workspace): Record<string, unknown> {
+    return {
+      ...workspace,
+      windows: workspace.windows.map((window) => this.sanitizeWindowForPersistence(window as Record<string, unknown>)),
+    };
+  }
+
+  private sanitizeWindowForPersistence(window: Record<string, unknown>): Record<string, unknown> {
+    const {
+      claudeModel,
+      claudeModelId,
+      claudeContextPercentage,
+      claudeCost,
+      layout,
+      ...persistedWindow
+    } = window;
+
+    if (!layout) {
+      return persistedWindow;
+    }
+
+    return {
+      ...persistedWindow,
+      layout: this.sanitizeLayoutForPersistence(layout as LayoutNode),
+    };
+  }
+
+  private sanitizeLayoutForPersistence(layout: LayoutNode): Record<string, unknown> {
+    if (layout.type === 'pane') {
+      const { status, pid, ...pane } = layout.pane;
+      return {
+        ...layout,
+        pane,
+      };
+    }
+
+    return {
+      ...layout,
+      children: layout.children.map((child) => this.sanitizeLayoutForPersistence(child)),
     };
   }
 
@@ -470,8 +512,10 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
       const pane = n.pane;
       if (typeof pane.id !== 'string' ||
           typeof pane.cwd !== 'string' ||
-          typeof pane.command !== 'string' ||
-          typeof pane.status !== 'string') {
+          typeof pane.command !== 'string') {
+        return false;
+      }
+      if (pane.status !== undefined && typeof pane.status !== 'string') {
         return false;
       }
       // pid 字段可以不存在、为 null 或为 number
