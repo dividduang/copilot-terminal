@@ -60,7 +60,7 @@ Windows restored from workspace start in **paused state** (status: `Paused`, no 
 
 ### Terminal View Component Lifecycle
 
-`TerminalView` components remain **mounted** for all windows but use CSS `display: none` when inactive. This prevents xterm.js double-cursor bugs that occur with mount/unmount cycles. See `src/renderer/components/TerminalView.tsx`.
+`TerminalView` components remain **mounted** for all active windows but use CSS `display: none` when inactive. This prevents xterm.js double-cursor bugs that occur with mount/unmount cycles. See `src/renderer/components/TerminalView.tsx`.
 
 ### Shell Selection Priority (Windows)
 
