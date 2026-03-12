@@ -138,6 +138,9 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
       const activePaneId = terminalWindow.activePaneId;
       if (!activePaneId) return;
 
+      const t0 = Date.now();
+      console.log(`[SplitPane] ▶ click direction=${direction} activePaneId=${activePaneId}`);
+
       // 鑾峰彇褰撳墠婵€娲荤獥鏍肩殑淇℃伅
       const { getPaneById } = useWindowStore.getState();
       const activePane = getPaneById(terminalWindow.id, activePaneId);
@@ -154,18 +157,22 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
         pid: null,
       };
 
-      // 先把新 pane 插入布局，避免把 PTY 启动耗时直接表现成“拆分很慢”
+      // 先把新 pane 插入布局，避免把 PTY 启动耗时直接表现成”拆分很慢”
       splitPaneInWindow(terminalWindow.id, activePaneId, direction, newPane);
+      console.log(`[SplitPane] optimistic UI inserted at +${Date.now() - t0}ms`);
 
       // 异步创建 PTY 进程，完成后再补齐 pid/状态
       try {
         if (window.electronAPI) {
+          const t1 = Date.now();
+          console.log(`[SplitPane] calling electronAPI.splitPane...`);
           const response = await window.electronAPI.splitPane({
             workingDirectory: newPane.cwd,
             command: newPane.command,
             windowId: terminalWindow.id,
             paneId: newPaneId,
           });
+          console.log(`[SplitPane] IPC round-trip done at +${Date.now() - t0}ms (IPC took ${Date.now() - t1}ms) success=${response?.success}`);
 
           if (response && response.success && response.data) {
             const paneStillExists = useWindowStore.getState().getPaneById(terminalWindow.id, newPaneId);
@@ -178,6 +185,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
               pid: response.data.pid,
               status: WindowStatus.Running,
             });
+            console.log(`[SplitPane] ✓ done at +${Date.now() - t0}ms pid=${response.data.pid}`);
           } else {
             throw new Error(response?.error || t('terminalView.splitFailed'));
           }

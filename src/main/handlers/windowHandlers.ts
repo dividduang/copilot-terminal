@@ -179,7 +179,14 @@ export function registerWindowHandlers(ctx: HandlerContext) {
       statusPoller?.addWindow(windowId, handle.pid, paneId);
 
       // 订阅 PTY 数据，推送到渲染进程
+      let dataCount = 0;
+      const startTime = Date.now();
       const unsubscribe = processManager.subscribePtyData(handle.pid, (data: string) => {
+        dataCount++;
+        const elapsed = Date.now() - startTime;
+        const hex = Buffer.from(data).toString('hex').slice(0, 80);
+        const printable = data.replace(/[\x00-\x1f\x7f-\xff]/g, '.').slice(0, 40);
+        console.log(`[windowHandlers] PTY data #${dataCount} pid=${handle.pid} at +${elapsed}ms len=${data.length} hex=${hex} text="${printable}"`);
         // 使用 setImmediate 让 IPC 发送完全异步化，避免阻塞 PTY 数据流
         if (mainWindow && !mainWindow.isDestroyed()) {
           setImmediate(() => {
@@ -329,7 +336,6 @@ export function registerWindowHandlers(ctx: HandlerContext) {
 
       await gitBranchWatcher.watch(windowId, cwd, (gitBranch) => {
         if (mainWindow && !mainWindow.isDestroyed()) {
-          console.log(`[WindowHandlers] Git branch changed for window ${windowId}: ${gitBranch}`);
           mainWindow.webContents.send('window-git-branch-changed', {
             windowId,
             gitBranch,
@@ -352,7 +358,6 @@ export function registerWindowHandlers(ctx: HandlerContext) {
         return successResponse();
       }
 
-      console.log(`[WindowHandlers] Stopping git watch for window ${windowId}`);
       gitBranchWatcher.unwatch(windowId);
 
       return successResponse();

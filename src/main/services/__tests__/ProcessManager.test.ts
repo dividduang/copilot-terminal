@@ -280,6 +280,74 @@ describe('ProcessManager', () => {
     });
   });
 
+  describe('exit handling', () => {
+    it('marks naturally exited processes as exited and removes the pane index', async () => {
+      const ptyModule = getPtyModule();
+      let exitHandler: ((event: { exitCode: number; signal?: number }) => void) | undefined;
+
+      const spawnSpy = vi.spyOn(ptyModule, 'spawn');
+      spawnSpy.mockImplementation(() => ({
+        ...makeMockPtyProcess(4323),
+        onExit: vi.fn((handler) => {
+          exitHandler = handler;
+          return { dispose: vi.fn() };
+        }),
+      }) as any);
+
+      try {
+        const handle = await processManager.spawnTerminal({
+          workingDirectory: testWorkingDir,
+          windowId: 'win-natural-exit',
+          paneId: 'pane-natural-exit',
+        });
+
+        exitHandler?.({ exitCode: 7 });
+
+        expect(processManager.getProcessStatus(handle.pid)).toEqual(
+          expect.objectContaining({
+            status: ProcessStatus.Exited,
+            exitCode: 7,
+          }),
+        );
+        expect(processManager.getPidByPane('win-natural-exit', 'pane-natural-exit')).toBeNull();
+      } finally {
+        spawnSpy.mockRestore();
+      }
+    });
+
+    it('ignores resize when node-pty reports the PTY has already exited', async () => {
+      const ptyModule = getPtyModule();
+      const resizeSpy = vi.fn(() => {
+        throw new Error('Cannot resize a pty that has already exited');
+      });
+
+      const spawnSpy = vi.spyOn(ptyModule, 'spawn');
+      spawnSpy.mockImplementation(() => ({
+        ...makeMockPtyProcess(4324),
+        resize: resizeSpy,
+      }) as any);
+
+      try {
+        const handle = await processManager.spawnTerminal({
+          workingDirectory: testWorkingDir,
+          windowId: 'win-resize-exit',
+          paneId: 'pane-resize-exit',
+        });
+
+        expect(() => processManager.resizePty(handle.pid, 120, 40)).not.toThrow();
+        expect(processManager.getProcessStatus(handle.pid)).toEqual(
+          expect.objectContaining({
+            status: ProcessStatus.Exited,
+            exitCode: 0,
+          }),
+        );
+        expect(processManager.getPidByPane('win-resize-exit', 'pane-resize-exit')).toBeNull();
+      } finally {
+        spawnSpy.mockRestore();
+      }
+    });
+  });
+
   describe('getProcessStatus', () => {
     it('returns process info for existing process', async () => {
       const config = {

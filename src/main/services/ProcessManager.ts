@@ -36,6 +36,7 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
   private processes: Map<number, ProcessInfo>;
   private ptys: Map<number, any>;
   private ptyDisposables: Map<number, Array<{ dispose: () => void }>>;
+  private processCleanupTimers: Map<number, NodeJS.Timeout>;
   private ptyOutputBuffers: Map<number, string[]>; // 缂撳瓨 PTY 鍒濆杈撳嚭
   private paneIndex: Map<string, number>; // "windowId:paneId" 鈫?pid 绱㈠紩锛岀敤浜?O(1) 鏌ユ壘
   private nextPid: number;
@@ -53,6 +54,7 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     this.processes = new Map();
     this.ptys = new Map();
     this.ptyDisposables = new Map();
+    this.processCleanupTimers = new Map();
     this.ptyOutputBuffers = new Map();
     this.paneIndex = new Map();
     this.nextPid = 1000;  // Start from 1000 for mock PIDs
@@ -163,9 +165,8 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
 
     const tmuxRpcStartAt = Date.now();
     await this.ensureTmuxRpcServer(config);
-    if (this.shouldEnableTmuxCompat()) {
-      console.log(`[ProcessManager] Tmux RPC ensure took ${Date.now() - tmuxRpcStartAt}ms`);
-    }
+    console.log(`[ProcessManager] Tmux RPC ensure took ${Date.now() - tmuxRpcStartAt}ms (tmuxEnabled=${this.shouldEnableTmuxCompat()})`);
+
 
     // 鍒涘缓 PTY 杩涚▼锛堢湡瀹炴垨 mock锛?
     let ptyProcess: any;
@@ -232,8 +233,9 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
       disposables.push(onDataDisposable);
     }
 
-    const onExitDisposable = ptyProcess.onExit((exitCode: number) => {
-      this.statusDetector.onProcessExit(pid, exitCode);
+    const onExitDisposable = ptyProcess.onExit((event: { exitCode: number; signal?: number } | number) => {
+      const exitCode = typeof event === 'number' ? event : event?.exitCode ?? 0;
+      this.finalizeProcessExit(pid, exitCode);
     });
     if (onExitDisposable && typeof onExitDisposable.dispose === 'function') {
       disposables.push(onExitDisposable);
@@ -246,11 +248,7 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     this.emit('process-created', processInfo);
 
     const spawnDuration = Date.now() - spawnStartAt;
-    if (spawnDuration > 400 && process.env.NODE_ENV === 'development') {
-      console.warn(
-        `[ProcessManager] Slow spawn detected (${spawnDuration}ms) for windowId=${config.windowId ?? 'unknown'}, paneId=${config.paneId ?? 'unknown'}`
-      );
-    }
+    console.log(`[ProcessManager] ✓ spawnTerminal total ${spawnDuration}ms pid=${pid}`);
 
     return {
       pid,
@@ -271,25 +269,7 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
       throw new Error(`Process already exited: ${pid}`);
     }
 
-    // 娓呯悊 PTY 浜嬩欢鐩戝惉鍣?
-    const disposables = this.ptyDisposables.get(pid);
-    if (disposables) {
-      disposables.forEach(d => {
-        try {
-          d.dispose();
-        } catch (error) {
-          // 蹇界暐娓呯悊閿欒
-        }
-      });
-      this.ptyDisposables.delete(pid);
-    }
-
-    // 娓呯悊杈撳嚭缂撳啿鍖?
-    this.ptyOutputBuffers.delete(pid);
-
-    // 娓呯悊 paneIndex 绱㈠紩
-    const paneKey = this.getPaneKey(processInfo.windowId, processInfo.paneId);
-    this.paneIndex.delete(paneKey);
+    this.disposePtyDisposables(pid);
 
     // 瀹為檯缁堟 PTY 杩涚▼
     const ptyProcess = this.ptys.get(pid);
@@ -310,23 +290,7 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
       }
     }
 
-    // 鏇存柊杩涚▼鐘舵€?
-    processInfo.status = ProcessStatus.Exited;
-    processInfo.exitCode = 0;
-
-    // Notify status detector of exit
-    this.statusDetector.onProcessExit(pid, 0);
-
-    // Emit process-exited event
-    this.emit('process-exited', processInfo);
-
-    // Clean up after a delay
-    const cleanupTimer = setTimeout(() => {
-      this.processes.delete(pid);
-      this.ptys.delete(pid);
-      this.statusDetector.untrackPid(pid);
-    }, 1000);
-    cleanupTimer.unref(); // 涓嶉樆姝㈣繘绋嬮€€鍑?
+    this.finalizeProcessExit(pid, 0);
   }
 
   /**
@@ -391,6 +355,11 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
    * 鍚?PTY 鍐欏叆鏁版嵁锛堢敤鎴疯緭鍏ワ級
    */
   writeToPty(pid: number, data: string): void {
+    const processInfo = this.processes.get(pid);
+    if (!processInfo || processInfo.status === ProcessStatus.Exited) {
+      return;
+    }
+
     const pty = this.ptys.get(pid);
     if (pty) {
       pty.write(data);
@@ -401,9 +370,23 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
    * 璋冩暣 PTY 澶у皬
    */
   resizePty(pid: number, cols: number, rows: number): void {
+    const processInfo = this.processes.get(pid);
+    if (!processInfo || processInfo.status === ProcessStatus.Exited) {
+      return;
+    }
+
     const pty = this.ptys.get(pid);
     if (pty) {
-      pty.resize(cols, rows);
+      try {
+        pty.resize(cols, rows);
+      } catch (error) {
+        // Window teardown can race with a final resize after the PTY has exited.
+        if (this.isExitedPtyResizeError(error)) {
+          this.finalizeProcessExit(pid, processInfo.exitCode ?? 0);
+          return;
+        }
+        throw error;
+      }
     }
   }
 
@@ -428,6 +411,7 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
 
     // 鍏堝彂閫佺紦瀛樼殑鍒濆杈撳嚭锛堝鏋滄湁锛?
     const buffer = this.ptyOutputBuffers.get(pid);
+    console.log(`[ProcessManager] subscribePtyData pid=${pid}: buffered=${buffer?.length ?? 0} chunks`);
     if (buffer && buffer.length > 0) {
       // 浣跨敤 setImmediate 寮傛鍙戦€侊紝閬垮厤闃诲
       setImmediate(() => {
@@ -466,6 +450,11 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
 
     // 鍏堝仠姝㈢姸鎬佹娴嬪櫒锛岄伩鍏嶅湪娓呯悊杩囩▼涓Е鍙戞娴?
     this.statusDetector.destroy();
+
+    for (const cleanupTimer of this.processCleanupTimers.values()) {
+      clearTimeout(cleanupTimer);
+    }
+    this.processCleanupTimers.clear();
 
     // 娓呯悊鎵€鏈?PTY 浜嬩欢鐩戝惉鍣?
     for (const [pid, disposables] of this.ptyDisposables.entries()) {
@@ -1009,5 +998,62 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
       processInfo.windowId = newWindowId;
       processInfo.paneId = newPaneId;
     }
+  }
+
+  private disposePtyDisposables(pid: number): void {
+    const disposables = this.ptyDisposables.get(pid);
+    if (!disposables) {
+      return;
+    }
+
+    disposables.forEach(d => {
+      try {
+        d.dispose();
+      } catch {
+        // Ignore PTY listener cleanup failures.
+      }
+    });
+    this.ptyDisposables.delete(pid);
+  }
+
+  private finalizeProcessExit(pid: number, exitCode: number): void {
+    const processInfo = this.processes.get(pid);
+    if (!processInfo || processInfo.status === ProcessStatus.Exited) {
+      return;
+    }
+
+    this.disposePtyDisposables(pid);
+    this.ptyOutputBuffers.delete(pid);
+    this.ptys.delete(pid);
+
+    const paneKey = this.getPaneKey(processInfo.windowId, processInfo.paneId);
+    this.paneIndex.delete(paneKey);
+
+    processInfo.status = ProcessStatus.Exited;
+    processInfo.exitCode = exitCode;
+
+    this.statusDetector.onProcessExit(pid, exitCode);
+    this.emit('process-exited', processInfo);
+    this.scheduleProcessCleanup(pid);
+  }
+
+  private scheduleProcessCleanup(pid: number): void {
+    if (this.processCleanupTimers.has(pid)) {
+      return;
+    }
+
+    const cleanupTimer = setTimeout(() => {
+      this.processCleanupTimers.delete(pid);
+      this.processes.delete(pid);
+      this.statusDetector.untrackPid(pid);
+    }, 1000);
+    cleanupTimer.unref();
+
+    this.processCleanupTimers.set(pid, cleanupTimer);
+  }
+
+  private isExitedPtyResizeError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : String(error);
+    return /Cannot resize a pty that has already exited/i.test(message);
   }
 }
