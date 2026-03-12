@@ -214,10 +214,7 @@ function AppContent() {
     () => windows.find((w) => w.id === activeWindowId),
     [windows, activeWindowId]
   );
-  const activeTerminalWindow = useMemo(
-    () => (currentView === 'terminal' ? activeWindow ?? null : null),
-    [currentView, activeWindow]
-  );
+  const mountedTerminalWindow = activeWindow ?? null;
   const hasActiveWindows = useMemo(
     () => windows.some(w => !w.archived),
     [windows]
@@ -260,14 +257,14 @@ function AppContent() {
         </MainLayout>
       </div>
 
-      {/* 终端视图：仅挂载当前活跃窗口，避免后台窗口常驻终端实例 */}
-      {activeTerminalWindow && (
+      {/* 终端视图：仅保留当前活跃窗口实例；返回主界面时隐藏而不卸载，避免运行中的 xterm 缓冲丢失 */}
+      {mountedTerminalWindow && (
         <div
-          key={activeTerminalWindow.id}
+          key={mountedTerminalWindow.id}
           className="transition-opacity duration-300"
           style={{
-            display: 'block',
-            opacity: 1,
+            display: currentView === 'terminal' ? 'block' : 'none',
+            opacity: currentView === 'terminal' ? 1 : 0,
             position: 'fixed',
             top: 0,
             left: 0,
@@ -277,11 +274,11 @@ function AppContent() {
           }}
         >
           <TerminalView
-            key={activeTerminalWindow.id}
-            window={activeTerminalWindow}
+            key={mountedTerminalWindow.id}
+            window={mountedTerminalWindow}
             onReturn={switchToUnifiedView}
             onWindowSwitch={handleWindowSwitch}
-            isActive
+            isActive={currentView === 'terminal'}
           />
         </div>
       )}

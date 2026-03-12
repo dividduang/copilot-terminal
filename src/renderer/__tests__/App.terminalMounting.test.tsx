@@ -105,4 +105,33 @@ describe('App terminal mounting', () => {
       }),
     );
   });
+
+  it('keeps the active terminal view mounted but inactive when returning to unified view', () => {
+    const windowOne = createSinglePaneWindow('Window One', 'D:\\repo-one', 'pwsh.exe');
+
+    mockUseViewSwitcher.mockReturnValue({
+      currentView: 'unified',
+      switchToTerminalView: vi.fn(),
+      switchToUnifiedView: vi.fn(),
+      error: null,
+    });
+
+    useWindowStore.setState({
+      windows: [windowOne],
+      activeWindowId: windowOne.id,
+      mruList: [windowOne.id],
+      sidebarExpanded: false,
+      sidebarWidth: 200,
+    });
+
+    render(<App />);
+
+    expect(mockTerminalView).toHaveBeenCalledTimes(1);
+    expect(mockTerminalView.mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        window: expect.objectContaining({ id: windowOne.id }),
+        isActive: false,
+      }),
+    );
+  });
 });
