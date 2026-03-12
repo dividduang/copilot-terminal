@@ -1,0 +1,133 @@
+import React from 'react';
+import { render, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { TerminalPane } from '../TerminalPane';
+import { WindowStatus } from '../../types/window';
+
+const { fitAddonInstances } = vi.hoisted(() => ({
+  fitAddonInstances: [] as Array<{
+    fit: ReturnType<typeof vi.fn>;
+  }>,
+}));
+
+vi.mock('@xterm/xterm', () => ({
+  Terminal: vi.fn().mockImplementation(() => ({
+    loadAddon: vi.fn(),
+    open: vi.fn(),
+    focus: vi.fn(),
+    blur: vi.fn(),
+    dispose: vi.fn(),
+    write: vi.fn(),
+    getSelection: vi.fn().mockReturnValue(''),
+    onData: vi.fn(() => ({ dispose: vi.fn() })),
+    onSelectionChange: vi.fn(() => ({ dispose: vi.fn() })),
+    attachCustomKeyEventHandler: vi.fn(),
+    cols: 120,
+    rows: 40,
+  })),
+}));
+
+vi.mock('@xterm/addon-fit', () => ({
+  FitAddon: vi.fn().mockImplementation(() => {
+    const instance = {
+      fit: vi.fn(),
+    };
+    fitAddonInstances.push(instance);
+    return instance;
+  }),
+}));
+
+vi.mock('../../api/ptyDataBus', () => ({
+  subscribeToPanePtyData: vi.fn(() => vi.fn()),
+}));
+
+vi.mock('../../styles/xterm.css', () => ({}));
+
+describe('TerminalPane resize on resume', () => {
+  const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+  const originalClientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight');
+  const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
+  const originalCancelAnimationFrame = globalThis.cancelAnimationFrame;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fitAddonInstances.length = 0;
+
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+      configurable: true,
+      get: () => 900,
+    });
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+      configurable: true,
+      get: () => 600,
+    });
+
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+  });
+
+  afterEach(() => {
+    if (originalClientWidth) {
+      Object.defineProperty(HTMLElement.prototype, 'clientWidth', originalClientWidth);
+    }
+    if (originalClientHeight) {
+      Object.defineProperty(HTMLElement.prototype, 'clientHeight', originalClientHeight);
+    }
+
+    if (originalRequestAnimationFrame) {
+      vi.stubGlobal('requestAnimationFrame', originalRequestAnimationFrame);
+    }
+    if (originalCancelAnimationFrame) {
+      vi.stubGlobal('cancelAnimationFrame', originalCancelAnimationFrame);
+    }
+  });
+
+  it('forces fit and pty resize when pane resumes from paused', async () => {
+    const { rerender } = render(
+      <TerminalPane
+        windowId="win-1"
+        pane={{
+          id: 'pane-1',
+          cwd: 'D:\\tmp',
+          command: 'pwsh.exe',
+          status: WindowStatus.Paused,
+          pid: 1234,
+        }}
+        isActive
+        isWindowActive
+        onActivate={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(window.electronAPI.ptyResize).toHaveBeenCalled();
+    });
+
+    vi.mocked(window.electronAPI.ptyResize).mockClear();
+    fitAddonInstances[0]?.fit.mockClear();
+
+    rerender(
+      <TerminalPane
+        windowId="win-1"
+        pane={{
+          id: 'pane-1',
+          cwd: 'D:\\tmp',
+          command: 'pwsh.exe',
+          status: WindowStatus.Running,
+          pid: 1234,
+        }}
+        isActive
+        isWindowActive
+        onActivate={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(fitAddonInstances[0]?.fit).toHaveBeenCalledTimes(1);
+      expect(window.electronAPI.ptyResize).toHaveBeenCalledWith('win-1', 'pane-1', 120, 40);
+    });
+  });
+});
