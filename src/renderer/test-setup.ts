@@ -63,6 +63,7 @@ Object.defineProperty(window, 'electronAPI', {
     closePane: vi.fn().mockResolvedValue({ success: true }),
     switchToTerminalView: vi.fn().mockResolvedValue(undefined),
     switchToUnifiedView: vi.fn().mockResolvedValue(undefined),
+    setActivePane: vi.fn().mockResolvedValue(undefined),
     onViewChanged: vi.fn(),
     offViewChanged: vi.fn(),
     getSettings: vi.fn().mockResolvedValue({ success: true, data: { language: 'zh-CN', ides: [], quickNav: { items: [] }, terminal: { useBundledConptyDll: false, defaultShellProgram: '' } } }),

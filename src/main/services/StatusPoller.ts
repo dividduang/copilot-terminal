@@ -97,6 +97,15 @@ export class StatusPoller {
   }
 
   /**
+   * 清空当前活跃窗格，使所有窗格都按非活跃间隔轮询
+   */
+  clearActivePane(): void {
+    for (const tracked of this.trackedPanes.values()) {
+      tracked.isActive = false;
+    }
+  }
+
+  /**
    * 获取当前跟踪的窗格数量（用于测试）
    */
   getTrackedPaneCount(): number {

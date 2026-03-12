@@ -133,6 +133,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('switch-to-terminal-view', { windowId }),
   switchToUnifiedView: () =>
     ipcRenderer.invoke('switch-to-unified-view'),
+  setActivePane: (windowId: string, paneId: string | null) =>
+    ipcRenderer.invoke('set-active-pane', { windowId, paneId }),
   onViewChanged: (callback: (event: unknown, payload: { view: 'unified' | 'terminal'; windowId?: string }) => void) => {
     ipcRenderer.on('view-changed', callback);
   },

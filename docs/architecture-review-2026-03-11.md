@@ -28,7 +28,10 @@
 - 2026-03-12：已修复问题 2“拆分窗格新创建的 PTY 没有注册到 `StatusPoller`”。
 - 修复内容：`src/main/handlers/paneHandlers.ts` 在 `split-pane` 成功后补上了 `statusPoller.addPane(windowId, paneId, pid)`，并在 `close-pane` 时补上 `statusPoller.removePane(paneId)`，保证注册与清理对称。
 - 回归测试：新增 `src/main/handlers/__tests__/paneHandlers.test.ts`，覆盖 split 后接入轮询链路与 close-pane 清理轮询状态；同时复跑了 `src/main/services/__tests__/StatusPoller.test.ts`。
-- 下一条建议继续修复：问题 3“`StatusPoller` 的活跃窗格优化没有接入运行时，导致可见 pane 也按 5 秒轮询”。这是剩余高优先级问题里最直接影响当前交互反馈延迟的一项，适合紧接着处理。
+- 2026-03-12：已修复问题 3“`StatusPoller` 的活跃窗格优化没有接入运行时，导致可见 pane 也按 5 秒轮询”。
+- 修复内容：新增 `set-active-pane` IPC，把 renderer 当前活动 pane 同步回 main；窗口切换时由 `useViewSwitcher` 发送当前 `activePaneId`，pane 切换时由 `windowStore.setActivePane(...)` 发送更新，切回 unified view 时由主进程调用 `StatusPoller.clearActivePane()` 降回非活跃轮询。
+- 回归测试：新增 `src/main/handlers/__tests__/viewHandlers.test.ts` 与 `src/renderer/stores/__tests__/windowStore.activePaneSync.test.ts`，并补充 `src/renderer/hooks/__tests__/useViewSwitcher.test.ts`、`src/main/services/__tests__/StatusPoller.test.ts`，覆盖 active pane 同步与清空后的轮询节奏。
+- 下一条建议继续修复：问题 1“`ProcessManager` 在真实 PTY 路径里忽略了用户传入的 `command`”。在当前剩余问题里，这一项仍然是最高优先级的功能正确性缺陷。
 
 ## 主要问题
 
@@ -220,6 +223,7 @@
 - `npm test -- --run src/main/services/__tests__/ProcessManager.test.ts` 通过。
 - `npm test -- --run src/main/services/__tests__/StatusPoller.test.ts` 通过。
 - `npm test -- --run src/main/handlers/__tests__/paneHandlers.test.ts src/main/services/__tests__/StatusPoller.test.ts` 通过。
+- `npm test -- --run src/main/handlers/__tests__/viewHandlers.test.ts src/main/services/__tests__/StatusPoller.test.ts src/renderer/hooks/__tests__/useViewSwitcher.test.ts src/renderer/stores/__tests__/windowStore.activePaneSync.test.ts` 通过。
 
 ## 补充说明
 
@@ -227,6 +231,5 @@
 
 - 真实 `node-pty` 路径下自定义命令是否真的被执行。
 - `split-pane` 后新 pane 是否进入状态轮询。
-- 运行时切换活动窗口/活动 pane 后主进程轮询节奏是否真的从 5 秒降到 1 秒。
 
 这些建议在修复上述问题时一并补上。

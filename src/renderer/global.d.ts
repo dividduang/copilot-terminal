@@ -74,6 +74,7 @@ export interface ElectronAPI {
   // View switching
   switchToTerminalView: (windowId: string) => Promise<void>
   switchToUnifiedView: () => Promise<void>
+  setActivePane: (windowId: string, paneId: string | null) => Promise<void>
   onViewChanged: (callback: (event: unknown, payload: { view: 'unified' | 'terminal'; windowId?: string }) => void) => void
   offViewChanged: (callback: (event: unknown, payload: { view: 'unified' | 'terminal'; windowId?: string }) => void) => void
 

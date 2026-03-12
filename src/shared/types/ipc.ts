@@ -7,6 +7,12 @@ export interface SwitchToTerminalViewPayload {
   windowId: string;
 }
 
+/** set-active-pane 命令参数 */
+export interface SetActivePanePayload {
+  windowId: string;
+  paneId: string | null;
+}
+
 /** view-changed 事件数据 */
 export interface ViewChangedPayload {
   view: 'unified' | 'terminal';

@@ -263,13 +263,24 @@ export const useWindowStore = create<WindowStore>()(
 
     // 设置激活的窗格
     setActivePane: (windowId, paneId) => {
+      let didSetActivePane = false;
       set((state) => {
         const window = state.windows.find(w => w.id === windowId);
         if (window) {
           window.activePaneId = paneId;
           window.lastActiveAt = new Date().toISOString();
+          didSetActivePane = true;
         }
       });
+
+      if (didSetActivePane) {
+        window.electronAPI?.setActivePane?.(windowId, paneId).catch((error) => {
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Failed to sync active pane:', error);
+          }
+        });
+      }
+
       // 触发自动保存
       const windows = get().windows;
       triggerAutoSave(windows);

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useViewSwitcher } from '../useViewSwitcher';
 import { useWindowStore } from '../../stores/windowStore';
+import { createSinglePaneWindow } from '../../utils/layoutHelpers';
 
 describe('useViewSwitcher', () => {
   beforeEach(() => {
@@ -31,6 +32,8 @@ describe('useViewSwitcher', () => {
   describe('switchToTerminalView', () => {
     it('应该调用 IPC 命令', async () => {
       vi.mocked(window.electronAPI.switchToTerminalView).mockResolvedValue(undefined);
+      const terminalWindow = createSinglePaneWindow('Test', 'D:\\repo', 'pwsh.exe');
+      useWindowStore.setState({ windows: [terminalWindow], activeWindowId: null });
       const { result } = renderHook(() => useViewSwitcher());
 
       await act(async () => {
@@ -42,6 +45,9 @@ describe('useViewSwitcher', () => {
 
     it('应该更新 store 中的 activeWindowId', async () => {
       vi.mocked(window.electronAPI.switchToTerminalView).mockResolvedValue(undefined);
+      const terminalWindow = createSinglePaneWindow('Test', 'D:\\repo', 'pwsh.exe');
+      terminalWindow.id = 'window-123';
+      useWindowStore.setState({ windows: [terminalWindow], activeWindowId: null });
       const { result } = renderHook(() => useViewSwitcher());
 
       await act(async () => {
@@ -50,6 +56,20 @@ describe('useViewSwitcher', () => {
 
       const storeState = useWindowStore.getState();
       expect(storeState.activeWindowId).toBe('window-123');
+    });
+
+    it('应该同步当前窗口的 active pane 到主进程', async () => {
+      vi.mocked(window.electronAPI.switchToTerminalView).mockResolvedValue(undefined);
+      const terminalWindow = createSinglePaneWindow('Test', 'D:\\repo', 'pwsh.exe');
+      terminalWindow.id = 'window-123';
+      useWindowStore.setState({ windows: [terminalWindow], activeWindowId: null });
+      const { result } = renderHook(() => useViewSwitcher());
+
+      await act(async () => {
+        await result.current.switchToTerminalView('window-123');
+      });
+
+      expect(window.electronAPI.setActivePane).toHaveBeenCalledWith('window-123', terminalWindow.activePaneId);
     });
 
     it('应该处理错误', async () => {

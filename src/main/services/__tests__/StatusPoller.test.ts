@@ -190,6 +190,22 @@ describe('StatusPoller', () => {
     expect(detector.detectStatus).toHaveBeenCalledWith(1001);
   });
 
+  it('falls back to inactive polling after clearing the active pane', async () => {
+    detector.detectStatus.mockResolvedValue(WindowStatus.Running);
+    poller.addWindow('win-1', 1001);
+    poller.setActiveWindow('win-1');
+    poller.clearActivePane();
+    poller.startPolling();
+
+    vi.advanceTimersByTime(1000);
+    await flushPromises();
+    expect(detector.detectStatus).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(4000);
+    await flushPromises();
+    expect(detector.detectStatus).toHaveBeenCalledWith(1001);
+  });
+
   // IPC payload includes timestamp
   it('IPC payload includes ISO timestamp', async () => {
     detector.detectStatus.mockResolvedValue(WindowStatus.Completed);
