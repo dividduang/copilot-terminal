@@ -25,13 +25,16 @@
 
 ## 修复进展
 
+- 2026-03-12：已修复问题 1“`ProcessManager` 在真实 PTY 路径里忽略了用户传入的 `command`”。
+- 修复内容：`src/main/services/ProcessManager.ts` 现在会把 `command` 解析为实际传给 `node-pty` 的 `file + args`，再调用 `pty.spawn(file, args, options)`，不再把参数在真实 PTY 路径里丢掉；同时保留“显式 shell 路径带空格但没有参数”的兼容解析。
+- 回归测试：补充 `src/main/services/__tests__/ProcessManager.test.ts`，覆盖“显式 shell 路径 + 参数”与“显式 shell 路径带空格但无参数”两种真实 PTY 启动场景。
 - 2026-03-12：已修复问题 2“拆分窗格新创建的 PTY 没有注册到 `StatusPoller`”。
 - 修复内容：`src/main/handlers/paneHandlers.ts` 在 `split-pane` 成功后补上了 `statusPoller.addPane(windowId, paneId, pid)`，并在 `close-pane` 时补上 `statusPoller.removePane(paneId)`，保证注册与清理对称。
 - 回归测试：新增 `src/main/handlers/__tests__/paneHandlers.test.ts`，覆盖 split 后接入轮询链路与 close-pane 清理轮询状态；同时复跑了 `src/main/services/__tests__/StatusPoller.test.ts`。
 - 2026-03-12：已修复问题 3“`StatusPoller` 的活跃窗格优化没有接入运行时，导致可见 pane 也按 5 秒轮询”。
 - 修复内容：新增 `set-active-pane` IPC，把 renderer 当前活动 pane 同步回 main；窗口切换时由 `useViewSwitcher` 发送当前 `activePaneId`，pane 切换时由 `windowStore.setActivePane(...)` 发送更新，切回 unified view 时由主进程调用 `StatusPoller.clearActivePane()` 降回非活跃轮询。
 - 回归测试：新增 `src/main/handlers/__tests__/viewHandlers.test.ts` 与 `src/renderer/stores/__tests__/windowStore.activePaneSync.test.ts`，并补充 `src/renderer/hooks/__tests__/useViewSwitcher.test.ts`、`src/main/services/__tests__/StatusPoller.test.ts`，覆盖 active pane 同步与清空后的轮询节奏。
-- 下一条建议继续修复：问题 1“`ProcessManager` 在真实 PTY 路径里忽略了用户传入的 `command`”。在当前剩余问题里，这一项仍然是最高优先级的功能正确性缺陷。
+- 下一条建议继续修复：问题 4“所有 `TerminalView` / `TerminalPane` 都常驻挂载，窗口数增长时会线性放大内存和监听器成本”。在剩余问题里，这一项是最直接的性能上限瓶颈。
 
 ## 主要问题
 
@@ -227,9 +230,10 @@
 
 ## 补充说明
 
-现有单测对 `ProcessManager` 和 `StatusPoller` 的基础行为覆盖还可以，但没有覆盖以下高风险场景：
+现有单测对 `ProcessManager` 和 `StatusPoller` 的关键正确性路径已经补齐到位，包括：
 
-- 真实 `node-pty` 路径下自定义命令是否真的被执行。
+- 真实 `node-pty` 路径下 `command` 是否被正确拆分并传给 `pty.spawn(...)`。
 - `split-pane` 后新 pane 是否进入状态轮询。
+- 运行时切换活动窗口 / 活动 pane 后主进程轮询节奏是否按活跃态切换。
 
-这些建议在修复上述问题时一并补上。
+后续更值得优先补的，将是渲染层性能与按需挂载相关的行为测试。

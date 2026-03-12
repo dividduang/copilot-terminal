@@ -3,7 +3,28 @@ import { ProcessManager } from '../ProcessManager';
 import { ProcessStatus } from '../../types/process';
 import { TmuxCompatService } from '../TmuxCompatService';
 import { WindowStatus } from '../../../shared/types/window';
+import { mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
+import * as path from 'path';
+
+function getPtyModule() {
+  try {
+    return require('node-pty');
+  } catch {
+    return require('@homebridge/node-pty-prebuilt-multiarch');
+  }
+}
+
+function makeMockPtyProcess(pid = 4321) {
+  return {
+    pid,
+    onData: vi.fn(() => ({ dispose: vi.fn() })),
+    onExit: vi.fn(() => ({ dispose: vi.fn() })),
+    write: vi.fn(),
+    resize: vi.fn(),
+    kill: vi.fn(),
+  };
+}
 
 describe('ProcessManager', () => {
   let processManager: ProcessManager;
@@ -128,6 +149,60 @@ describe('ProcessManager', () => {
       const status = processManagerWithGlobalShell.getProcessStatus(handle.pid);
 
       expect(status?.command).toBe('cmd.exe');
+    });
+
+    it('passes shell arguments through to the real PTY spawn path', async () => {
+      const tempDir = mkdtempSync(path.join(tmpdir(), 'copilot-terminal-shell-'));
+      const shellPath = path.join(tempDir, process.platform === 'win32' ? 'custom shell.exe' : 'custom shell');
+      writeFileSync(shellPath, '');
+
+      const ptyModule = getPtyModule();
+      const spawnSpy = vi.spyOn(ptyModule, 'spawn');
+      spawnSpy.mockImplementation(() => makeMockPtyProcess() as any);
+
+      try {
+        const command = `${shellPath} --login --trace`;
+        const handle = await processManager.spawnTerminal({
+          workingDirectory: testWorkingDir,
+          command,
+        });
+
+        expect(spawnSpy).toHaveBeenCalledWith(
+          shellPath,
+          ['--login', '--trace'],
+          expect.any(Object),
+        );
+        expect(processManager.getProcessStatus(handle.pid)?.command).toBe(command);
+      } finally {
+        spawnSpy.mockRestore();
+        rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it('keeps an explicit shell path with spaces as the executable when no args are provided', async () => {
+      const tempDir = mkdtempSync(path.join(tmpdir(), 'copilot-terminal-shell-'));
+      const shellPath = path.join(tempDir, process.platform === 'win32' ? 'custom shell.exe' : 'custom shell');
+      writeFileSync(shellPath, '');
+
+      const ptyModule = getPtyModule();
+      const spawnSpy = vi.spyOn(ptyModule, 'spawn');
+      spawnSpy.mockImplementation(() => makeMockPtyProcess(4322) as any);
+
+      try {
+        await processManager.spawnTerminal({
+          workingDirectory: testWorkingDir,
+          command: shellPath,
+        });
+
+        expect(spawnSpy).toHaveBeenCalledWith(
+          shellPath,
+          [],
+          expect.any(Object),
+        );
+      } finally {
+        spawnSpy.mockRestore();
+        rmSync(tempDir, { recursive: true, force: true });
+      }
     });
 
     it('emits process-created event', async () => {
@@ -366,6 +441,7 @@ describe('ProcessManager', () => {
         { PATH: '', Path: '' },
       );
 
+      expect(tmuxEnv.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS).toBe('1');
       expect(tmuxEnv.AUSOME_TMUX_RPC).toBe(tmuxCompatService.getRpcSocketPath('win-sync'));
 
       tmuxCompatService.destroy();

@@ -154,13 +154,12 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     }
     console.log(`[ProcessManager] Directory validation took ${Date.now() - validateStartAt}ms`);
 
-    // Get default shell for platform
+    // Resolve the executable and args that will actually be passed to node-pty.
     const shellStartAt = Date.now();
-    const shell = resolveShellProgram({
-      preferredShellProgram: config.command,
-      settings: this.getSettings?.() ?? null,
-    });
-    console.log(`[ProcessManager] Shell detection took ${Date.now() - shellStartAt}ms, shell=${shell}`);
+    const launchCommand = this.resolveLaunchCommand(config);
+    console.log(
+      `[ProcessManager] Shell detection took ${Date.now() - shellStartAt}ms, command=${launchCommand.command}, file=${launchCommand.file}`
+    );
 
     const tmuxRpcStartAt = Date.now();
     await this.ensureTmuxRpcServer(config);
@@ -175,7 +174,7 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     if (pty) {
       // 浣跨敤鐪熷疄鐨?node-pty
       const ptyCreateStartAt = Date.now();
-      ptyProcess = this.createRealPty(config, shell);
+      ptyProcess = this.createRealPty(config, launchCommand.file, launchCommand.args);
       pid = ptyProcess.pid;
       console.log(`[ProcessManager] PTY creation took ${Date.now() - ptyCreateStartAt}ms, pid=${pid}`);
     } else {
@@ -189,7 +188,7 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
       pid,
       status: ProcessStatus.Alive,
       workingDirectory: config.workingDirectory,
-      command: shell,
+      command: launchCommand.command,
       windowId: config.windowId,
       paneId: config.paneId,
     };
@@ -736,7 +735,7 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
   /**
    * 鍒涘缓鐪熷疄鐨?PTY 杩涚▼锛堜娇鐢?node-pty锛?
    */
-  private createRealPty(config: TerminalConfig, shell: string): any {
+  private createRealPty(config: TerminalConfig, executable: string, args: string[]): any {
     // 鑾峰彇鏈€鏂扮殑绯荤粺鐜鍙橀噺锛圵indows 浠庢敞鍐岃〃璇诲彇锛宮acOS/Linux 浣跨敤 process.env锛?
     const envStartAt = Date.now();
     const latestEnv = this.getSpawnEnvironment();
@@ -793,11 +792,86 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
 
     const ptySpawnStartAt = Date.now();
     console.log(`[ProcessManager] 🚀 Calling pty.spawn()...`);
-    const ptyProcess = pty.spawn(shell, [], ptySpawnOptions);
+    const ptyProcess = pty.spawn(executable, args, ptySpawnOptions);
     const ptySpawnDuration = Date.now() - ptySpawnStartAt;
     console.log(`[ProcessManager] ⏱️ pty.spawn() took ${ptySpawnDuration}ms`);
 
     return ptyProcess;
+  }
+
+  private resolveLaunchCommand(config: TerminalConfig): { command: string; file: string; args: string[] } {
+    const command = resolveShellProgram({
+      preferredShellProgram: config.command,
+      settings: this.getSettings?.() ?? null,
+    });
+    const tokens = this.tokenizeCommand(command);
+
+    if (tokens.length === 0) {
+      throw new Error('Terminal command resolved to an empty value');
+    }
+
+    const explicitExecutable = this.findExplicitExecutable(tokens);
+    if (explicitExecutable) {
+      return {
+        command,
+        file: explicitExecutable.file,
+        args: explicitExecutable.args,
+      };
+    }
+
+    return {
+      command,
+      file: tokens[0],
+      args: tokens.slice(1),
+    };
+  }
+
+  private findExplicitExecutable(tokens: string[]): { file: string; args: string[] } | null {
+    for (let i = tokens.length; i >= 1; i--) {
+      const candidate = tokens.slice(0, i).join(' ');
+      if (existsSync(candidate)) {
+        return {
+          file: candidate,
+          args: tokens.slice(i),
+        };
+      }
+    }
+
+    return null;
+  }
+
+  private tokenizeCommand(command: string): string[] {
+    const tokens: string[] = [];
+    let current = '';
+    let quote: '"' | "'" | null = null;
+
+    for (const char of command.trim()) {
+      if ((char === '"' || char === '\'') && quote === null) {
+        quote = char;
+        continue;
+      }
+
+      if (char === quote) {
+        quote = null;
+        continue;
+      }
+
+      if (/\s/.test(char) && quote === null) {
+        if (current) {
+          tokens.push(current);
+          current = '';
+        }
+        continue;
+      }
+
+      current += char;
+    }
+
+    if (current) {
+      tokens.push(current);
+    }
+
+    return tokens;
   }
 
   private shouldUseBundledConptyDll(): boolean {
@@ -885,6 +959,7 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     const tmuxLogFile = path.join(tmpdir(), 'copilot-terminal-tmux-debug.log');
 
     return {
+      CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: '1',
       TMUX: tmuxValue,
       TMUX_PANE: tmuxPaneId,
       AUSOME_TERMINAL_WINDOW_ID: config.windowId,
