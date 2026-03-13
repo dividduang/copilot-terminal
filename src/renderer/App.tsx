@@ -68,29 +68,41 @@ function AppContent() {
     return () => clearTimeout(timer);
   }, []);
 
-  // 全局快捷键：双击 Shift 唤出快捷导航
-  const lastShiftPressTime = useRef<number>(0);
+  // 全局快捷键：双击 Shift 唤出快捷导航（必须是两次完整的按下+松开）
+  const lastShiftUpTime = useRef<number>(0);
+  const shiftPressedDown = useRef<boolean>(false);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // 检测 Shift 键按下
       if (e.key === 'Shift') {
-        const now = Date.now();
-        const timeSinceLastPress = now - lastShiftPressTime.current;
+        // 忽略长按产生的重复事件
+        if (e.repeat) return;
+        shiftPressedDown.current = true;
+      }
+    };
 
-        // 如果两次按下 Shift 的时间间隔小于 300ms，则触发面板
-        if (timeSinceLastPress < 300 && timeSinceLastPress > 0) {
-          e.preventDefault();
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift' && shiftPressedDown.current) {
+        shiftPressedDown.current = false;
+        const now = Date.now();
+        const timeSinceLastUp = now - lastShiftUpTime.current;
+
+        // 两次完整 Shift（松开间隔 < 300ms）才触发
+        if (timeSinceLastUp < 300 && timeSinceLastUp > 0) {
           setIsQuickNavOpen(prev => !prev);
-          lastShiftPressTime.current = 0; // 重置，避免连续触发
+          lastShiftUpTime.current = 0; // 重置，避免连续触发
         } else {
-          lastShiftPressTime.current = now;
+          lastShiftUpTime.current = now;
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
   }, []);
 
   const {
