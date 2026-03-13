@@ -86,6 +86,27 @@ function AppContent() {
 
   // 使用 store 的 activeWindowId，确保状态一致
   const activeWindowId = storeActiveWindowId;
+  const [mountedTerminalWindowIds, setMountedTerminalWindowIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!activeWindowId) {
+      return;
+    }
+
+    setMountedTerminalWindowIds((previousIds) => (
+      previousIds.includes(activeWindowId)
+        ? previousIds
+        : [...previousIds, activeWindowId]
+    ));
+  }, [activeWindowId]);
+
+  useEffect(() => {
+    const existingWindowIds = new Set(windows.map((window) => window.id));
+    setMountedTerminalWindowIds((previousIds) => {
+      const nextIds = previousIds.filter((id) => existingWindowIds.has(id));
+      return nextIds.length === previousIds.length ? previousIds : nextIds;
+    });
+  }, [windows]);
 
   // 订阅主进程推送的窗格状态变化事件
   useEffect(() => {
@@ -215,12 +236,14 @@ function AppContent() {
     setCurrentTab(tab);
   }, []);
 
-  // 获取当前活跃窗口
-  const activeWindow = useMemo(
-    () => windows.find((w) => w.id === activeWindowId),
-    [windows, activeWindowId]
+  const mountedTerminalWindowIdSet = useMemo(
+    () => new Set(mountedTerminalWindowIds),
+    [mountedTerminalWindowIds]
   );
-  const mountedTerminalWindow = activeWindow ?? null;
+  const mountedTerminalWindows = useMemo(
+    () => windows.filter((window) => mountedTerminalWindowIdSet.has(window.id)),
+    [windows, mountedTerminalWindowIdSet]
+  );
   const hasActiveWindows = useMemo(
     () => windows.some(w => !w.archived),
     [windows]
@@ -263,31 +286,35 @@ function AppContent() {
         </MainLayout>
       </div>
 
-      {/* 终端视图：仅保留当前活跃窗口实例；返回主界面时隐藏而不卸载，避免运行中的 xterm 缓冲丢失 */}
-      {mountedTerminalWindow && (
-        <div
-          key={mountedTerminalWindow.id}
-          className="transition-opacity duration-300"
-          style={{
-            display: currentView === 'terminal' ? 'block' : 'none',
-            opacity: currentView === 'terminal' ? 1 : 0,
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 1000,
-          }}
-        >
-          <TerminalView
-            key={mountedTerminalWindow.id}
-            window={mountedTerminalWindow}
-            onReturn={switchToUnifiedView}
-            onWindowSwitch={handleWindowSwitch}
-            isActive={currentView === 'terminal'}
-          />
-        </div>
-      )}
+      {/* 终端视图：窗口一旦打开过就保持挂载，仅切换显示状态，避免返回或窗口切换时销毁 xterm 实例 */}
+      {mountedTerminalWindows.map((terminalWindow) => {
+        const isVisible = currentView === 'terminal' && activeWindowId === terminalWindow.id;
+
+        return (
+          <div
+            key={terminalWindow.id}
+            className="transition-opacity duration-300"
+            style={{
+              display: isVisible ? 'block' : 'none',
+              opacity: isVisible ? 1 : 0,
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              zIndex: 1000,
+            }}
+          >
+            <TerminalView
+              key={terminalWindow.id}
+              window={terminalWindow}
+              onReturn={switchToUnifiedView}
+              onWindowSwitch={handleWindowSwitch}
+              isActive={isVisible}
+            />
+          </div>
+        );
+      })}
 
       {error && <ViewSwitchError message={error} />}
 

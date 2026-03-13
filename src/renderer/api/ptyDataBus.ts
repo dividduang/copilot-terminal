@@ -8,6 +8,10 @@ type PtyDataSubscriber = (payload: PtyDataPayload) => void;
 
 type ElectronPtyHandler = (event: unknown, payload: PtyDataPayload) => void;
 
+type PaneSubscriptionOptions = {
+  replayBuffered?: boolean;
+};
+
 const subscribersByPaneKey = new Map<string, Set<PtyDataSubscriber>>();
 const earlyDataBuffers = new Map<string, PtyDataPayload[]>();
 const EARLY_BUFFER_LIMIT = 100;
@@ -60,26 +64,30 @@ ensureGlobalSubscription();
 export function subscribeToPanePtyData(
   windowId: string,
   paneId: string,
-  callback: (data: string) => void
+  callback: (payload: PtyDataPayload) => void,
+  options: PaneSubscriptionOptions = {}
 ): () => void {
   ensureGlobalSubscription();
+  const { replayBuffered = true } = options;
 
   const paneKey = getPaneKey(windowId, paneId);
   const subscribers = subscribersByPaneKey.get(paneKey) ?? new Set<PtyDataSubscriber>();
 
   const subscriber: PtyDataSubscriber = (payload) => {
-    callback(payload.data);
+    callback(payload);
   };
 
   subscribers.add(subscriber);
   subscribersByPaneKey.set(paneKey, subscribers);
 
-  const earlyData = earlyDataBuffers.get(paneKey);
-  if (earlyData && earlyData.length > 0) {
-    for (const payload of earlyData) {
-      subscriber(payload);
+  if (replayBuffered) {
+    const earlyData = earlyDataBuffers.get(paneKey);
+    if (earlyData && earlyData.length > 0) {
+      for (const payload of earlyData) {
+        subscriber(payload);
+      }
+      earlyDataBuffers.delete(paneKey);
     }
-    earlyDataBuffers.delete(paneKey);
   }
 
   return () => {

@@ -31,7 +31,8 @@ export function registerPaneHandlers(ctx: HandlerContext) {
               mainWindow.webContents.send('pty-data', {
                 windowId: config.windowId,
                 paneId: config.paneId,
-                data
+                data,
+                seq: config.paneId ? processManager.getLatestPaneOutputSeq(config.paneId) : undefined,
               });
             }
           });

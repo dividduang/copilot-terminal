@@ -1,10 +1,12 @@
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render } from '@testing-library/react';
 import { useWindowStore } from '../stores/windowStore';
 import { createSinglePaneWindow } from '../utils/layoutHelpers';
 
 const { mockTerminalView, mockUseViewSwitcher, mockUseWindowSwitcher, mockUseWorkspaceRestore } = vi.hoisted(() => ({
-  mockTerminalView: vi.fn(() => null),
+  mockTerminalView: vi.fn(({ window, isActive }: { window: { id: string }; isActive: boolean }) => (
+    <div data-testid={`terminal-${window.id}`} data-active={String(isActive)} />
+  )),
   mockUseViewSwitcher: vi.fn(),
   mockUseWindowSwitcher: vi.fn(),
   mockUseWorkspaceRestore: vi.fn(),
@@ -133,5 +135,34 @@ describe('App terminal mounting', () => {
         isActive: false,
       }),
     );
+  });
+
+  it('keeps previously opened terminal views mounted when switching windows', async () => {
+    const windowOne = createSinglePaneWindow('Window One', 'D:\\repo-one', 'pwsh.exe');
+    const windowTwo = createSinglePaneWindow('Window Two', 'D:\\repo-two', 'pwsh.exe');
+
+    useWindowStore.setState({
+      windows: [windowOne, windowTwo],
+      activeWindowId: windowOne.id,
+      mruList: [windowOne.id, windowTwo.id],
+      sidebarExpanded: false,
+      sidebarWidth: 200,
+    });
+
+    render(<App />);
+
+    expect(screen.getByTestId(`terminal-${windowOne.id}`)).toHaveAttribute('data-active', 'true');
+
+    act(() => {
+      useWindowStore.getState().setActiveWindow(windowTwo.id);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId(`terminal-${windowOne.id}`)).toBeInTheDocument();
+      expect(screen.getByTestId(`terminal-${windowTwo.id}`)).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId(`terminal-${windowOne.id}`)).toHaveAttribute('data-active', 'false');
+    expect(screen.getByTestId(`terminal-${windowTwo.id}`)).toHaveAttribute('data-active', 'true');
   });
 });

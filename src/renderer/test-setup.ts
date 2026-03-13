@@ -57,6 +57,7 @@ Object.defineProperty(window, 'electronAPI', {
     offTmuxWindowRemoved: vi.fn(),
     ptyWrite: vi.fn().mockResolvedValue(undefined),
     ptyResize: vi.fn().mockResolvedValue(undefined),
+    getPtyHistory: vi.fn().mockResolvedValue({ success: true, data: { chunks: [], lastSeq: 0 } }),
     onPtyData: vi.fn(),
     offPtyData: vi.fn(),
     splitPane: vi.fn().mockResolvedValue({ success: true }),

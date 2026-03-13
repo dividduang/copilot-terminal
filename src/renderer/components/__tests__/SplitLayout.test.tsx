@@ -176,6 +176,47 @@ describe('SplitLayout', () => {
     expect(unmountCounts['pane-bottom'] ?? 0).toBe(0);
   });
 
+  it('keeps an existing pane mounted when only its pid changes', () => {
+    const initialLayout: LayoutNode = createPaneNode('pane-stable');
+    if (initialLayout.type !== 'pane') {
+      throw new Error('expected pane layout');
+    }
+
+    const { rerender } = render(
+      <SplitLayout
+        windowId="win-1"
+        layout={initialLayout}
+        activePaneId="pane-stable"
+        isWindowActive
+        onPaneActivate={vi.fn()}
+        onPaneClose={vi.fn()}
+      />
+    );
+
+    const nextLayout: LayoutNode = {
+      type: 'pane',
+      id: 'pane-stable',
+      pane: {
+        ...initialLayout.pane,
+        pid: 2002,
+      },
+    };
+
+    rerender(
+      <SplitLayout
+        windowId="win-1"
+        layout={nextLayout}
+        activePaneId="pane-stable"
+        isWindowActive
+        onPaneActivate={vi.fn()}
+        onPaneClose={vi.fn()}
+      />
+    );
+
+    expect(mountCounts['pane-stable']).toBe(1);
+    expect(unmountCounts['pane-stable'] ?? 0).toBe(0);
+  });
+
   it('persists resized split sizes back to the store on drag end', () => {
     const layout: LayoutNode = {
       type: 'split',

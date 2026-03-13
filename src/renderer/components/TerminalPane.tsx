@@ -6,6 +6,7 @@ import { Pane, WindowStatus } from '../types/window';
 import { StatusDot } from './StatusDot';
 import { useI18n } from '../i18n';
 import { subscribeToPanePtyData } from '../api/ptyDataBus';
+import type { PtyDataPayload, PtyHistorySnapshot } from '../../shared/types/electron-api';
 import '../styles/xterm.css';
 
 /**
@@ -80,6 +81,49 @@ function getStatusRingColor(status: WindowStatus): string {
   }
 }
 
+function extractPtyHistorySnapshot(response: unknown): PtyHistorySnapshot {
+  if (Array.isArray(response)) {
+    return {
+      chunks: response.filter((chunk): chunk is string => typeof chunk === 'string'),
+      lastSeq: 0,
+    };
+  }
+
+  if (
+    response
+    && typeof response === 'object'
+    && 'success' in response
+    && (response as { success?: boolean }).success
+  ) {
+    const data = (response as { data?: unknown }).data;
+    if (
+      data
+      && typeof data === 'object'
+      && 'chunks' in data
+      && 'lastSeq' in data
+      && Array.isArray((data as { chunks?: unknown }).chunks)
+      && typeof (data as { lastSeq?: unknown }).lastSeq === 'number'
+    ) {
+      return {
+        chunks: (data as { chunks: unknown[] }).chunks.filter((chunk): chunk is string => typeof chunk === 'string'),
+        lastSeq: (data as { lastSeq: number }).lastSeq,
+      };
+    }
+
+    if (Array.isArray(data)) {
+      return {
+        chunks: data.filter((chunk): chunk is string => typeof chunk === 'string'),
+        lastSeq: 0,
+      };
+    }
+  }
+
+  return {
+    chunks: [],
+    lastSeq: 0,
+  };
+}
+
 export interface TerminalPaneProps {
   windowId: string;
   pane: Pane;
@@ -113,6 +157,13 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
   const suppressNativePasteUntilRef = useRef(0); // 短时间屏蔽原生 paste，避免与手动 Ctrl+V 粘贴重复
   const lastCtrlEnterTimeRef = useRef(0); // 记录上次 Ctrl+Enter 的时间戳
   const lastStatusRef = useRef<WindowStatus>(pane.status); // 跟踪上一次的状态
+  const lastSessionRef = useRef({ pid: pane.pid, status: pane.status });
+  const isHistoryLoadedRef = useRef(false);
+  const bufferedLiveDataRef = useRef<PtyDataPayload[]>([]);
+  const historyReplayTokenRef = useRef(0);
+  const lastAppliedSeqRef = useRef(0);
+  const suppressPtyWriteRef = useRef(false);
+  const replayHistoryRef = useRef<((options?: { resetTerminal?: boolean }) => Promise<void>) | null>(null);
   const [isHovered, setIsHovered] = useState(false);
 
   // 确定边框颜色：优先使用自定义 borderColor，否则使用状态颜色
@@ -323,6 +374,15 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
       terminalRef.current.write(pending);
     };
 
+    const clearQueuedOutput = () => {
+      if (outputFlushFrameRef.current !== null) {
+        cancelAnimationFrame(outputFlushFrameRef.current);
+        outputFlushFrameRef.current = null;
+      }
+
+      outputBufferRef.current = '';
+    };
+
     const queueOutput = (data: string) => {
       if (!data) return;
 
@@ -344,6 +404,90 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
 
       outputFlushFrameRef.current = requestAnimationFrame(flushOutput);
     };
+
+    const writeReplayOutput = (data: string) => new Promise<void>((resolve) => {
+      if (!data || !terminalRef.current) {
+        resolve();
+        return;
+      }
+
+      terminalRef.current.write(data, () => resolve());
+    });
+
+    const queueLiveOutput = (payload: PtyDataPayload) => {
+      if (!payload.data) {
+        return;
+      }
+
+      if (payload.seq !== undefined && payload.seq <= lastAppliedSeqRef.current) {
+        return;
+      }
+
+      if (!isHistoryLoadedRef.current) {
+        bufferedLiveDataRef.current.push(payload);
+        return;
+      }
+
+      if (payload.seq !== undefined) {
+        lastAppliedSeqRef.current = payload.seq;
+      }
+
+      queueOutput(payload.data);
+    };
+
+    const replayHistory = async ({ resetTerminal = false }: { resetTerminal?: boolean } = {}) => {
+      const token = ++historyReplayTokenRef.current;
+      isHistoryLoadedRef.current = false;
+      bufferedLiveDataRef.current = [];
+      lastAppliedSeqRef.current = 0;
+      let shouldResumePtyWrites = false;
+
+      if (resetTerminal && terminalRef.current) {
+        clearQueuedOutput();
+        terminalRef.current.reset();
+      }
+
+      try {
+        const response = await window.electronAPI?.getPtyHistory?.(pane.id);
+        if (token !== historyReplayTokenRef.current) {
+          return;
+        }
+
+        const historySnapshot = extractPtyHistorySnapshot(response);
+        lastAppliedSeqRef.current = historySnapshot.lastSeq;
+        const replayData = historySnapshot.chunks.join('');
+        if (replayData) {
+          suppressPtyWriteRef.current = true;
+          shouldResumePtyWrites = true;
+          await writeReplayOutput(replayData);
+        }
+      } catch {
+        // 历史回放失败不应影响实时输出
+      } finally {
+        if (shouldResumePtyWrites) {
+          suppressPtyWriteRef.current = false;
+        }
+
+        if (token !== historyReplayTokenRef.current) {
+          return;
+        }
+
+        isHistoryLoadedRef.current = true;
+        const bufferedChunks = bufferedLiveDataRef.current;
+        bufferedLiveDataRef.current = [];
+        for (const payload of bufferedChunks) {
+          if (payload.seq !== undefined && payload.seq <= lastAppliedSeqRef.current) {
+            continue;
+          }
+          if (payload.seq !== undefined) {
+            lastAppliedSeqRef.current = payload.seq;
+          }
+          queueOutput(payload.data);
+        }
+      }
+    };
+
+    replayHistoryRef.current = replayHistory;
 
     // 尺寸同步：仅在容器尺寸实际变化时执行 fit，避免无效重排
     const runResize = () => {
@@ -448,9 +592,9 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
 
     // 监听用户输入
     const disposable = terminal.onData((data) => {
-      // Protocol replies (DA/DSR/window reports) also flow through onData and
-      // must reach the PTY even when the pane is not the active one.
-      if (window.electronAPI) {
+      // History replay may contain CSI queries like ESC[c. Replaying them into xterm
+      // can generate synthetic protocol replies; those must not be injected into the live PTY.
+      if (window.electronAPI && !suppressPtyWriteRef.current) {
         window.electronAPI.ptyWrite(windowId, pane.id, data);
       }
     });
@@ -462,7 +606,9 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
       void writeClipboardText(selection);
     });
 
-    const unsubscribePtyData = subscribeToPanePtyData(windowId, pane.id, queueOutput);
+    const unsubscribePtyData = subscribeToPanePtyData(windowId, pane.id, queueLiveOutput, {
+      replayBuffered: false,
+    });
 
     // 窗口大小变化时重新调整终端大小
     const handleResize = () => scheduleResize();
@@ -481,8 +627,15 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
     // 初始化时调整大小
     scheduleResize();
     const initResizeTimer = window.setTimeout(() => scheduleResize(), 100);
+    void replayHistory();
 
     return () => {
+      historyReplayTokenRef.current += 1;
+      replayHistoryRef.current = null;
+      isHistoryLoadedRef.current = true;
+      bufferedLiveDataRef.current = [];
+      lastAppliedSeqRef.current = 0;
+      suppressPtyWriteRef.current = false;
       disposable.dispose();
       selectionDisposable.dispose();
       unsubscribePtyData();
@@ -495,11 +648,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
         resizeFrameRef.current = null;
       }
 
-      if (outputFlushFrameRef.current !== null) {
-        cancelAnimationFrame(outputFlushFrameRef.current);
-        outputFlushFrameRef.current = null;
-      }
-      outputBufferRef.current = '';
+      clearQueuedOutput();
       suppressNativePasteUntilRef.current = 0;
       helperTextarea?.removeEventListener('paste', suppressNativePaste, true);
       terminalContainer?.removeEventListener('paste', suppressNativePaste as EventListener, true);
@@ -507,6 +656,33 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
       terminal.dispose();
     };
   }, [windowId, pane.id]); // writeClipboardText 和 readClipboardText 已用 useCallback 包裹且依赖为空，引用稳定，无需作为依赖
+
+  useEffect(() => {
+    const previousSession = lastSessionRef.current;
+    const previousPid = previousSession.pid;
+    const nextPid = pane.pid;
+    const shouldReplayFreshSession = (
+      terminalRef.current !== null
+      && nextPid !== null
+      && nextPid !== previousPid
+      && (
+        previousPid === null
+        || previousSession.status === WindowStatus.Paused
+        || previousSession.status === WindowStatus.Completed
+        || previousSession.status === WindowStatus.Error
+        || previousSession.status === WindowStatus.Restoring
+      )
+    );
+
+    if (shouldReplayFreshSession) {
+      void replayHistoryRef.current?.({ resetTerminal: true });
+    }
+
+    lastSessionRef.current = {
+      pid: nextPid,
+      status: pane.status,
+    };
+  }, [pane.pid, pane.status]);
 
   // 处理点击激活
   const handleClick = useCallback(() => {

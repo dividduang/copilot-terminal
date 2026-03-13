@@ -348,6 +348,57 @@ describe('ProcessManager', () => {
     });
   });
 
+  describe('PTY history', () => {
+    it('stores replayable history per pane and resets it on a new session', async () => {
+      const ptyModule = getPtyModule();
+      const dataListeners: Array<(data: string) => void> = [];
+
+      const spawnSpy = vi.spyOn(ptyModule, 'spawn');
+      spawnSpy.mockImplementation(() => ({
+        ...makeMockPtyProcess(4325),
+        onData: vi.fn((handler: (data: string) => void) => {
+          dataListeners.push(handler);
+          return { dispose: vi.fn() };
+        }),
+      }) as any);
+
+      try {
+        await processManager.spawnTerminal({
+          workingDirectory: testWorkingDir,
+          windowId: 'win-history',
+          paneId: 'pane-history',
+        });
+
+        dataListeners.forEach((listener) => listener('first-output'));
+        expect(processManager.getPtyHistory('pane-history')).toEqual({
+          chunks: ['first-output'],
+          lastSeq: 1,
+        });
+
+        dataListeners.length = 0;
+
+        await processManager.spawnTerminal({
+          workingDirectory: testWorkingDir,
+          windowId: 'win-history',
+          paneId: 'pane-history',
+        });
+
+        expect(processManager.getPtyHistory('pane-history')).toEqual({
+          chunks: [],
+          lastSeq: 0,
+        });
+
+        dataListeners.forEach((listener) => listener('second-output'));
+        expect(processManager.getPtyHistory('pane-history')).toEqual({
+          chunks: ['second-output'],
+          lastSeq: 1,
+        });
+      } finally {
+        spawnSpy.mockRestore();
+      }
+    });
+  });
+
   describe('getProcessStatus', () => {
     it('returns process info for existing process', async () => {
       const config = {

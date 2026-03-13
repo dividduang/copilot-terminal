@@ -12,6 +12,18 @@ import { ITmuxCompatService, TmuxPaneId } from '../../shared/types/tmux';
 import { getTmuxShimDir } from '../utils/tmux-shim-path';
 import { resolveShellProgram } from '../utils/shell';
 
+type PaneHistoryEntry = {
+  seq: number;
+  data: string;
+};
+
+type PaneHistoryBuffer = {
+  entries: PaneHistoryEntry[];
+  totalLength: number;
+  nextSeq: number;
+  lastSeq: number;
+};
+
 // 灏濊瘯瀵煎叆 node-pty锛屽鏋滃け璐ュ垯浣跨敤 mock
 let pty: any;
 try {
@@ -38,12 +50,15 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
   private ptyDisposables: Map<number, Array<{ dispose: () => void }>>;
   private processCleanupTimers: Map<number, NodeJS.Timeout>;
   private ptyOutputBuffers: Map<number, string[]>; // 缂撳瓨 PTY 鍒濆杈撳嚭
+  private paneHistoryBuffers: Map<string, PaneHistoryBuffer>;
   private paneIndex: Map<string, number>; // "windowId:paneId" 鈫?pid 绱㈠紩锛岀敤浜?O(1) 鏌ユ壘
   private nextPid: number;
   private statusDetector: IStatusDetector;
   private cachedSpawnEnv: NodeJS.ProcessEnv | null;
   private cachedSpawnEnvAt: number;
   private readonly SPAWN_ENV_CACHE_TTL_MS = 30000;
+  private readonly PANE_HISTORY_CHUNK_LIMIT = 2000;
+  private readonly PANE_HISTORY_CHAR_LIMIT = 2_000_000;
   private readonly getSettings: (() => Settings | null | undefined) | null;
   private tmuxCompatService: ITmuxCompatService | null;
   private conPtyWarmupPromise: Promise<void> | null;
@@ -56,6 +71,7 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     this.ptyDisposables = new Map();
     this.processCleanupTimers = new Map();
     this.ptyOutputBuffers = new Map();
+    this.paneHistoryBuffers = new Map();
     this.paneIndex = new Map();
     this.nextPid = 1000;  // Start from 1000 for mock PIDs
     this.statusDetector = new StatusDetectorImpl();
@@ -189,6 +205,7 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
 
     // 鍒濆鍖栬緭鍑虹紦鍐插尯锛岀敤浜庣紦瀛樻棭鏈熻緭鍑猴紙閬垮厤绔炴€佹潯浠跺鑷存暟鎹涪澶憋級
     this.ptyOutputBuffers.set(pid, []);
+    this.resetPaneHistory(config.paneId);
 
     // Start tracking this PID before registering listeners (avoids race condition)
     this.statusDetector.trackPid(pid);
@@ -203,6 +220,8 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
           buffer.shift();
         }
       }
+
+      this.appendPaneHistory(config.paneId, data);
     });
 
     // Register PTY listeners for status detection and save disposables
@@ -425,6 +444,29 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     return buffer ? buffer.length > 0 : false;
   }
 
+  getPtyHistory(paneId: string): { chunks: string[]; lastSeq: number } {
+    const history = this.paneHistoryBuffers.get(paneId);
+    if (!history) {
+      return {
+        chunks: [],
+        lastSeq: 0,
+      };
+    }
+
+    return {
+      chunks: history.entries.map((entry) => entry.data),
+      lastSeq: history.lastSeq,
+    };
+  }
+
+  clearPtyHistory(paneId: string): void {
+    this.paneHistoryBuffers.delete(paneId);
+  }
+
+  getLatestPaneOutputSeq(paneId: string): number {
+    return this.paneHistoryBuffers.get(paneId)?.lastSeq ?? 0;
+  }
+
   /**
    * 閿€姣?ProcessManager锛岄噴鏀捐祫婧?
    */
@@ -496,6 +538,7 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     // 涓嶇瓑寰呰繘绋嬮€€鍑猴紝鐩存帴娓呯悊
     this.processes.clear();
     this.ptys.clear();
+    this.paneHistoryBuffers.clear();
     this.paneIndex.clear();
 
     console.log('[ProcessManager] Destroy completed');
@@ -967,6 +1010,14 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
       this.paneIndex.set(newKey, pid);
     }
 
+    if (paneId !== newPaneId) {
+      const history = this.paneHistoryBuffers.get(paneId);
+      if (history) {
+        this.paneHistoryBuffers.delete(paneId);
+        this.paneHistoryBuffers.set(newPaneId, history);
+      }
+    }
+
     const processInfo = this.processes.get(pid);
     if (processInfo) {
       processInfo.windowId = newWindowId;
@@ -1009,6 +1060,50 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
     this.statusDetector.onProcessExit(pid, exitCode);
     this.emit('process-exited', processInfo);
     this.scheduleProcessCleanup(pid);
+  }
+
+  private resetPaneHistory(paneId?: string): void {
+    if (!paneId) {
+      return;
+    }
+
+    this.paneHistoryBuffers.set(paneId, {
+      entries: [],
+      totalLength: 0,
+      nextSeq: 1,
+      lastSeq: 0,
+    });
+  }
+
+  private appendPaneHistory(paneId: string | undefined, data: string): void {
+    if (!paneId || !data) {
+      return;
+    }
+
+    const history = this.paneHistoryBuffers.get(paneId) ?? {
+      entries: [],
+      totalLength: 0,
+      nextSeq: 1,
+      lastSeq: 0,
+    };
+
+    const seq = history.nextSeq++;
+    history.entries.push({ seq, data });
+    history.totalLength += data.length;
+    history.lastSeq = seq;
+
+    while (
+      history.entries.length > this.PANE_HISTORY_CHUNK_LIMIT
+      || history.totalLength > this.PANE_HISTORY_CHAR_LIMIT
+    ) {
+      const removed = history.entries.shift();
+      if (!removed) {
+        break;
+      }
+      history.totalLength -= removed.data.length;
+    }
+
+    this.paneHistoryBuffers.set(paneId, history);
   }
 
   private scheduleProcessCleanup(pid: number): void {

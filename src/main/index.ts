@@ -204,7 +204,12 @@ app.whenReady().then(async () => {
     },
     onPaneData: ({ windowId, paneId, data }) => {
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('pty-data', { windowId, paneId, data });
+        mainWindow.webContents.send('pty-data', {
+          windowId,
+          paneId,
+          data,
+          seq: processManager?.getLatestPaneOutputSeq(paneId) ?? 0,
+        });
       }
     },
     debug: process.env.AUSOME_TMUX_DEBUG === '1',

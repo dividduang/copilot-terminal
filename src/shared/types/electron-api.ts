@@ -126,6 +126,12 @@ export interface PtyDataPayload {
   windowId: string;
   paneId?: string;
   data: string;
+  seq?: number;
+}
+
+export interface PtyHistorySnapshot {
+  chunks: string[];
+  lastSeq: number;
 }
 
 export interface RestoreResultPayload {
@@ -219,7 +225,7 @@ export interface ElectronAPI {
 
   ptyWrite: (windowId: string, paneId: string | undefined, data: string) => Promise<IpcResponse<void>>;
   ptyResize: (windowId: string, paneId: string | undefined, cols: number, rows: number) => Promise<IpcResponse<void>>;
-  getPtyHistory: (paneId: string) => Promise<IpcResponse<string[]>>;
+  getPtyHistory: (paneId: string) => Promise<IpcResponse<PtyHistorySnapshot>>;
   onPtyData: (callback: ElectronEventHandler<PtyDataPayload>) => void;
   offPtyData: (callback: ElectronEventHandler<PtyDataPayload>) => void;
 

@@ -67,4 +67,16 @@ export function registerPtyHandlers(ctx: HandlerContext) {
       return errorResponse(error);
     }
   });
+
+  ipcMain.handle('get-pty-history', async (_event, { paneId }: { paneId: string }) => {
+    try {
+      if (!processManager) {
+        throw new Error('ProcessManager not initialized');
+      }
+
+      return successResponse(processManager.getPtyHistory(paneId));
+    } catch (error) {
+      return errorResponse(error);
+    }
+  });
 }

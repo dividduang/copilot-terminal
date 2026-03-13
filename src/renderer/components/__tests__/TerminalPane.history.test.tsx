@@ -1,0 +1,205 @@
+import { render, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { TerminalPane } from '../TerminalPane';
+import { WindowStatus } from '../../types/window';
+import { subscribeToPanePtyData } from '../../api/ptyDataBus';
+import type { PtyDataPayload } from '../../../shared/types/electron-api';
+
+const { terminalInstances, ptyCallbacks, terminalDataCallbacks } = vi.hoisted(() => ({
+  terminalInstances: [] as Array<{
+    loadAddon: ReturnType<typeof vi.fn>;
+    open: ReturnType<typeof vi.fn>;
+    focus: ReturnType<typeof vi.fn>;
+    blur: ReturnType<typeof vi.fn>;
+    dispose: ReturnType<typeof vi.fn>;
+    write: ReturnType<typeof vi.fn>;
+    reset: ReturnType<typeof vi.fn>;
+    getSelection: ReturnType<typeof vi.fn>;
+    onData: ReturnType<typeof vi.fn>;
+    onSelectionChange: ReturnType<typeof vi.fn>;
+    attachCustomKeyEventHandler: ReturnType<typeof vi.fn>;
+    cols: number;
+    rows: number;
+  }>,
+  ptyCallbacks: [] as Array<(payload: PtyDataPayload) => void>,
+  terminalDataCallbacks: [] as Array<(data: string) => void>,
+}));
+
+vi.mock('@xterm/xterm', () => ({
+  Terminal: vi.fn().mockImplementation(() => {
+    const instance = {
+      loadAddon: vi.fn(),
+      open: vi.fn(),
+      focus: vi.fn(),
+      blur: vi.fn(),
+      dispose: vi.fn(),
+      write: vi.fn((data: string, callback?: () => void) => {
+        if (data.includes('\u001b[c')) {
+          terminalDataCallbacks.forEach((terminalDataCallback) => terminalDataCallback('\u001b[?1;2c'));
+        }
+        callback?.();
+      }),
+      reset: vi.fn(),
+      getSelection: vi.fn().mockReturnValue(''),
+      onData: vi.fn((callback: (data: string) => void) => {
+        terminalDataCallbacks.push(callback);
+        return { dispose: vi.fn() };
+      }),
+      onSelectionChange: vi.fn(() => ({ dispose: vi.fn() })),
+      attachCustomKeyEventHandler: vi.fn(),
+      cols: 120,
+      rows: 40,
+    };
+    terminalInstances.push(instance);
+    return instance;
+  }),
+}));
+
+vi.mock('@xterm/addon-fit', () => ({
+  FitAddon: vi.fn().mockImplementation(() => ({
+    fit: vi.fn(),
+  })),
+}));
+
+vi.mock('../../api/ptyDataBus', () => ({
+  subscribeToPanePtyData: vi.fn((windowId: string, paneId: string, callback: (payload: PtyDataPayload) => void) => {
+    ptyCallbacks.push(callback);
+    return vi.fn();
+  }),
+}));
+
+vi.mock('../../styles/xterm.css', () => ({}));
+
+describe('TerminalPane history replay', () => {
+  const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
+  const originalCancelAnimationFrame = globalThis.cancelAnimationFrame;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    terminalInstances.length = 0;
+    ptyCallbacks.length = 0;
+    terminalDataCallbacks.length = 0;
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      callback(0);
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    vi.mocked(window.electronAPI.getPtyHistory).mockResolvedValue({
+      success: true,
+      data: { chunks: ['history-1', 'history-2'], lastSeq: 2 },
+    });
+  });
+
+  afterEach(() => {
+    if (originalRequestAnimationFrame) {
+      vi.stubGlobal('requestAnimationFrame', originalRequestAnimationFrame);
+    }
+    if (originalCancelAnimationFrame) {
+      vi.stubGlobal('cancelAnimationFrame', originalCancelAnimationFrame);
+    }
+  });
+
+  it('replays history on mount and subscribes without buffered replay', async () => {
+    render(
+      <TerminalPane
+        windowId="win-1"
+        pane={{
+          id: 'pane-1',
+          cwd: 'D:\\tmp',
+          command: 'pwsh.exe',
+          status: WindowStatus.Running,
+          pid: 1234,
+        }}
+        isActive
+        isWindowActive
+        onActivate={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(window.electronAPI.getPtyHistory).toHaveBeenCalledWith('pane-1');
+    });
+
+    expect(subscribeToPanePtyData).toHaveBeenCalledWith(
+      'win-1',
+      'pane-1',
+      expect.any(Function),
+      { replayBuffered: false },
+    );
+
+    await waitFor(() => {
+      expect(terminalInstances[0]?.write.mock.calls[0]?.[0]).toBe('history-1history-2');
+    });
+  });
+
+  it('deduplicates live output that is already covered by the history snapshot', async () => {
+    let resolveHistory: ((value: { success: true; data: { chunks: string[]; lastSeq: number } }) => void) | null = null;
+
+    vi.mocked(window.electronAPI.getPtyHistory).mockImplementation(
+      () => new Promise((resolve) => {
+        resolveHistory = resolve;
+      }),
+    );
+
+    render(
+      <TerminalPane
+        windowId="win-1"
+        pane={{
+          id: 'pane-1',
+          cwd: 'D:\\tmp',
+          command: 'pwsh.exe',
+          status: WindowStatus.Running,
+          pid: 1234,
+        }}
+        isActive
+        isWindowActive
+        onActivate={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(ptyCallbacks).toHaveLength(1);
+    });
+
+    ptyCallbacks[0]?.({ windowId: 'win-1', paneId: 'pane-1', data: 'history-2', seq: 2 });
+    resolveHistory?.({
+      success: true,
+      data: { chunks: ['history-1', 'history-2'], lastSeq: 2 },
+    });
+
+    await waitFor(() => {
+      expect(terminalInstances[0]?.write.mock.calls[0]?.[0]).toBe('history-1history-2');
+    });
+
+    expect(terminalInstances[0]?.write).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not write synthetic protocol replies from replayed history back into the live PTY', async () => {
+    vi.mocked(window.electronAPI.getPtyHistory).mockResolvedValue({
+      success: true,
+      data: { chunks: ['\u001b[c'], lastSeq: 1 },
+    });
+
+    render(
+      <TerminalPane
+        windowId="win-1"
+        pane={{
+          id: 'pane-1',
+          cwd: 'D:\\tmp',
+          command: 'pwsh.exe',
+          status: WindowStatus.Running,
+          pid: 1234,
+        }}
+        isActive
+        isWindowActive
+        onActivate={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(terminalInstances[0]?.write).toHaveBeenCalled();
+    });
+
+    expect(window.electronAPI.ptyWrite).not.toHaveBeenCalledWith('win-1', 'pane-1', '\u001b[?1;2c');
+  });
+});

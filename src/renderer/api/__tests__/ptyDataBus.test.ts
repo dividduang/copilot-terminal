@@ -44,7 +44,7 @@ describe('ptyDataBus', () => {
     registeredHandler?.(null, { windowId: 'win-1', paneId: 'pane-a', data: 'hello-a' });
 
     expect(paneACallback).toHaveBeenCalledTimes(1);
-    expect(paneACallback).toHaveBeenCalledWith('hello-a');
+    expect(paneACallback).toHaveBeenCalledWith({ windowId: 'win-1', paneId: 'pane-a', data: 'hello-a' });
     expect(paneBCallback).toHaveBeenCalledTimes(0);
 
     unsubscribeA();
@@ -68,7 +68,34 @@ describe('ptyDataBus', () => {
     const unsubscribe = subscribeToPanePtyData('win-1', 'pane-a', paneACallback);
 
     expect(paneACallback).toHaveBeenCalledTimes(1);
-    expect(paneACallback).toHaveBeenCalledWith('buffered-output');
+    expect(paneACallback).toHaveBeenCalledWith({ windowId: 'win-1', paneId: 'pane-a', data: 'buffered-output' });
+
+    unsubscribe();
+  });
+
+  it('can skip buffered replay when history will be restored elsewhere', async () => {
+    let registeredHandler:
+      | ((event: unknown, payload: { windowId: string; paneId?: string; data: string }) => void)
+      | undefined;
+
+    vi.mocked(window.electronAPI.onPtyData).mockImplementation((handler) => {
+      registeredHandler = handler as typeof registeredHandler;
+    });
+
+    const { subscribeToPanePtyData } = await import('../ptyDataBus');
+
+    registeredHandler?.(null, { windowId: 'win-1', paneId: 'pane-a', data: 'buffered-output' });
+
+    const paneACallback = vi.fn();
+    const unsubscribe = subscribeToPanePtyData('win-1', 'pane-a', paneACallback, {
+      replayBuffered: false,
+    });
+
+    expect(paneACallback).not.toHaveBeenCalled();
+
+    registeredHandler?.(null, { windowId: 'win-1', paneId: 'pane-a', data: 'live-output' });
+    expect(paneACallback).toHaveBeenCalledTimes(1);
+    expect(paneACallback).toHaveBeenCalledWith({ windowId: 'win-1', paneId: 'pane-a', data: 'live-output' });
 
     unsubscribe();
   });

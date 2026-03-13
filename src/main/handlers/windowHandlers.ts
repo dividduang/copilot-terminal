@@ -107,7 +107,12 @@ export function registerWindowHandlers(ctx: HandlerContext) {
         if (mainWindow && !mainWindow.isDestroyed()) {
           setImmediate(() => {
             if (mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.webContents.send('pty-data', { windowId, paneId, data });
+              mainWindow.webContents.send('pty-data', {
+                windowId,
+                paneId,
+                data,
+                seq: paneId ? processManager.getLatestPaneOutputSeq(paneId) : undefined,
+              });
             }
           });
         }
@@ -184,7 +189,12 @@ export function registerWindowHandlers(ctx: HandlerContext) {
         if (mainWindow && !mainWindow.isDestroyed()) {
           setImmediate(() => {
             if (mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.webContents.send('pty-data', { windowId, paneId, data });
+              mainWindow.webContents.send('pty-data', {
+                windowId,
+                paneId,
+                data,
+                seq: paneId ? processManager.getLatestPaneOutputSeq(paneId) : undefined,
+              });
             }
           });
         }
