@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback } from 'react';
 import * as Tooltip from '@radix-ui/react-tooltip';
-import { FolderOpen, Trash2, Play, Square, Loader2, Archive, ArchiveRestore, ExternalLink } from 'lucide-react';
+import { FolderOpen, Trash2, Play, Square, Loader2, Archive, ArchiveRestore, ExternalLink, Edit2 } from 'lucide-react';
 import { Window, WindowStatus } from '../types/window';
 import { getStatusColor, getStatusLabelKey, getStatusColorValue } from '../utils/statusHelpers';
 import { getAllPanes, getAggregatedStatus, getPaneCount } from '../utils/layoutHelpers';
@@ -21,6 +21,7 @@ interface WindowCardProps {
   onArchive?: (window: Window) => void;
   onUnarchive?: (window: Window) => void;
   onOpenInIDE?: (ide: string, window: Window) => void;
+  onEdit?: (window: Window) => void;
 }
 
 /**
@@ -84,7 +85,8 @@ export const WindowCard = React.memo<WindowCardProps>(({
   onPause,
   onArchive,
   onUnarchive,
-  onOpenInIDE
+  onOpenInIDE,
+  onEdit
 }) => {
   const { enabledIDEs } = useIDESettings();
   const { language, t } = useI18n();
@@ -457,6 +459,28 @@ export const WindowCard = React.memo<WindowCardProps>(({
               </Tooltip.Root>
             </Tooltip.Provider>
           )}
+
+          <Tooltip.Provider>
+            <Tooltip.Root delayDuration={300}>
+              <Tooltip.Trigger asChild>
+                <button
+                  onClick={(e) => handleButtonClick(e, () => onEdit?.(window))}
+                  className="flex items-center justify-center w-8 h-8 text-[rgb(var(--foreground))] bg-[rgb(var(--card))] rounded hover:bg-[rgb(var(--accent))] transition-colors focus:outline-none focus:ring-2 focus:ring-[rgb(var(--ring))]"
+                  aria-label={t('windowCard.edit')}
+                >
+                  <Edit2 size={16} />
+                </button>
+              </Tooltip.Trigger>
+              <Tooltip.Portal>
+                <Tooltip.Content
+                  className="bg-[rgb(var(--card))] text-[rgb(var(--foreground))] px-2 py-1 rounded text-xs z-50 shadow-xl border border-[rgb(var(--border))]"
+                  sideOffset={5}
+                >
+                  {t('windowCard.edit')}
+                </Tooltip.Content>
+              </Tooltip.Portal>
+            </Tooltip.Root>
+          </Tooltip.Provider>
 
           <Tooltip.Provider>
             <Tooltip.Root delayDuration={300}>

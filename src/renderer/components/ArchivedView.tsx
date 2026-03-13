@@ -1,9 +1,10 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import * as ScrollArea from '@radix-ui/react-scroll-area';
 import { useWindowStore } from '../stores/windowStore';
 import { sortWindows } from '../utils/sortWindows';
 import { getAllPanes } from '../utils/layoutHelpers';
 import { WindowCard } from './WindowCard';
+import { EditWindowPanel } from './EditWindowPanel';
 import { MissingWorkingDirectoryDialog } from './MissingWorkingDirectoryDialog';
 import { useWindowDirectoryGuard } from '../hooks/useWindowDirectoryGuard';
 import { Window, WindowStatus } from '../types/window';
@@ -24,9 +25,11 @@ export const ArchivedView = React.memo<ArchivedViewProps>(({ onEnterTerminal, se
   const windows = useWindowStore((state) => state.windows);
   const removeWindow = useWindowStore((state) => state.removeWindow);
   const updatePane = useWindowStore((state) => state.updatePane);
+  const updateWindow = useWindowStore((state) => state.updateWindow);
   const pauseWindowState = useWindowStore((state) => state.pauseWindowState);
   const unarchiveWindow = useWindowStore((state) => state.unarchiveWindow);
   const { runWithWindowDirectory, dialogState } = useWindowDirectoryGuard();
+  const [editingWindow, setEditingWindow] = useState<Window | null>(null);
 
   // 只显示已归档的窗口
   const archivedWindows = useMemo(() => windows.filter(w => w.archived), [windows]);
@@ -166,6 +169,47 @@ export const ArchivedView = React.memo<ArchivedViewProps>(({ onEnterTerminal, se
     });
   }, [openInIDE, runWithWindowDirectory]);
 
+  const handleEditWindow = useCallback((win: Window) => {
+    setEditingWindow(win);
+  }, []);
+
+  const handleSaveEdit = useCallback(async (windowId: string, updates: { name?: string; command?: string; cwd?: string }) => {
+    try {
+      // 更新窗口名称
+      if (updates.name) {
+        updateWindow(windowId, { name: updates.name });
+      }
+
+      // 更新第一个窗格的 command 和 cwd
+      const window = windows.find(w => w.id === windowId);
+      if (window) {
+        const panes = getAllPanes(window.layout);
+        if (panes.length > 0) {
+          const firstPane = panes[0];
+          const paneUpdates: Partial<typeof firstPane> = {};
+
+          if (updates.command && updates.command !== firstPane.command) {
+            paneUpdates.command = updates.command;
+          }
+
+          if (updates.cwd && updates.cwd !== firstPane.cwd) {
+            paneUpdates.cwd = updates.cwd;
+          }
+
+          if (Object.keys(paneUpdates).length > 0) {
+            updatePane(windowId, firstPane.id, paneUpdates);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to update window:', error);
+    }
+  }, [updateWindow, updatePane, windows]);
+
+  const handleCloseEdit = useCallback(() => {
+    setEditingWindow(null);
+  }, []);
+
   if (archivedWindows.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -207,6 +251,7 @@ export const ArchivedView = React.memo<ArchivedViewProps>(({ onEnterTerminal, se
                   onPause={handlePauseWindow}
                   onUnarchive={handleUnarchiveWindow}
                   onOpenInIDE={handleOpenInIDE}
+                  onEdit={handleEditWindow}
                 />
               );
             })}
@@ -221,6 +266,14 @@ export const ArchivedView = React.memo<ArchivedViewProps>(({ onEnterTerminal, se
       </ScrollArea.Root>
 
       <MissingWorkingDirectoryDialog {...dialogState} />
+
+      {editingWindow && (
+        <EditWindowPanel
+          window={editingWindow}
+          onClose={handleCloseEdit}
+          onSave={handleSaveEdit}
+        />
+      )}
     </>
   );
 });
