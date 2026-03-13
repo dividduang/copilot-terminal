@@ -5,9 +5,9 @@ import { getAllPanes, getAggregatedStatus } from '../utils/layoutHelpers';
 
 /**
  * 窗口切换 Hook
- * 统一处理窗口切换逻辑：如果窗口是暂停状态，先启动再切换
+ * 统一处理窗口切换逻辑：如果窗口是暂停状态，先切换到终端视图，再在后台启动窗格
  */
-export function useWindowSwitcher(onSwitchView: (windowId: string) => void) {
+export function useWindowSwitcher(onSwitchView: (windowId: string) => void | Promise<void>) {
   const { getWindowById, updatePane, setActiveWindow } = useWindowStore();
 
   const switchToWindow = useCallback(async (windowId: string) => {
@@ -23,18 +23,15 @@ export function useWindowSwitcher(onSwitchView: (windowId: string) => void) {
 
     // 如果窗口是暂停状态，启动所有窗格
     if (aggregatedStatus === WindowStatus.Paused) {
-      try {
-        // 更新所有窗格状态为 Restoring
-        for (const pane of panes) {
-          updatePane(win.id, pane.id, { status: WindowStatus.Restoring });
-        }
+      // 先把 UI 切到 restoring 状态，终端视图可以立即挂载，占位 pane 后续再补 pid/status。
+      for (const pane of panes) {
+        updatePane(win.id, pane.id, { status: WindowStatus.Restoring });
+      }
 
-        // 使用 requestAnimationFrame 确保 UI 已经更新（避免固定 200ms 阻塞）
-        await new Promise(resolve => {
-          requestAnimationFrame(() => resolve(undefined));
-        });
+      setActiveWindow(win.id);
+      void onSwitchView(win.id);
 
-        // 并发启动所有窗格，减少多窗格场景下的切换卡顿
+      void (async () => {
         const startTime = Date.now();
         console.log(`[useWindowSwitcher] Starting PTY processes for window ${win.id}...`);
 
@@ -65,22 +62,19 @@ export function useWindowSwitcher(onSwitchView: (windowId: string) => void) {
 
         const totalStartDuration = Date.now() - startTime;
         console.log(`[useWindowSwitcher] All PTY processes started in ${totalStartDuration}ms`);
-
-        console.log('[useWindowSwitcher] PTY processes started, switching view immediately');
-
-      } catch (error) {
+      })().catch((error) => {
         console.error('Failed to start window:', error);
-        // 恢复所有窗格状态为 Paused
         for (const pane of panes) {
           updatePane(win.id, pane.id, { status: WindowStatus.Paused });
         }
-        return;
-      }
+      });
+
+      return;
     }
 
     // 切换到终端视图
     setActiveWindow(win.id);
-    onSwitchView(win.id);
+    void onSwitchView(win.id);
   }, [getWindowById, updatePane, setActiveWindow, onSwitchView]);
 
   return { switchToWindow };

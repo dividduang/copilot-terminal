@@ -1,7 +1,7 @@
 ﻿import React, { useCallback, useState, useEffect, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import * as Tooltip from '@radix-ui/react-tooltip';
-import { ArrowLeft, SplitSquareHorizontal, SplitSquareVertical, Folder, Archive, Pause } from 'lucide-react';
+import { ArrowLeft, SplitSquareHorizontal, SplitSquareVertical, Folder, Archive, Square } from 'lucide-react';
 import { Window, Pane, WindowStatus } from '../types/window';
 import { getAggregatedStatus, getAllPanes } from '../utils/layoutHelpers';
 import { Sidebar } from './Sidebar';
@@ -444,10 +444,10 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
                   <Tooltip.Trigger asChild>
                     <button
                       onClick={handlePauseWindow}
-                      className="flex items-center justify-center w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-100 transition-colors"
-                      title={t('terminalView.pause')}
+                      className="flex items-center justify-center w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 text-red-500 transition-colors"
+                      title={t('terminalView.stop')}
                     >
-                      <Pause size={14} />
+                      <Square size={14} fill="currentColor" />
                     </button>
                   </Tooltip.Trigger>
                   <Tooltip.Portal>
@@ -455,7 +455,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
                       className="bg-zinc-800 text-zinc-100 px-2 py-1 rounded text-xs z-50 shadow-xl border border-zinc-700"
                       sideOffset={5}
                     >
-                      {t('terminalView.pause')}
+                      {t('terminalView.stop')}
                     </Tooltip.Content>
                   </Tooltip.Portal>
                 </Tooltip.Root>

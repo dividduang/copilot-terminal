@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback } from 'react';
 import * as Tooltip from '@radix-ui/react-tooltip';
-import { FolderOpen, Trash2, Play, Pause, Loader2, Archive, ArchiveRestore, ExternalLink } from 'lucide-react';
+import { FolderOpen, Trash2, Play, Square, Loader2, Archive, ArchiveRestore, ExternalLink } from 'lucide-react';
 import { Window, WindowStatus } from '../types/window';
 import { getStatusColor, getStatusLabelKey, getStatusColorValue } from '../utils/statusHelpers';
 import { getAllPanes, getAggregatedStatus, getPaneCount } from '../utils/layoutHelpers';
@@ -344,11 +344,11 @@ export const WindowCard = React.memo<WindowCardProps>(({
               <Tooltip.Trigger asChild>
                 <button
                   onClick={(e) => handleButtonClick(e, () => onPause?.(window))}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-[rgb(var(--foreground))] bg-[rgb(var(--card))] rounded hover:bg-[rgb(var(--accent))] transition-colors focus:outline-none focus:ring-2 focus:ring-[rgb(var(--ring))] whitespace-nowrap"
-                  aria-label={t('windowCard.pause')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-[rgb(var(--error))] bg-[rgb(var(--card))] rounded hover:bg-[rgb(var(--accent))] transition-colors focus:outline-none focus:ring-2 focus:ring-[rgb(var(--error))] whitespace-nowrap"
+                  aria-label={t('windowCard.stop')}
                 >
-                  <Pause size={14} />
-                  <span>{t('windowCard.pause')}</span>
+                  <Square size={14} fill="currentColor" />
+                  <span>{t('windowCard.stop')}</span>
                 </button>
               </Tooltip.Trigger>
               <Tooltip.Portal>
@@ -356,7 +356,7 @@ export const WindowCard = React.memo<WindowCardProps>(({
                   className="bg-[rgb(var(--card))] text-[rgb(var(--foreground))] px-2 py-1 rounded text-xs z-50 shadow-xl border border-[rgb(var(--border))]"
                   sideOffset={5}
                 >
-                  {t('windowCard.pause')}
+                  {t('windowCard.stop')}
                 </Tooltip.Content>
               </Tooltip.Portal>
             </Tooltip.Root>

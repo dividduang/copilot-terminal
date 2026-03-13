@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { useWindowStore } from '../../stores/windowStore';
 import { useWindowSwitcher } from '../useWindowSwitcher';
 import { WindowStatus } from '../../types/window';
@@ -31,15 +31,16 @@ describe('useWindowSwitcher', () => {
     });
   });
 
-  it('switches immediately after startWindow resolves', async () => {
-    const startWindowSpy = vi.fn().mockResolvedValue({
-      success: true,
-      data: { pid: 1234, status: WindowStatus.WaitingForInput },
-    });
-    const checkPtyOutputSpy = vi.fn();
-    (window.electronAPI as any).startWindow = startWindowSpy;
-    (window.electronAPI as any).checkPtyOutput = checkPtyOutputSpy;
+  it('switches to terminal view before startWindow resolves', async () => {
+    let resolveStartWindow: ((value: {
+      success: true;
+      data: { pid: number; status: WindowStatus };
+    }) => void) | null = null;
 
+    const startWindowSpy = vi.fn().mockImplementation(() => new Promise((resolve) => {
+      resolveStartWindow = resolve;
+    }));
+    (window.electronAPI as any).startWindow = startWindowSpy;
     const onSwitchView = vi.fn();
     const { result } = renderHook(() => useWindowSwitcher(onSwitchView));
 
@@ -48,8 +49,44 @@ describe('useWindowSwitcher', () => {
     });
 
     expect(startWindowSpy).toHaveBeenCalledTimes(1);
-    expect(checkPtyOutputSpy).not.toHaveBeenCalled();
     expect(onSwitchView).toHaveBeenCalledWith('window-1');
     expect(useWindowStore.getState().activeWindowId).toBe('window-1');
+    expect(useWindowStore.getState().getPaneById('window-1', 'pane-1')?.status).toBe(WindowStatus.Restoring);
+    expect(useWindowStore.getState().getPaneById('window-1', 'pane-1')?.pid).toBeUndefined();
+
+    await act(async () => {
+      resolveStartWindow?.({
+        success: true,
+        data: { pid: 1234, status: WindowStatus.WaitingForInput },
+      });
+    });
+
+    await waitFor(() => {
+      expect(useWindowStore.getState().getPaneById('window-1', 'pane-1')).toMatchObject({
+        status: WindowStatus.WaitingForInput,
+        pid: 1234,
+      });
+    });
+  });
+
+  it('keeps the terminal view active and restores pane state if background start fails', async () => {
+    const startWindowSpy = vi.fn().mockRejectedValue(new Error('spawn failed'));
+    (window.electronAPI as any).startWindow = startWindowSpy;
+
+    const onSwitchView = vi.fn();
+    const { result } = renderHook(() => useWindowSwitcher(onSwitchView));
+
+    await act(async () => {
+      await result.current.switchToWindow('window-1');
+    });
+
+    expect(onSwitchView).toHaveBeenCalledWith('window-1');
+    expect(useWindowStore.getState().activeWindowId).toBe('window-1');
+
+    await waitFor(() => {
+      expect(useWindowStore.getState().getPaneById('window-1', 'pane-1')).toMatchObject({
+        status: WindowStatus.Paused,
+      });
+    });
   });
 });

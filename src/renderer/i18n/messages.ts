@@ -121,7 +121,7 @@ export const zhCNMessages = {
   'windowCard.starting': '启动中',
   'windowCard.startingTerminal': '正在启动终端...',
   'windowCard.pleaseWait': '请稍候',
-  'windowCard.pause': '暂停',
+  'windowCard.stop': '停止',
   'windowCard.archive': '归档',
   'windowCard.unarchive': '取消归档',
   'windowDirectory.missingTitle': '工作目录不存在',
@@ -461,7 +461,7 @@ export const enUSMessages: Record<TranslationKey, string> = {
 
   'terminalView.return': 'Return to unified view (Esc)',
   'terminalView.archive': 'Archive window',
-  'terminalView.pause': 'Pause window',
+  'terminalView.stop': 'Stop window',
   'terminalView.openFolder': 'Open folder',
   'terminalView.splitHorizontal': 'Split left/right (Ctrl+Shift+D)',
   'terminalView.splitVertical': 'Split up/down (Ctrl+Shift+E)',
