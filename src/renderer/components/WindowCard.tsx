@@ -167,6 +167,8 @@ export const WindowCard = React.memo<WindowCardProps>(({
     (e: React.MouseEvent, action: () => void) => {
       e.stopPropagation();
       action();
+      // 点击后移除焦点，避免focus样式残留
+      (e.currentTarget as HTMLElement).blur();
     },
     []
   );

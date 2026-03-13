@@ -1,6 +1,23 @@
 import { execFileSync } from 'child_process';
 import { platform } from 'os';
 
+const WINDOWS_REQUIRED_RUNTIME_ENV_KEYS = [
+  'SystemRoot',
+  'SystemDrive',
+  'ComSpec',
+  'ProgramData',
+  'ALLUSERSPROFILE',
+  'PUBLIC',
+  'ProgramFiles',
+  'ProgramFiles(x86)',
+  'ProgramW6432',
+  'CommonProgramFiles',
+  'CommonProgramFiles(x86)',
+  'CommonProgramW6432',
+  'COMPUTERNAME',
+  'SESSIONNAME',
+] as const;
+
 /**
  * 获取最新的系统环境变量
  *
@@ -20,56 +37,54 @@ export function getLatestEnvironmentVariables(): NodeJS.ProcessEnv {
 }
 
 /**
- * Windows: 从注册表读取最新的环境变量，并与 process.env 合并
+ * Windows: 纯粹从注册表构建环境变量，不以 process.env 为基础
  *
  * 策略：
- * 1. 以 process.env 为基础（确保所有系统关键变量都存在）
- * 2. 从注册表读取用户和系统环境变量
- * 3. 用注册表中的值覆盖 process.env 中的同名变量（获取最新值）
+ * 1. 从注册表读取系统变量、用户变量、易失性变量（Volatile Environment）
+ * 2. 按优先级合并：系统变量 < 用户变量 < 易失性变量
+ * 3. 从 process.env 白名单回补 Windows 运行时关键变量
  * 4. 特殊处理 PATH：合并系统 PATH 和用户 PATH
  *
- * 这样既能获取最新的环境变量，又不会丢失关键的系统变量
+ * 不依赖 process.env，确保每个新终端的初始环境变量完全一致，
+ * 不受宿主进程运行时注入变量（如 Claude Code 代理设置）的污染。
+ * 仅对白名单中的系统运行时变量做回补，避免 PowerShell 等程序在缺少
+ * SystemRoot / ProgramFiles / SESSIONNAME 等关键变量时启动失败。
  */
 function getWindowsEnvironmentVariables(): NodeJS.ProcessEnv {
   try {
-    // 1. 从 process.env 开始（确保所有关键系统变量都存在）
-    const env: NodeJS.ProcessEnv = { ...process.env };
-
-    // 2. 使用 PowerShell/.NET 读取注册表，避免 reg query 在非 UTF-8 代码页下产生 mojibake
+    // 从注册表读取三类变量，不以 process.env 为基础
+    // 这样可以确保每个新终端的环境变量完全一致，不受运行时注入变量（如代理）的污染
     const registryEnv = readWindowsRegistryEnvironment();
-    const systemEnv = materializeRegistryEnvironment(registryEnv.system ?? {}, env);
-    const userEnv = materializeRegistryEnvironment(registryEnv.user ?? {}, {
-      ...env,
+
+    // 按优先级逐层展开：系统变量 → 用户变量 → 易失性变量
+    // 每层展开时，可以引用之前层级已展开的变量
+    // expandEnvironmentVariables 内部会回退到 process.env 处理 %COMPUTERNAME% 等
+    // 不在注册表环境变量中的系统内置变量，但这些变量不会被加入最终环境
+    const systemEnv = materializeRegistryEnvironment(registryEnv.system ?? {}, {});
+    const userEnv = materializeRegistryEnvironment(registryEnv.user ?? {}, systemEnv);
+    const volatileEnv = materializeRegistryEnvironment(registryEnv.volatile ?? {}, {
       ...systemEnv,
+      ...userEnv,
     });
 
-    // 4. 用注册表中的值覆盖 process.env（获取最新值）
-    // 但排除 PATH，因为 PATH 需要特殊处理
-    for (const [key, value] of Object.entries(systemEnv)) {
-      if (key.toUpperCase() !== 'PATH') {
-        env[key] = value;
-      }
-    }
+    // 合并：系统变量 < 用户变量 < 易失性变量（后者优先级更高）
+    const env: NodeJS.ProcessEnv = {
+      ...systemEnv,
+      ...userEnv,
+      ...volatileEnv,
+    };
 
-    for (const [key, value] of Object.entries(userEnv)) {
-      if (key.toUpperCase() !== 'PATH') {
-        env[key] = value;
-      }
-    }
+    mergeRequiredWindowsRuntimeVariables(env, process.env);
 
-    // 5. 特殊处理 PATH：合并系统 PATH + 用户 PATH
+    // 特殊处理 PATH：合并系统 PATH + 用户 PATH（易失性变量通常不含 PATH）
     const systemPath = systemEnv.Path || systemEnv.PATH || '';
     const userPath = userEnv.Path || userEnv.PATH || '';
 
     if (systemPath || userPath) {
-      // 合并注册表中的 PATH
       const registryPath = [systemPath, userPath].filter(Boolean).join(';');
-
-      // 使用注册表中的 PATH（最新值）
       env.PATH = registryPath;
       env.Path = registryPath;
     }
-    // 如果注册表中没有 PATH，保留 process.env 中的 PATH
 
     return env;
   } catch (error) {
@@ -87,6 +102,7 @@ interface RegistryValueRecord {
 interface RegistryEnvironmentPayload {
   system?: Record<string, RegistryValueRecord>;
   user?: Record<string, RegistryValueRecord>;
+  volatile?: Record<string, RegistryValueRecord>;
 }
 
 /**
@@ -115,7 +131,7 @@ function readWindowsRegistryEnvironment(): RegistryEnvironmentPayload {
     '  $base.Close()',
     '  return $result',
     '}',
-    "$payload = @{ system = Get-RegistryEnv ([Microsoft.Win32.RegistryHive]::LocalMachine) 'SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment'; user = Get-RegistryEnv ([Microsoft.Win32.RegistryHive]::CurrentUser) 'Environment' }",
+    "$payload = @{ system = Get-RegistryEnv ([Microsoft.Win32.RegistryHive]::LocalMachine) 'SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment'; user = Get-RegistryEnv ([Microsoft.Win32.RegistryHive]::CurrentUser) 'Environment'; volatile = Get-RegistryEnv ([Microsoft.Win32.RegistryHive]::CurrentUser) 'Volatile Environment' }",
     '$payload | ConvertTo-Json -Compress -Depth 4',
   ].join('; ');
 
@@ -129,6 +145,18 @@ function readWindowsRegistryEnvironment(): RegistryEnvironmentPayload {
   );
 
   return JSON.parse(output) as RegistryEnvironmentPayload;
+}
+
+function mergeRequiredWindowsRuntimeVariables(
+  targetEnv: NodeJS.ProcessEnv,
+  sourceEnv: NodeJS.ProcessEnv,
+): void {
+  for (const key of WINDOWS_REQUIRED_RUNTIME_ENV_KEYS) {
+    const value = sourceEnv[key];
+    if (!targetEnv[key] && value) {
+      targetEnv[key] = value;
+    }
+  }
 }
 
 function materializeRegistryEnvironment(
