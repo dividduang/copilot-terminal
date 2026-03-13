@@ -49,6 +49,10 @@ export interface CheckPtyOutputResult {
   hasOutput: boolean;
 }
 
+export interface PtyWriteMetadata {
+  source?: string;
+}
+
 export interface ShellProgramOption {
   command: string;
   path: string;
@@ -223,7 +227,12 @@ export interface ElectronAPI {
   onClaudeModelUpdated: (callback: ElectronEventHandler<ClaudeModelUpdatedPayload>) => void;
   offClaudeModelUpdated: (callback: ElectronEventHandler<ClaudeModelUpdatedPayload>) => void;
 
-  ptyWrite: (windowId: string, paneId: string | undefined, data: string) => Promise<IpcResponse<void>>;
+  ptyWrite: (
+    windowId: string,
+    paneId: string | undefined,
+    data: string,
+    metadata?: PtyWriteMetadata,
+  ) => Promise<IpcResponse<void>>;
   ptyResize: (windowId: string, paneId: string | undefined, cols: number, rows: number) => Promise<IpcResponse<void>>;
   getPtyHistory: (paneId: string) => Promise<IpcResponse<PtyHistorySnapshot>>;
   onPtyData: (callback: ElectronEventHandler<PtyDataPayload>) => void;

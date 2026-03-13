@@ -1,22 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { closePane, updateSplitSizes } from '../layoutHelpers';
+import { closePane, collapseTmuxAgentPanesForPause, updateSplitSizes } from '../layoutHelpers';
 import { LayoutNode, Pane, WindowStatus } from '../../types/window';
 
-function createPane(id: string): Pane {
+function createPane(id: string, overrides: Partial<Pane> = {}): Pane {
   return {
     id,
     cwd: 'C:/workspace',
     command: 'pwsh.exe',
     status: WindowStatus.WaitingForInput,
     pid: null,
+    ...overrides,
   };
 }
 
-function createPaneNode(id: string): LayoutNode {
+function createPaneNode(id: string, overrides: Partial<Pane> = {}): LayoutNode {
   return {
     type: 'pane',
     id,
-    pane: createPane(id),
+    pane: createPane(id, overrides),
   };
 }
 
@@ -167,5 +168,89 @@ describe('layoutHelpers.updateSplitSizes', () => {
     };
 
     expect(updateSplitSizes(layout, [1], [0.4, 0.6])).toBe(layout);
+  });
+});
+
+describe('layoutHelpers.collapseTmuxAgentPanesForPause', () => {
+  it('collapses tmux auto-created panes back to a single paused pane', () => {
+    const layout: LayoutNode = {
+      type: 'split',
+      direction: 'horizontal',
+      sizes: [0.3, 0.7],
+      children: [
+        createPaneNode('leader', {
+          status: WindowStatus.Running,
+          pid: 101,
+          title: 'leader',
+          borderColor: '#0087ff',
+          lastOutput: 'old-output',
+        }),
+        {
+          type: 'split',
+          direction: 'vertical',
+          sizes: [0.5, 0.5],
+          children: [
+            createPaneNode('agent-a', {
+              status: WindowStatus.Running,
+              pid: 201,
+              title: 'agent-a',
+              teamName: 'team-1',
+              agentName: 'agent-a',
+              agentColor: 'green',
+              borderColor: '#00ff00',
+            }),
+            createPaneNode('agent-b', {
+              status: WindowStatus.WaitingForInput,
+              pid: 202,
+              title: 'agent-b',
+              teamName: 'team-1',
+              agentName: 'agent-b',
+              agentColor: 'blue',
+              borderColor: '#0000ff',
+            }),
+          ],
+        },
+      ],
+    };
+
+    const collapsed = collapseTmuxAgentPanesForPause(layout);
+
+    expect(collapsed).not.toBeNull();
+    expect(collapsed?.activePaneId).toBe('leader');
+    expect(collapsed?.layout).toMatchObject({
+      type: 'pane',
+      id: 'leader',
+      pane: {
+        id: 'leader',
+        cwd: 'C:/workspace',
+        command: 'pwsh.exe',
+        status: WindowStatus.Paused,
+        pid: null,
+      },
+    });
+
+    if (!collapsed || collapsed.layout.type !== 'pane') {
+      throw new Error('expected collapsed pane layout');
+    }
+
+    expect(collapsed.layout.pane.lastOutput).toBeUndefined();
+    expect(collapsed.layout.pane.title).toBeUndefined();
+    expect(collapsed.layout.pane.borderColor).toBeUndefined();
+    expect(collapsed.layout.pane.teamName).toBeUndefined();
+    expect(collapsed.layout.pane.agentName).toBeUndefined();
+  });
+
+  it('does not collapse a manual multi-pane layout without tmux markers', () => {
+    const layout: LayoutNode = {
+      type: 'split',
+      direction: 'horizontal',
+      sizes: [0.5, 0.5],
+      children: [
+        createPaneNode('left', { status: WindowStatus.Running, pid: 100 }),
+        createPaneNode('right', { status: WindowStatus.WaitingForInput, pid: 200 }),
+      ],
+    };
+
+    expect(collapseTmuxAgentPanesForPause(layout)).toBeNull();
   });
 });

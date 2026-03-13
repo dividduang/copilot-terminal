@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useWindowStore, WindowStatus } from '../windowStore';
-import { createSinglePaneWindow } from '../../utils/layoutHelpers';
+import { createSinglePaneWindow, getAllPanes } from '../../utils/layoutHelpers';
 
 describe('windowStore auto-save gating', () => {
   beforeEach(() => {
@@ -131,6 +131,161 @@ describe('windowStore auto-save gating', () => {
     expect(storedWindow.claudeModelId).toBe('claude-opus-4');
     expect(storedWindow.claudeContextPercentage).toBe(82);
     expect(storedWindow.claudeCost).toBe(1.23);
+    expect(window.electronAPI.triggerAutoSave).not.toHaveBeenCalled();
+  });
+
+  it('collapses tmux agent panes and auto-saves the new single-pane layout on pause', () => {
+    const terminalWindow = createSinglePaneWindow('Agent Team', 'D:\\repo', 'pwsh.exe');
+    const leaderPaneId = terminalWindow.activePaneId;
+
+    terminalWindow.layout = {
+      type: 'split',
+      direction: 'horizontal',
+      sizes: [0.35, 0.65],
+      children: [
+        {
+          type: 'pane',
+          id: leaderPaneId,
+          pane: {
+            id: leaderPaneId,
+            cwd: 'D:\\repo',
+            command: 'pwsh.exe',
+            status: WindowStatus.Running,
+            pid: 111,
+            title: 'leader',
+            borderColor: '#0087ff',
+          },
+        },
+        {
+          type: 'split',
+          direction: 'vertical',
+          sizes: [0.5, 0.5],
+          children: [
+            {
+              type: 'pane',
+              id: 'agent-a',
+              pane: {
+                id: 'agent-a',
+                cwd: 'D:\\repo',
+                command: 'pwsh.exe',
+                status: WindowStatus.Running,
+                pid: 222,
+                title: 'agent-a',
+                teamName: 'team-1',
+                agentName: 'agent-a',
+                agentColor: 'green',
+                borderColor: '#00ff00',
+              },
+            },
+            {
+              type: 'pane',
+              id: 'agent-b',
+              pane: {
+                id: 'agent-b',
+                cwd: 'D:\\repo',
+                command: 'pwsh.exe',
+                status: WindowStatus.WaitingForInput,
+                pid: 333,
+                title: 'agent-b',
+                teamName: 'team-1',
+                agentName: 'agent-b',
+                agentColor: 'blue',
+                borderColor: '#0000ff',
+              },
+            },
+          ],
+        },
+      ],
+    };
+    terminalWindow.activePaneId = 'agent-a';
+
+    useWindowStore.setState({
+      windows: [terminalWindow],
+      activeWindowId: terminalWindow.id,
+      mruList: [terminalWindow.id],
+      sidebarExpanded: false,
+      sidebarWidth: 200,
+    });
+
+    useWindowStore.getState().pauseWindowState(terminalWindow.id);
+
+    const storedWindow = useWindowStore.getState().windows[0];
+    expect(storedWindow.activePaneId).toBe(leaderPaneId);
+    expect(storedWindow.layout).toMatchObject({
+      type: 'pane',
+      id: leaderPaneId,
+      pane: {
+        id: leaderPaneId,
+        status: WindowStatus.Paused,
+        pid: null,
+      },
+    });
+
+    if (storedWindow.layout.type !== 'pane') {
+      throw new Error('expected single pane layout');
+    }
+
+    expect(storedWindow.layout.pane.title).toBeUndefined();
+    expect(storedWindow.layout.pane.borderColor).toBeUndefined();
+    expect(window.electronAPI.triggerAutoSave).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps manual split layouts intact when pausing a non-tmux multi-pane window', () => {
+    const terminalWindow = createSinglePaneWindow('Manual Split', 'D:\\repo', 'pwsh.exe');
+    const leaderPaneId = terminalWindow.activePaneId;
+    const teammatePaneId = 'pane-teammate';
+
+    terminalWindow.layout = {
+      type: 'split',
+      direction: 'horizontal',
+      sizes: [0.5, 0.5],
+      children: [
+        {
+          type: 'pane',
+          id: leaderPaneId,
+          pane: {
+            id: leaderPaneId,
+            cwd: 'D:\\repo',
+            command: 'pwsh.exe',
+            status: WindowStatus.Running,
+            pid: 444,
+          },
+        },
+        {
+          type: 'pane',
+          id: teammatePaneId,
+          pane: {
+            id: teammatePaneId,
+            cwd: 'D:\\repo',
+            command: 'pwsh.exe',
+            status: WindowStatus.WaitingForInput,
+            pid: 555,
+          },
+        },
+      ],
+    };
+    terminalWindow.activePaneId = teammatePaneId;
+
+    useWindowStore.setState({
+      windows: [terminalWindow],
+      activeWindowId: terminalWindow.id,
+      mruList: [terminalWindow.id],
+      sidebarExpanded: false,
+      sidebarWidth: 200,
+    });
+
+    useWindowStore.getState().pauseWindowState(terminalWindow.id);
+
+    const storedWindow = useWindowStore.getState().windows[0];
+    expect(storedWindow.layout.type).toBe('split');
+    expect(storedWindow.activePaneId).toBe(teammatePaneId);
+    expect(getAllPanes(storedWindow.layout)).toHaveLength(2);
+    expect(getAllPanes(storedWindow.layout)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: leaderPaneId, status: WindowStatus.Paused, pid: null }),
+        expect.objectContaining({ id: teammatePaneId, status: WindowStatus.Paused, pid: null }),
+      ]),
+    );
     expect(window.electronAPI.triggerAutoSave).not.toHaveBeenCalled();
   });
 });

@@ -24,6 +24,7 @@ export const ArchivedView = React.memo<ArchivedViewProps>(({ onEnterTerminal, se
   const windows = useWindowStore((state) => state.windows);
   const removeWindow = useWindowStore((state) => state.removeWindow);
   const updatePane = useWindowStore((state) => state.updatePane);
+  const pauseWindowState = useWindowStore((state) => state.pauseWindowState);
   const unarchiveWindow = useWindowStore((state) => state.unarchiveWindow);
   const { runWithWindowDirectory, dialogState } = useWindowDirectoryGuard();
 
@@ -66,36 +67,36 @@ export const ArchivedView = React.memo<ArchivedViewProps>(({ onEnterTerminal, se
       // 获取所有窗格
       const panes = getAllPanes(win.layout);
 
-      // 为每个窗格启动 PTY 进程
+      // 先批量切到 Restoring，再并发启动所有窗格。
       for (const pane of panes) {
-        // 更新窗格状态为 Restoring
         updatePane(win.id, pane.id, { status: WindowStatus.Restoring });
-
-        try {
-          // 启动窗格
-          const response = await window.electronAPI.startWindow({
-            windowId: win.id,
-            paneId: pane.id,
-            name: win.name,
-            workingDirectory: pane.cwd,
-            command: pane.command,
-          });
-
-          // 检查响应格式并立即更新窗格状态
-          if (response && response.success && response.data) {
-            updatePane(win.id, pane.id, {
-              pid: response.data.pid,
-              status: response.data.status,
-            });
-          } else {
-            throw new Error(response?.error || '启动窗格失败');
-          }
-        } catch (paneError) {
-          console.error(`Failed to start pane ${pane.id}:`, paneError);
-          // 单个窗格启动失败，恢复为暂停状态
-          updatePane(win.id, pane.id, { status: WindowStatus.Paused });
-        }
       }
+
+      await Promise.all(
+        panes.map(async (pane) => {
+          try {
+            const response = await window.electronAPI.startWindow({
+              windowId: win.id,
+              paneId: pane.id,
+              name: win.name,
+              workingDirectory: pane.cwd,
+              command: pane.command,
+            });
+
+            if (response && response.success && response.data) {
+              updatePane(win.id, pane.id, {
+                pid: response.data.pid,
+                status: response.data.status,
+              });
+            } else {
+              throw new Error(response?.error || '启动窗格失败');
+            }
+          } catch (paneError) {
+            console.error(`Failed to start pane ${pane.id}:`, paneError);
+            updatePane(win.id, pane.id, { status: WindowStatus.Paused });
+          }
+        })
+      );
     } catch (error) {
       console.error('Failed to start window:', error);
       // 整体启动失败，恢复所有窗格为暂停状态
@@ -115,18 +116,11 @@ export const ArchivedView = React.memo<ArchivedViewProps>(({ onEnterTerminal, se
       // 关闭窗口（终止所有 PTY 进程）
       await window.electronAPI.closeWindow(win.id);
 
-      // 立即更新所有窗格状态为 Paused
-      const panes = getAllPanes(win.layout);
-      for (const pane of panes) {
-        updatePane(win.id, pane.id, {
-          status: WindowStatus.Paused,
-          pid: null
-        });
-      }
+      pauseWindowState(win.id);
     } catch (error) {
       console.error('Failed to pause window:', error);
     }
-  }, [updatePane]);
+  }, [pauseWindowState]);
 
   const handleUnarchiveWindow = useCallback((win: Window) => {
     unarchiveWindow(win.id);

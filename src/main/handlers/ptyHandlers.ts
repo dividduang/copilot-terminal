@@ -1,15 +1,31 @@
 import { ipcMain } from 'electron';
 import { HandlerContext } from './HandlerContext';
 import { successResponse, errorResponse } from './HandlerResponse';
+import type { PtyWriteMetadata } from '../../shared/types/electron-api';
 
 /**
  * 注册 PTY 通信相关的 IPC handlers
  */
 export function registerPtyHandlers(ctx: HandlerContext) {
-  const { processManager } = ctx;
+  const { processManager, tmuxCompatService } = ctx;
 
   // PTY 数据写入（用户输入 → PTY 进程）
-  ipcMain.handle('pty-write', async (_event, { windowId, paneId, data }: { windowId: string; paneId?: string; data: string }) => {
+  ipcMain.handle(
+    'pty-write',
+    async (
+      _event,
+      {
+        windowId,
+        paneId,
+        data,
+        metadata,
+      }: {
+        windowId: string;
+        paneId?: string;
+        data: string;
+        metadata?: PtyWriteMetadata;
+      },
+    ) => {
     try {
       if (!processManager) {
         throw new Error('ProcessManager not initialized');
@@ -32,11 +48,13 @@ export function registerPtyHandlers(ctx: HandlerContext) {
       }
 
       processManager.writeToPty(pid, data);
+      tmuxCompatService?.notifyPaneInputWritten(windowId, paneId, data, metadata);
       return successResponse();
     } catch (error) {
       return errorResponse(error);
     }
-  });
+    },
+  );
 
   // PTY resize
   ipcMain.handle('pty-resize', async (_event, { windowId, paneId, cols, rows }: { windowId: string; paneId?: string; cols: number; rows: number }) => {

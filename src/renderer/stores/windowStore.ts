@@ -8,6 +8,7 @@ import {
   updateSplitSizes as updateSplitSizesInLayout,
   getAllPanes,
   findPaneNode,
+  collapseTmuxAgentPanesForPause,
 } from '../utils/layoutHelpers';
 
 // 全局标志：是否启用自动保存
@@ -23,6 +24,7 @@ const runtimeOnlyPaneFields = new Set<keyof Pane>([
   'agentId',
   'agentName',
   'agentColor',
+  'teammateMode',
 ]);
 
 /**
@@ -76,6 +78,7 @@ interface WindowStore {
 
   // Pane 相关
   updatePane: (windowId: string, paneId: string, updates: Partial<Pane>) => void;
+  pauseWindowState: (windowId: string) => void;
   splitPaneInWindow: (windowId: string, targetPaneId: string, direction: 'horizontal' | 'vertical', newPane: Pane) => void;
   closePaneInWindow: (windowId: string, paneId: string, options?: { syncProcess?: boolean }) => void;
   updateSplitSizes: (windowId: string, splitPath: number[], sizes: number[]) => void;
@@ -227,6 +230,49 @@ export const useWindowStore = create<WindowStore>()(
       if (didChange && !isRuntimeOnlyUpdate) {
         const windows = get().windows;
         triggerAutoSave(windows);
+      }
+    },
+
+    pauseWindowState: (windowId) => {
+      let didChange = false;
+      let shouldAutoSave = false;
+
+      set((state) => {
+        const window = state.windows.find(w => w.id === windowId);
+        if (!window) {
+          return;
+        }
+
+        const collapsed = collapseTmuxAgentPanesForPause(window.layout);
+        if (collapsed) {
+          window.layout = collapsed.layout;
+          window.activePaneId = collapsed.activePaneId;
+          window.lastActiveAt = new Date().toISOString();
+          didChange = true;
+          shouldAutoSave = true;
+          return;
+        }
+
+        const panes = getAllPanes(window.layout);
+        const needsPauseUpdate = panes.some((pane) => (
+          pane.status !== WindowStatus.Paused || pane.pid !== null
+        ));
+
+        if (!needsPauseUpdate) {
+          return;
+        }
+
+        didChange = true;
+        for (const pane of panes) {
+          window.layout = updatePaneInLayout(window.layout, pane.id, {
+            status: WindowStatus.Paused,
+            pid: null,
+          });
+        }
+      });
+
+      if (didChange && shouldAutoSave) {
+        triggerAutoSave(get().windows);
       }
     },
 

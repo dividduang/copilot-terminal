@@ -17,6 +17,7 @@ import {
 import { IProcessManager } from '../types/process';
 import { TmuxCommandParser } from './TmuxCommandParser';
 import { Window, LayoutNode, Pane, WindowStatus } from '../../shared/types/window';
+import type { PtyWriteMetadata } from '../../shared/types/electron-api';
 import { randomUUID } from 'crypto';
 import { TmuxRpcServer } from './TmuxRpcServer';
 import * as fs from 'fs';
@@ -57,6 +58,17 @@ export interface TmuxCompatServiceConfig {
   debug?: boolean;
 }
 
+type PaneStartupBarrier = {
+  pid: number;
+  windowId: string;
+  paneId: string;
+  createdAt: number;
+  sawVisibleOutput: boolean;
+  sawDeviceAttributesRequest: boolean;
+  promise: Promise<void>;
+  resolve: (reason: 'visible-output' | 'renderer-da-reply' | 'timeout' | 'disposed' | 'replaced') => void;
+};
+
 /**
  * TmuxCompatService 闂傚倷娴囬褎顨ョ粙鍖¤€块梺顒€绉寸壕濠氭煟閺冨洤浜圭€规挷绶氶弻娑㈠Ψ閵忊剝鐝栭柣? *
  * 闂傚倸鍊风粈渚€骞栭銈囩煋闁割偅娲嶉埀顒婄畵瀹曞ジ濮€閵忋垹顦╁┑掳鍊х徊浠嬪疮椤栫偛鍚归柛灞惧閸嬫捇宕楁径濠佸闂備礁鎲￠崝锔界閻愬搫鍌ㄦい鎺戝閳? * 1. 闂傚倸鍊峰ù鍥綖婢跺顩插ù鐘差儏绾惧潡鏌＄仦璇插姎闁哄鑳堕幉鎼佹偋閸繄鐟ㄥ┑锛勫仧閺咁偊鍩€椤掆偓閸樻粓宕戦幘缁樼厱闁归偊鍓欓弳鐐烘偨椤栨せ鍋撻幇浣告?tmux 闂傚倸鍊风粈渚€骞夐敍鍕煓闁圭儤顨呴崹鍌涚節闂堟侗鍎忕紒鐙€鍣ｉ弻鏇㈠醇濠靛洤顦╅柣搴㈢瀹€绋款潖濞差亜鍨傛い鏇炴噹閸撳啿鈹戦悩顐壕? * 2. 缂傚倸鍊搁崐鎼佸磹妞嬪海鐭嗗〒姘ｅ亾闁诡喗妞芥俊鎼佹晜閽樺浼?tmux pane ID 闂傚倸鍊风粈渚€骞夐敍鍕殰婵°倐鍋撴い顓炵仢椤粓鍩€椤掑嫬绠栭柛褎顨呯粈瀣亜閺嶃劎鈻撻柟?(windowId, paneId) 闂傚倸鍊烽悞锕傛儑瑜版帒绀夌€光偓閳ь剟鍩€椤掍礁鍤柛妯煎帶瀹撳嫰鎮峰鍐缂? * 3. 缂傚倸鍊搁崐鐑芥嚄閼搁潧鍨旈悗闈涙啞椤洟鏌￠崶銉ョ仼缂佺姵鐗曢埞鎴︽偐閸欏顦╅梺璇″灣閸嬬偤骞堥妸銉建闁糕剝顨呯粻褰掓⒑?session/window 缂傚倸鍊搁崐鎼佸磹閻戣姤鍊块柨鏇炲€哥粻鏉库攽閻樺磭顣查柛? * 4. 闂傚倷娴囧畷鍨叏閹绢噮鏁勯柛娑欐綑閻ゎ喖霉閸忓吋缍戦柡瀣╃窔閺屾洟宕煎┑鎰ч梺绋款儐缁诲牓寮婚敐鍛傛棃鍩€椤掑嫭鍋嬪┑鐘插娑撳秹鏌熼悜姗嗘畷闁绘挻鐩弻娑㈩敃閿濆洨鐣奸悗娑欑箖缁绘繂鈻撻崹顔界亾闂佸摜濮甸悧鐘差嚕椤愩埄鍚嬪璺猴攻瀹撳秴顪冮妵鍗炴噽瑜扮珟essManager, LayoutOperations闂傚倸鍊烽悞锔锯偓绗涘懐鐭欓柟娆¤娲幃褔宕奸悢鍝ュ娇闂備椒绱徊浠嬪嫉椤掑嫬纾绘慨妞诲亾闁诡喗锕㈤幃娆撳垂椤愶絿褰ч梻浣告惈椤︻喚鍒掑▎蹇ｆ綎濠电姵鑹剧粈瀣亜閹板墎鍒版繛鍛€濆娲偡閼割剙浠梺琛″亾闂侇剙绉寸粻? * 5. 闂傚倸鍊风粈渚€骞栭銈囩煋闁割偅娲栭崒銊ф喐韫囨拹锝夊箛閻楀牊娅㈤梺缁橆焾鐏忔瑩藝闁秵鈷戦柛婵嗗閳诲鏌涢幘瀵搞€掔紒杈ㄧ懄缁绘繂顫濋鐘插箞闂備胶顢婇幓顏嗗緤妤ｅ啫违闁告劦鍠楅崑?tmux 濠电姷顣槐鏇㈠磻濞戙埄鏁勯柛娑卞灙閸嬫挸鈽夐幒鎾寸彋闂佽鍟崶褏顔愭繛杈剧悼閹虫捇宕滈銏♀拺闁告稑锕ユ径鍕煕鐎ｎ亝鍤囨鐐叉閳诲酣骞樺畷鍥跺晣? */
@@ -83,6 +95,8 @@ export class TmuxCompatService extends EventEmitter implements ITmuxCompatServic
 
   /** tmux 闂傚倸鍊风粈渚€骞夐敍鍕殰婵°倕鍟伴惌娆撴煙鐎电啸缁?pane 闂?PTY 闂傚倸鍊峰ù鍥ь浖閵娾晜鍤勯柤绋跨仛濞呯姵淇婇妶鍌氫壕闂佷紮绲介悘姘跺箯閸涘瓨鍊绘俊顖欒閳ь剚鐩娲濞戞氨鐤勯梺绋匡攻閻楃娀鏁?*/
   private paneSubscriptions: Map<string, () => void>;
+  private paneStartupBarriers: Map<string, PaneStartupBarrier>;
+  private readonly PANE_STARTUP_BARRIER_TIMEOUT_MS = 1200;
 
   constructor(config: TmuxCompatServiceConfig) {
     super();
@@ -96,6 +110,7 @@ export class TmuxCompatService extends EventEmitter implements ITmuxCompatServic
     });
     this.paneMetadata = new Map();
     this.paneSubscriptions = new Map();
+    this.paneStartupBarriers = new Map();
   }
 
   /**
@@ -486,8 +501,12 @@ export class TmuxCompatService extends EventEmitter implements ITmuxCompatServic
       this.paneSubscriptions.delete(paneId);
     }
 
-    if (this.config.onPaneData && this.config.processManager.subscribePtyData) {
+    const shouldSubscribeToPtyData = this.config.processManager.subscribePtyData
+      && (this.config.onPaneData || this.paneStartupBarriers.has(paneId));
+
+    if (shouldSubscribeToPtyData && this.config.processManager.subscribePtyData) {
       const unsubscribe = this.config.processManager.subscribePtyData(pid, (data: string) => {
+        this.releasePaneStartupBarrierOnOutput(paneId, data);
         this.config.onPaneData?.({ windowId, paneId, data });
       });
 
@@ -506,6 +525,7 @@ export class TmuxCompatService extends EventEmitter implements ITmuxCompatServic
       this.paneSubscriptions.delete(paneId);
     }
 
+    this.clearPaneStartupBarrier(paneId, 'disposed');
     this.config.onPaneProcessStopped?.({ windowId, paneId, pid });
   }
 
@@ -556,8 +576,168 @@ export class TmuxCompatService extends EventEmitter implements ITmuxCompatServic
       }
     });
 
+    this.registerPaneStartupBarrier(windowId, paneId, handle.pid);
     this.attachPaneRuntime(windowId, paneId, handle.pid);
     return handle.pid;
+  }
+
+  private registerPaneStartupBarrier(windowId: string, paneId: string, pid: number): void {
+    if (process.platform !== 'win32') {
+      return;
+    }
+
+    this.clearPaneStartupBarrier(paneId, 'replaced');
+
+    let settled = false;
+    let resolvePromise!: () => void;
+    const promise = new Promise<void>((resolve) => {
+      resolvePromise = resolve;
+    });
+
+    let barrier!: PaneStartupBarrier;
+    const timeout = setTimeout(() => {
+      barrier.resolve('timeout');
+    }, this.PANE_STARTUP_BARRIER_TIMEOUT_MS);
+
+    barrier = {
+      pid,
+      windowId,
+      paneId,
+      createdAt: Date.now(),
+      sawVisibleOutput: false,
+      sawDeviceAttributesRequest: false,
+      promise,
+      resolve: (reason) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        clearTimeout(timeout);
+        this.paneStartupBarriers.delete(paneId);
+        this.debugLog(undefined, 'pane startup barrier released', {
+          windowId,
+          paneId,
+          pid,
+          reason,
+          waitedMs: Date.now() - barrier.createdAt,
+        });
+        resolvePromise();
+      },
+    };
+
+    this.paneStartupBarriers.set(paneId, barrier);
+    this.debugLog(undefined, 'pane startup barrier registered', {
+      windowId,
+      paneId,
+      pid,
+      timeoutMs: this.PANE_STARTUP_BARRIER_TIMEOUT_MS,
+    });
+  }
+
+  private async waitForPaneStartupBarrier(windowId: string, paneId: string, request?: TmuxCommandRequest): Promise<void> {
+    if (process.platform !== 'win32') {
+      return;
+    }
+
+    const barrier = this.paneStartupBarriers.get(paneId);
+    if (!barrier) {
+      return;
+    }
+
+    this.debugLog(request, 'waiting for pane startup barrier', {
+      windowId,
+      paneId,
+      pid: barrier.pid,
+      ageMs: Date.now() - barrier.createdAt,
+    });
+    await barrier.promise;
+  }
+
+  private clearPaneStartupBarrier(
+    paneId: string,
+    reason: 'visible-output' | 'renderer-da-reply' | 'timeout' | 'disposed' | 'replaced',
+  ): void {
+    const barrier = this.paneStartupBarriers.get(paneId);
+    if (!barrier) {
+      return;
+    }
+
+    barrier.resolve(reason);
+  }
+
+  private releasePaneStartupBarrierOnOutput(paneId: string, data: string): void {
+    const barrier = this.paneStartupBarriers.get(paneId);
+    if (!barrier) {
+      return;
+    }
+
+    if (this.hasDeviceAttributesRequest(data)) {
+      barrier.sawDeviceAttributesRequest = true;
+      this.debugLog(undefined, 'pane startup barrier saw DA request', {
+        windowId: barrier.windowId,
+        paneId: barrier.paneId,
+        pid: barrier.pid,
+      });
+    }
+
+    if (!this.hasVisibleTerminalOutput(data)) {
+      return;
+    }
+
+    barrier.sawVisibleOutput = true;
+
+    if (!barrier.sawDeviceAttributesRequest) {
+      this.clearPaneStartupBarrier(paneId, 'visible-output');
+    }
+  }
+
+  notifyPaneInputWritten(
+    windowId: string,
+    paneId: string | undefined,
+    data: string,
+    metadata?: PtyWriteMetadata,
+  ): void {
+    if (process.platform !== 'win32' || !paneId) {
+      return;
+    }
+
+    const barrier = this.paneStartupBarriers.get(paneId);
+    if (!barrier || barrier.windowId !== windowId) {
+      return;
+    }
+
+    if (!barrier.sawDeviceAttributesRequest || !this.hasDeviceAttributesResponse(data)) {
+      return;
+    }
+
+    this.debugLog(undefined, 'pane startup barrier saw renderer DA reply', {
+      windowId,
+      paneId,
+      pid: barrier.pid,
+      sawVisibleOutput: barrier.sawVisibleOutput,
+    });
+    this.clearPaneStartupBarrier(paneId, 'renderer-da-reply');
+  }
+
+  private hasDeviceAttributesRequest(data: string): boolean {
+    return data.includes('\x1b[c');
+  }
+
+  private hasDeviceAttributesResponse(data: string): boolean {
+    return data.includes('\x1b[?1;2c');
+  }
+
+  private hasVisibleTerminalOutput(data: string): boolean {
+    if (!data) {
+      return false;
+    }
+
+    const withoutOsc = data.replace(/\x1b\][^\x07]*(?:\x07|\x1b\\)/g, '');
+    const withoutCsi = withoutOsc.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '');
+    const withoutSingleEsc = withoutCsi.replace(/\x1b[@-_]/g, '');
+    const withoutControlChars = withoutSingleEsc.replace(/[\x00-\x1f\x7f]/g, '');
+    return withoutControlChars.trim().length > 0;
   }
 
   /**
@@ -647,6 +827,10 @@ export class TmuxCompatService extends EventEmitter implements ITmuxCompatServic
       } catch {}
     }
     this.paneSubscriptions.clear();
+    for (const barrier of this.paneStartupBarriers.values()) {
+      barrier.resolve('disposed');
+    }
+    this.paneStartupBarriers.clear();
     this.removeAllListeners();
   }
 
@@ -1794,7 +1978,7 @@ export class TmuxCompatService extends EventEmitter implements ITmuxCompatServic
   /**
    * 濠电姷鏁告慨浼村垂閻撳簶鏋栨繛鎴炲焹閸嬫挸顫濋悡搴㈢彎濡?send-keys
    */
-  private handleSendKeys(parsed: any, request: TmuxCommandRequest): TmuxCommandResponse {
+  private async handleSendKeys(parsed: any, request: TmuxCommandRequest): Promise<TmuxCommandResponse> {
     try {
       const options = TmuxCommandParser.parseSendKeysOptions(parsed);
       this.debugLog(request, 'send-keys request', {
@@ -1861,6 +2045,8 @@ export class TmuxCompatService extends EventEmitter implements ITmuxCompatServic
         adaptedPreview: keys.slice(0, 300),
         changed: originalKeys !== keys,
       });
+
+      await this.waitForPaneStartupBarrier(resolved.windowId, resolved.paneId, request);
 
       // 闂傚倸鍊风粈渚€骞夐敓鐘茬闁哄稁鍘介崑锟犳煏婢跺棙娅呴柣?PTY
 

@@ -6,6 +6,7 @@ import { WorkspaceManagerImpl } from '../services/WorkspaceManager';
 import { AutoSaveManagerImpl } from '../services/AutoSaveManager';
 import { PtySubscriptionManager } from '../services/PtySubscriptionManager';
 import { GitBranchWatcher } from '../services/GitBranchWatcher';
+import { TmuxCompatService } from '../services/TmuxCompatService';
 import { Workspace } from '../types/workspace';
 
 /**
@@ -21,6 +22,7 @@ export interface HandlerContext {
   autoSaveManager: AutoSaveManagerImpl | null;
   ptySubscriptionManager: PtySubscriptionManager | null;
   gitBranchWatcher: GitBranchWatcher | null;
+  tmuxCompatService?: TmuxCompatService | null;
   currentWorkspace: Workspace | null;
   getCurrentWorkspace: () => Workspace | null;
   setCurrentWorkspace: (workspace: Workspace | null) => void;

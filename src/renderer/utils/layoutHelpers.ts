@@ -9,6 +9,11 @@ import {
   WindowStatus,
 } from '../types/window';
 
+type PauseCollapseResult = {
+  layout: PaneNode;
+  activePaneId: string;
+};
+
 /**
  * 从旧版 Window 迁移到新版 Window
  */
@@ -212,6 +217,65 @@ export function closePane(
     ...layout,
     children: newChildren,
     sizes: newSizes,
+  };
+}
+
+function hasStrongTmuxAgentMarker(pane: Pane): boolean {
+  return Boolean(
+    pane.teamName
+    || pane.agentId
+    || pane.agentName
+    || pane.agentColor
+  );
+}
+
+function hasWeakTmuxAgentMarker(pane: Pane): boolean {
+  return Boolean(
+    pane.title
+    || pane.borderColor
+    || pane.activeBorderColor
+    || pane.teammateMode === 'tmux'
+  );
+}
+
+export function isTmuxAgentPane(pane: Pane): boolean {
+  return hasStrongTmuxAgentMarker(pane) || hasWeakTmuxAgentMarker(pane);
+}
+
+function sanitizePaneForPause(pane: Pane): Pane {
+  return {
+    id: pane.id,
+    cwd: pane.cwd,
+    command: pane.command,
+    status: WindowStatus.Paused,
+    pid: null,
+  };
+}
+
+export function collapseTmuxAgentPanesForPause(layout: LayoutNode): PauseCollapseResult | null {
+  const panes = getAllPanes(layout);
+  if (panes.length <= 1) {
+    return null;
+  }
+
+  const strongMarkerCount = panes.filter(hasStrongTmuxAgentMarker).length;
+  const weakMarkerCount = panes.filter(hasWeakTmuxAgentMarker).length;
+  if (strongMarkerCount === 0 && weakMarkerCount < 2) {
+    return null;
+  }
+
+  const paneToKeep = panes.find((pane) => !isTmuxAgentPane(pane))
+    || panes.find((pane) => !hasStrongTmuxAgentMarker(pane))
+    || panes[0];
+
+  const sanitizedPane = sanitizePaneForPause(paneToKeep);
+  return {
+    layout: {
+      type: 'pane',
+      id: sanitizedPane.id,
+      pane: sanitizedPane,
+    },
+    activePaneId: sanitizedPane.id,
   };
 }
 

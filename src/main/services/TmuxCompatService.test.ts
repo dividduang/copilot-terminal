@@ -19,6 +19,7 @@ function createMockProcessManager(): ITmuxProcessManager {
     destroy: vi.fn().mockResolvedValue(undefined),
     getPidByPane: vi.fn().mockReturnValue(1001),
     writeToPty: vi.fn(),
+    subscribePtyData: vi.fn().mockReturnValue(vi.fn()),
   };
 }
 
@@ -242,6 +243,45 @@ describe('TmuxCompatService', () => {
         argv: ['send-keys', '-t', '%1', 'echo hello', 'Enter'],
         windowId: 'win-1',
       });
+
+      expect(response.exitCode).toBe(0);
+      expect(processManager.writeToPty).toHaveBeenCalledWith(1001, expect.stringContaining('echo hello'));
+    });
+
+    it.runIf(process.platform === 'win32')('新建 pane 的 send-keys 应等待 shell 吐出可见输出后再注入命令', async () => {
+      const { service, processManager } = createService();
+      const ptySubscribers = new Map<number, (data: string) => void>();
+      vi.mocked(processManager.subscribePtyData).mockImplementation((pid: number, callback: (data: string) => void) => {
+        ptySubscribers.set(pid, callback);
+        return vi.fn();
+      });
+
+      const splitResponse = await service.executeCommand({
+        argv: ['split-window', '-t', '%1', '-h', '-P', '-F', '#{pane_id}'],
+        windowId: 'win-1',
+        paneId: '%1',
+      });
+      const newPaneId = splitResponse.stdout.trim();
+      vi.mocked(processManager.writeToPty).mockClear();
+
+      const sendKeysPromise = service.executeCommand({
+        argv: ['send-keys', '-t', newPaneId, 'echo hello', 'Enter'],
+        windowId: 'win-1',
+      });
+
+      await Promise.resolve();
+      expect(processManager.writeToPty).not.toHaveBeenCalled();
+
+      ptySubscribers.get(1001)?.('\u001b[c');
+      await Promise.resolve();
+      expect(processManager.writeToPty).not.toHaveBeenCalled();
+
+      ptySubscribers.get(1001)?.('PowerShell 7.5.4\r\n');
+      await Promise.resolve();
+      expect(processManager.writeToPty).not.toHaveBeenCalled();
+
+      service.notifyPaneInputWritten('win-1', newPaneId, '\u001b[?1;2c');
+      const response = await sendKeysPromise;
 
       expect(response.exitCode).toBe(0);
       expect(processManager.writeToPty).toHaveBeenCalledWith(1001, expect.stringContaining('echo hello'));

@@ -50,6 +50,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
     setActivePane,
     archiveWindow,
     updatePane,
+    pauseWindowState,
   } = useWindowStore();
   const activeWindows = getActiveWindows();
 
@@ -225,17 +226,11 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
       // 鍏抽棴绐楀彛锛堢粓姝㈡墍鏈?PTY 杩涚▼锛?
       await window.electronAPI.closeWindow(terminalWindow.id);
 
-      // 绔嬪嵆鏇存柊鎵€鏈夌獥鏍肩姸鎬佷负 Paused
-      for (const pane of panes) {
-        updatePane(terminalWindow.id, pane.id, {
-          status: WindowStatus.Paused,
-          pid: null
-        });
-      }
+      pauseWindowState(terminalWindow.id);
     } catch (error) {
       console.error('Failed to pause window:', error);
     }
-  }, [terminalWindow.id, panes, updatePane]);
+  }, [terminalWindow.id, pauseWindowState]);
 
   // 澶勭悊褰掓。绐楀彛
   const handleArchiveWindow = useCallback(async () => {

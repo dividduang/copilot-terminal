@@ -1,6 +1,6 @@
 import { render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { TerminalPane } from '../TerminalPane';
+import { __resetTerminalPaneReplaySessionCacheForTests, TerminalPane } from '../TerminalPane';
 import { WindowStatus } from '../../types/window';
 import { subscribeToPanePtyData } from '../../api/ptyDataBus';
 import type { PtyDataPayload } from '../../../shared/types/electron-api';
@@ -76,6 +76,7 @@ describe('TerminalPane history replay', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    __resetTerminalPaneReplaySessionCacheForTests();
     terminalInstances.length = 0;
     ptyCallbacks.length = 0;
     terminalDataCallbacks.length = 0;
@@ -200,6 +201,210 @@ describe('TerminalPane history replay', () => {
       expect(terminalInstances[0]?.write).toHaveBeenCalled();
     });
 
-    expect(window.electronAPI.ptyWrite).toHaveBeenCalledWith('win-1', 'pane-1', '\u001b[?1;2c');
+    expect(window.electronAPI.ptyWrite).toHaveBeenCalledWith(
+      'win-1',
+      'pane-1',
+      '\u001b[?1;2c',
+      { source: 'xterm.onData' },
+    );
+  });
+
+  it('does not replay history again when a placeholder pane receives its first pid', async () => {
+    vi.mocked(window.electronAPI.getPtyHistory)
+      .mockResolvedValueOnce({
+        success: true,
+        data: { chunks: [], lastSeq: 0 },
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        data: { chunks: ['\u001b[c'], lastSeq: 1 },
+      });
+
+    const { rerender } = render(
+      <TerminalPane
+        windowId="win-1"
+        pane={{
+          id: 'pane-1',
+          cwd: 'D:\\tmp',
+          command: 'pwsh.exe',
+          status: WindowStatus.Restoring,
+          pid: null,
+        }}
+        isActive
+        isWindowActive
+        onActivate={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(window.electronAPI.getPtyHistory).toHaveBeenCalledTimes(1);
+    });
+
+    rerender(
+      <TerminalPane
+        windowId="win-1"
+        pane={{
+          id: 'pane-1',
+          cwd: 'D:\\tmp',
+          command: 'pwsh.exe',
+          status: WindowStatus.Running,
+          pid: 1234,
+        }}
+        isActive
+        isWindowActive
+        onActivate={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(window.electronAPI.getPtyHistory).toHaveBeenCalledTimes(1);
+    });
+
+    expect(terminalInstances[0]?.reset).not.toHaveBeenCalled();
+    expect(window.electronAPI.ptyWrite).not.toHaveBeenCalledWith(
+      'win-1',
+      'pane-1',
+      '\u001b[?1;2c',
+      { source: 'xterm.onData' },
+    );
+  });
+
+  it('resets and replays a fresh session when a paused pane starts again with a new pid', async () => {
+    vi.mocked(window.electronAPI.getPtyHistory)
+      .mockResolvedValueOnce({
+        success: true,
+        data: { chunks: ['old-output'], lastSeq: 1 },
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        data: { chunks: ['new-output'], lastSeq: 1 },
+      });
+
+    const { rerender } = render(
+      <TerminalPane
+        windowId="win-1"
+        pane={{
+          id: 'pane-1',
+          cwd: 'D:\\tmp',
+          command: 'pwsh.exe',
+          status: WindowStatus.Running,
+          pid: 1111,
+        }}
+        isActive
+        isWindowActive
+        onActivate={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(window.electronAPI.getPtyHistory).toHaveBeenCalledTimes(1);
+    });
+
+    rerender(
+      <TerminalPane
+        windowId="win-1"
+        pane={{
+          id: 'pane-1',
+          cwd: 'D:\\tmp',
+          command: 'pwsh.exe',
+          status: WindowStatus.Paused,
+          pid: null,
+        }}
+        isActive
+        isWindowActive
+        onActivate={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(terminalInstances[0]?.reset).toHaveBeenCalledTimes(1);
+    });
+
+    rerender(
+      <TerminalPane
+        windowId="win-1"
+        pane={{
+          id: 'pane-1',
+          cwd: 'D:\\tmp',
+          command: 'pwsh.exe',
+          status: WindowStatus.Running,
+          pid: 2222,
+        }}
+        isActive
+        isWindowActive
+        onActivate={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(window.electronAPI.getPtyHistory).toHaveBeenCalledTimes(2);
+    });
+
+    expect(terminalInstances[0]?.reset).toHaveBeenCalledTimes(2);
+    expect(terminalInstances[0]?.write).toHaveBeenCalledWith('new-output', expect.any(Function));
+  });
+
+  it('suppresses replay-generated DA replies after the same pane session remounts', async () => {
+    vi.mocked(window.electronAPI.getPtyHistory).mockResolvedValue({
+      success: true,
+      data: { chunks: ['\u001b[c'], lastSeq: 1 },
+    });
+
+    const { unmount } = render(
+      <TerminalPane
+        windowId="win-1"
+        pane={{
+          id: 'pane-1',
+          cwd: 'D:\\tmp',
+          command: 'pwsh.exe',
+          status: WindowStatus.Running,
+          pid: 1234,
+        }}
+        isActive
+        isWindowActive
+        onActivate={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(terminalInstances[0]?.write).toHaveBeenCalled();
+    });
+
+    expect(window.electronAPI.ptyWrite).toHaveBeenCalledWith(
+      'win-1',
+      'pane-1',
+      '\u001b[?1;2c',
+      { source: 'xterm.onData' },
+    );
+
+    vi.mocked(window.electronAPI.ptyWrite).mockClear();
+    unmount();
+
+    render(
+      <TerminalPane
+        windowId="win-1"
+        pane={{
+          id: 'pane-1',
+          cwd: 'D:\\tmp',
+          command: 'pwsh.exe',
+          status: WindowStatus.Running,
+          pid: 1234,
+        }}
+        isActive
+        isWindowActive
+        onActivate={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(window.electronAPI.getPtyHistory).toHaveBeenCalledTimes(2);
+    });
+
+    expect(window.electronAPI.ptyWrite).not.toHaveBeenCalledWith(
+      'win-1',
+      'pane-1',
+      '\u001b[?1;2c',
+      { source: 'xterm.onData' },
+    );
   });
 });

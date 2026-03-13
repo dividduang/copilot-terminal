@@ -9,6 +9,20 @@ import { subscribeToPanePtyData } from '../api/ptyDataBus';
 import type { PtyDataPayload, PtyHistorySnapshot } from '../../shared/types/electron-api';
 import '../styles/xterm.css';
 
+const completedReplaySessions = new Set<string>();
+
+function getReplaySessionKey(windowId: string, paneId: string, pid: number | null | undefined): string | null {
+  if (pid === null || pid === undefined) {
+    return null;
+  }
+
+  return `${windowId}:${paneId}:${pid}`;
+}
+
+export function __resetTerminalPaneReplaySessionCacheForTests(): void {
+  completedReplaySessions.clear();
+}
+
 /**
  * 根据窗格状态获取顶部边框颜色
  */
@@ -167,6 +181,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
   // 首次回放可能包含 PowerShell 启动阶段仍在等待响应的 ESC[c，
   // 这时必须允许 xterm 生成的 DA 响应回写到 PTY。
   const hasCompletedReplayForCurrentSessionRef = useRef(false);
+  const replaySessionKeyRef = useRef<string | null>(getReplaySessionKey(windowId, pane.id, pane.pid));
   const replayHistoryRef = useRef<((options?: { resetTerminal?: boolean }) => Promise<void>) | null>(null);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -234,6 +249,14 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
     isActiveRef.current = isActive;
   }, [isActive]);
 
+  useEffect(() => {
+    const sessionKey = getReplaySessionKey(windowId, pane.id, pane.pid);
+    replaySessionKeyRef.current = sessionKey;
+    hasCompletedReplayForCurrentSessionRef.current = Boolean(
+      sessionKey && completedReplaySessions.has(sessionKey),
+    );
+  }, [windowId, pane.id, pane.pid]);
+
   const forceResizeToContainer = useCallback(() => {
     lastContainerSizeRef.current = { width: 0, height: 0 };
 
@@ -267,6 +290,27 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
   useEffect(() => {
     const prevStatus = lastStatusRef.current;
     const currentStatus = pane.status;
+
+    if (currentStatus === WindowStatus.Paused && prevStatus !== WindowStatus.Paused) {
+      historyReplayTokenRef.current += 1;
+      isHistoryLoadedRef.current = true;
+      bufferedLiveDataRef.current = [];
+      lastAppliedSeqRef.current = 0;
+      suppressPtyWriteRef.current = false;
+      hasCompletedReplayForCurrentSessionRef.current = false;
+      const sessionKey = replaySessionKeyRef.current;
+      if (sessionKey) {
+        completedReplaySessions.delete(sessionKey);
+      }
+      replaySessionKeyRef.current = null;
+
+      if (outputFlushFrameRef.current !== null) {
+        cancelAnimationFrame(outputFlushFrameRef.current);
+        outputFlushFrameRef.current = null;
+      }
+      outputBufferRef.current = '';
+      terminalRef.current?.reset();
+    }
 
     // 从 Paused 状态恢复到 Running/WaitingForInput 时，重置尺寸缓存
     if (
@@ -444,9 +488,13 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
       isHistoryLoadedRef.current = false;
       bufferedLiveDataRef.current = [];
       lastAppliedSeqRef.current = 0;
+      const sessionKey = replaySessionKeyRef.current;
       // 只有同一会话的后续补回放才屏蔽协议响应，避免把旧历史里的 CSI 查询
       // 再次变成 synthetic reply 注入 live PTY。
-      const shouldSuppressReplayProtocolReplies = hasCompletedReplayForCurrentSessionRef.current && !resetTerminal;
+      const hasCompletedReplayForCurrentSession = Boolean(
+        sessionKey && completedReplaySessions.has(sessionKey),
+      ) || hasCompletedReplayForCurrentSessionRef.current;
+      const shouldSuppressReplayProtocolReplies = hasCompletedReplayForCurrentSession && !resetTerminal;
       let shouldResumePtyWrites = false;
 
       if (resetTerminal && terminalRef.current) {
@@ -483,6 +531,9 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
 
         isHistoryLoadedRef.current = true;
         hasCompletedReplayForCurrentSessionRef.current = true;
+        if (sessionKey) {
+          completedReplaySessions.add(sessionKey);
+        }
         const bufferedChunks = bufferedLiveDataRef.current;
         bufferedLiveDataRef.current = [];
         for (const payload of bufferedChunks) {
@@ -561,7 +612,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
         if (isActiveRef.current && window.electronAPI) {
           void readClipboardText().then((text) => {
             if (text && window.electronAPI && isActiveRef.current) {
-              window.electronAPI.ptyWrite(windowId, pane.id, text);
+              window.electronAPI.ptyWrite(windowId, pane.id, text, { source: 'clipboard-shortcut' });
             }
           });
         }
@@ -584,7 +635,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
 
         // 只发送到 PTY，让应用程序自己处理显示
         if (window.electronAPI && isActiveRef.current) {
-          window.electronAPI.ptyWrite(windowId, pane.id, '\n');
+          window.electronAPI.ptyWrite(windowId, pane.id, '\n', { source: 'ctrl-enter' });
         }
         return false; // 阻止 xterm.js 处理
       }
@@ -605,7 +656,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
       // 新会话的首次回放里，xterm 生成的协议响应仍然要回给 PTY；
       // 只有同一会话后续的补回放才需要屏蔽 synthetic reply。
       if (window.electronAPI && !suppressPtyWriteRef.current) {
-        window.electronAPI.ptyWrite(windowId, pane.id, data);
+        window.electronAPI.ptyWrite(windowId, pane.id, data, { source: 'xterm.onData' });
       }
     });
 
@@ -672,16 +723,25 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
     const previousSession = lastSessionRef.current;
     const previousPid = previousSession.pid;
     const nextPid = pane.pid;
+    const resumedFromPaused = previousSession.status === WindowStatus.Paused && previousPid === null && nextPid !== null;
     const shouldReplayFreshSession = (
       terminalRef.current !== null
       && nextPid !== null
-      && nextPid !== previousPid
       && (
-        previousPid === null
-        || previousSession.status === WindowStatus.Paused
-        || previousSession.status === WindowStatus.Completed
-        || previousSession.status === WindowStatus.Error
-        || previousSession.status === WindowStatus.Restoring
+        resumedFromPaused
+        || (
+          // placeholder pane 已经在首次挂载时完成过空历史初始化，
+          // 之后 pid 首次落地时直接走 live PTY 即可；再次重放旧历史会把
+          // 启动期的控制序列重新喂给 xterm，可能生成过期协议响应回写到 PTY。
+          previousPid !== null
+          && nextPid !== previousPid
+          && (
+            previousSession.status === WindowStatus.Paused
+            || previousSession.status === WindowStatus.Completed
+            || previousSession.status === WindowStatus.Error
+            || previousSession.status === WindowStatus.Restoring
+          )
+        )
       )
     );
 
@@ -716,7 +776,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
     void (async () => {
       const text = await readClipboardText();
       if (!text || !window.electronAPI) return;
-      window.electronAPI.ptyWrite(windowId, pane.id, text);
+      window.electronAPI.ptyWrite(windowId, pane.id, text, { source: 'context-menu-paste' });
     })();
   }, [isActive, onActivate, readClipboardText, windowId, pane.id]);
 

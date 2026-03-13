@@ -280,6 +280,7 @@ app.whenReady().then(async () => {
     autoSaveManager,
     ptySubscriptionManager,
     gitBranchWatcher,
+    tmuxCompatService,
     currentWorkspace,
     getCurrentWorkspace: () => currentWorkspace,
     setCurrentWorkspace: (workspace) => { currentWorkspace = workspace; },

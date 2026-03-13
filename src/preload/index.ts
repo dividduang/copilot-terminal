@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { ElectronAPI } from '../shared/types/electron-api';
+import type { ElectronAPI, PtyWriteMetadata } from '../shared/types/electron-api';
 
 // 暴露受控的 IPC API 到渲染进程
 const electronAPI: ElectronAPI = {
@@ -110,8 +110,8 @@ const electronAPI: ElectronAPI = {
   },
 
   // PTY I/O
-  ptyWrite: (windowId: string, paneId: string | undefined, data: string) =>
-    ipcRenderer.invoke('pty-write', { windowId, paneId, data }),
+  ptyWrite: (windowId: string, paneId: string | undefined, data: string, metadata?: PtyWriteMetadata) =>
+    ipcRenderer.invoke('pty-write', { windowId, paneId, data, metadata }),
   ptyResize: (windowId: string, paneId: string | undefined, cols: number, rows: number) =>
     ipcRenderer.invoke('pty-resize', { windowId, paneId, cols, rows }),
   getPtyHistory: (paneId: string) =>
