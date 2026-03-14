@@ -41,7 +41,7 @@ export const zhCNMessages = {
 
   'statusBar.ariaLabel': '窗格状态统计：运行中 {running} 个，等待输入 {waiting} 个，暂停 {paused} 个',
 
-  'sidebar.section.statusSummary': '状态统计',
+  'sidebar.section.statusSummary': '状态分类',
   'sidebar.section.windowManagement': '终端管理',
   'sidebar.tab.all': '全部终端',
   'sidebar.tab.active': '活动终端',

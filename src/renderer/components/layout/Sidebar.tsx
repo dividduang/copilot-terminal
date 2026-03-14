@@ -253,12 +253,12 @@ export function Sidebar({
           </div>
         )}
 
-        {/* 状态统计 */}
+        {/* 状态分类 */}
         <div className="px-4 py-4 border-b border-[rgb(var(--border))]">
           <h3 className="text-xs font-semibold text-[rgb(var(--muted-foreground))] uppercase tracking-wider mb-3">
             {t('sidebar.section.statusSummary')}
           </h3>
-          <StatusBar />
+          <StatusBar currentTab={currentTab} onTabChange={onTabChange} />
         </div>
 
         {/* 窗格管理 */}

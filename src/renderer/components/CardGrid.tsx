@@ -83,6 +83,33 @@ export const CardGrid = React.memo<CardGridProps>(({ onEnterTerminal, onEnterGro
     const filterGroupedWindows = (ws: Window[]) =>
       hideGroupedWindows ? ws.filter(w => !groupedWindowIds.has(w.id)) : ws;
 
+    // 状态筛选标签
+    if (currentTab?.startsWith('status:')) {
+      const statusMap: Record<string, string> = {
+        'status:running': 'running',
+        'status:waiting': 'waiting',
+        'status:paused': 'paused',
+      };
+      const targetStatus = statusMap[currentTab];
+      if (!targetStatus) return [];
+
+      // 筛选包含目标状态窗格的未归档窗口
+      const matchedWindows = filterGroupedWindows(
+        windows.filter(w => !w.archived && getAllPanes(w.layout).some(p => p.status === targetStatus))
+      );
+      const windowItems: CardItem[] = sortWindows(matchedWindows, 'createdAt').map(w => ({ type: 'window', data: w }));
+
+      // 筛选包含目标状态窗口的未归档组
+      const matchedGroups = groups.filter(g => {
+        if (g.archived) return false;
+        const groupWindowIds = getAllWindowIds(g.layout);
+        return windows.some(w => groupWindowIds.includes(w.id) && getAllPanes(w.layout).some(p => p.status === targetStatus));
+      });
+      const groupItems: CardItem[] = sortGroupsByCreatedAt(matchedGroups).map(g => ({ type: 'group', data: g }));
+
+      return [...groupItems, ...windowItems];
+    }
+
     // 自定义分类标签
     if (currentTab !== 'all' && currentTab !== 'active' && currentTab !== 'archived') {
       const category = customCategories.find(c => c.id === currentTab);
