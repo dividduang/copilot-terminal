@@ -70,6 +70,7 @@ interface WindowStore {
   mruList: string[]; // 最近使用列表（窗口 ID）
   sidebarExpanded: boolean; // 侧边栏是否展开
   sidebarWidth: number; // 侧边栏宽度
+  hideGroupedWindows: boolean; // 是否隐藏已加入组的窗口
 
   // 组相关状态
   groups: WindowGroup[]; // 窗口组列表
@@ -110,6 +111,7 @@ interface WindowStore {
   // 侧边栏相关
   toggleSidebar: () => void;
   setSidebarWidth: (width: number) => void;
+  setHideGroupedWindows: (hide: boolean) => void;
 
   // 辅助方法
   getWindowById: (id: string) => Window | undefined;
@@ -176,6 +178,7 @@ export const useWindowStore = create<WindowStore>()(
     mruList: [],
     sidebarExpanded: false, // 默认折叠
     sidebarWidth: 200, // 默认宽度
+    hideGroupedWindows: false, // 默认显示所有窗口
 
     // 组相关初始状态
     groups: [],
@@ -585,6 +588,13 @@ export const useWindowStore = create<WindowStore>()(
     setSidebarWidth: (width) => {
       set((state) => {
         state.sidebarWidth = Math.max(150, Math.min(400, width));
+      });
+    },
+
+    // 设置是否隐藏已分组的窗口
+    setHideGroupedWindows: (hide) => {
+      set((state) => {
+        state.hideGroupedWindows = hide;
       });
     },
 

@@ -47,6 +47,8 @@ export function Sidebar({
   const addCustomCategory = useWindowStore((state) => state.addCustomCategory);
   const updateCustomCategory = useWindowStore((state) => state.updateCustomCategory);
   const removeCustomCategory = useWindowStore((state) => state.removeCustomCategory);
+  const hideGroupedWindows = useWindowStore((state) => state.hideGroupedWindows);
+  const setHideGroupedWindows = useWindowStore((state) => state.setHideGroupedWindows);
 
   const activeWindows = windows.filter(w => !w.archived);
   const archivedWindows = windows.filter(w => w.archived);
@@ -261,8 +263,30 @@ export function Sidebar({
 
         {/* 窗格管理 */}
         <div className="flex-1 px-4 py-4 overflow-y-auto border-b border-[rgb(var(--border))]">
-          <h3 className="text-xs font-semibold text-[rgb(var(--muted-foreground))] uppercase tracking-wider mb-3">
-            {t('sidebar.section.windowManagement')}
+          <h3 className="text-xs font-semibold text-[rgb(var(--muted-foreground))] uppercase tracking-wider mb-3 flex items-center justify-between">
+            <span>{t('sidebar.section.windowManagement')}</span>
+            <div
+              className="flex items-center gap-1 cursor-pointer normal-case tracking-normal font-normal"
+              title="勾选后隐藏已加入窗口组的窗口"
+              onClick={() => setHideGroupedWindows(!hideGroupedWindows)}
+            >
+              <span className="text-[10px] text-[rgb(var(--muted-foreground))]">隐藏已分组</span>
+              <span
+                role="checkbox"
+                aria-checked={hideGroupedWindows}
+                className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors ${
+                  hideGroupedWindows
+                    ? 'bg-blue-500 border-blue-500'
+                    : 'border-zinc-500 bg-transparent hover:border-zinc-400'
+                }`}
+              >
+                {hideGroupedWindows && (
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                    <path d="M2 5L4.5 7.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </span>
+            </div>
           </h3>
           {/* Tab buttons */}
           <div className="flex flex-col gap-2">

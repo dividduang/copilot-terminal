@@ -62,6 +62,7 @@ export const CardGrid = React.memo<CardGridProps>(({ onEnterTerminal, onEnterGro
 
   // 自定义分类
   const customCategories = useWindowStore((state) => state.customCategories);
+  const hideGroupedWindows = useWindowStore((state) => state.hideGroupedWindows);
 
   const { runWithWindowDirectory, dialogState } = useWindowDirectoryGuard();
   const [editingWindow, setEditingWindow] = useState<Window | null>(null);
@@ -74,12 +75,20 @@ export const CardGrid = React.memo<CardGridProps>(({ onEnterTerminal, onEnterGro
     const sortGroupsByCreatedAt = (gs: WindowGroup[]) =>
       [...gs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
+    // 计算已分组的窗口 ID 集合
+    const groupedWindowIds = hideGroupedWindows
+      ? new Set(groups.flatMap(g => getAllWindowIds(g.layout)))
+      : new Set<string>();
+
+    const filterGroupedWindows = (ws: Window[]) =>
+      hideGroupedWindows ? ws.filter(w => !groupedWindowIds.has(w.id)) : ws;
+
     // 自定义分类标签
     if (currentTab !== 'all' && currentTab !== 'active' && currentTab !== 'archived') {
       const category = customCategories.find(c => c.id === currentTab);
       if (!category) return [];
 
-      const categoryWindows = windows.filter(w => category.windowIds.includes(w.id));
+      const categoryWindows = filterGroupedWindows(windows.filter(w => category.windowIds.includes(w.id)));
       const categoryGroups = groups.filter(g => category.groupIds.includes(g.id));
 
       const groupItems: CardItem[] = sortGroupsByCreatedAt(categoryGroups).map(g => ({ type: 'group', data: g }));
@@ -91,8 +100,8 @@ export const CardGrid = React.memo<CardGridProps>(({ onEnterTerminal, onEnterGro
       // 全部终端：活跃组 → 活跃窗口 → 归档组 → 归档窗口
       const activeGroups = groups.filter(g => !g.archived);
       const archivedGroups = groups.filter(g => g.archived);
-      const activeWindows = windows.filter(w => !w.archived);
-      const archivedWindows = windows.filter(w => w.archived);
+      const activeWindows = filterGroupedWindows(windows.filter(w => !w.archived));
+      const archivedWindows = filterGroupedWindows(windows.filter(w => w.archived));
 
       return [
         ...sortGroupsByCreatedAt(activeGroups).map(g => ({ type: 'group' as const, data: g })),
@@ -105,7 +114,7 @@ export const CardGrid = React.memo<CardGridProps>(({ onEnterTerminal, onEnterGro
     if (currentTab === 'archived') {
       // 归档终端：归档组 → 归档窗口
       const archivedGroups = groups.filter(g => g.archived);
-      const archivedWindows = windows.filter(w => w.archived);
+      const archivedWindows = filterGroupedWindows(windows.filter(w => w.archived));
 
       return [
         ...sortGroupsByCreatedAt(archivedGroups).map(g => ({ type: 'group' as const, data: g })),
@@ -115,13 +124,13 @@ export const CardGrid = React.memo<CardGridProps>(({ onEnterTerminal, onEnterGro
 
     // 活跃终端（默认）：活跃组 → 活跃窗口
     const activeGroups = groups.filter(g => !g.archived);
-    const activeWindows = windows.filter(w => !w.archived);
+    const activeWindows = filterGroupedWindows(windows.filter(w => !w.archived));
 
     return [
       ...sortGroupsByCreatedAt(activeGroups).map(g => ({ type: 'group' as const, data: g })),
       ...sortWindows(activeWindows, 'createdAt').map(w => ({ type: 'window' as const, data: w })),
     ];
-  }, [currentTab, windows, groups, customCategories]);
+  }, [currentTab, windows, groups, customCategories, hideGroupedWindows]);
 
   // 全局搜索：始终搜索所有终端和组，不受 currentTab 限制
   const allCardItems = useMemo<CardItem[]>(() => {

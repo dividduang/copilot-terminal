@@ -40,6 +40,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     getActiveGroups,
     getArchivedGroups,
     windows,
+    hideGroupedWindows,
+    setHideGroupedWindows,
   } = useWindowStore();
 
   const [isResizing, setIsResizing] = useState(false);
@@ -86,9 +88,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items.push({ kind: 'group', id: group.id, status: groupStatus, group });
     }
 
-    // 添加独立窗口（不属于任何组）
+    // 添加独立窗口（根据设置决定是否过滤已分组窗口）
     for (const w of activeWindows) {
-      if (groupedWindowIds.has(w.id)) continue;
+      if (hideGroupedWindows && groupedWindowIds.has(w.id)) continue;
       items.push({ kind: 'window', id: w.id, status: getAggregatedStatus(w.layout), window: w });
     }
 
@@ -101,7 +103,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     });
 
     return items;
-  }, [activeGroups, activeWindows, groupedWindowIds, windows]);
+  }, [activeGroups, activeWindows, groupedWindowIds, windows, hideGroupedWindows]);
 
   // 处理宽度调整
   useEffect(() => {
@@ -172,11 +174,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* 标题（仅展开时显示） - 淡入淡出 */}
         {sidebarExpanded && (
           <div
-            className={`px-3 py-2 text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-800 flex-shrink-0 transition-opacity duration-200 ${
+            className={`px-3 py-2 text-xs font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-800 flex-shrink-0 transition-opacity duration-200 flex items-center justify-between ${
               sidebarExpanded ? 'opacity-100' : 'opacity-0'
             }`}
           >
-            窗口
+            <span>窗口</span>
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={hideGroupedWindows}
+              onClick={() => setHideGroupedWindows(!hideGroupedWindows)}
+              className="flex items-center gap-1.5 cursor-pointer normal-case tracking-normal font-normal"
+              title="勾选后隐藏已加入窗口组的窗口"
+            >
+              <span className="text-[10px] text-zinc-500">隐藏已分组</span>
+              <span
+                className={`inline-flex items-center justify-center w-3.5 h-3.5 rounded-sm border transition-colors ${
+                  hideGroupedWindows
+                    ? 'bg-blue-500 border-blue-500'
+                    : 'bg-transparent border-zinc-500'
+                }`}
+              >
+                {hideGroupedWindows && (
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2 5.5L4 7.5L8 3" />
+                  </svg>
+                )}
+              </span>
+            </button>
           </div>
         )}
 
