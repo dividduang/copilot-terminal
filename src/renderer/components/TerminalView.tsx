@@ -51,6 +51,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
   const { enabledIDEs } = useIDESettings();
   const aggregatedStatus = useMemo(() => getAggregatedStatus(terminalWindow.layout), [terminalWindow.layout]);
   const panes = useMemo(() => getAllPanes(terminalWindow.layout), [terminalWindow.layout]);
+  const isWindowRunning = aggregatedStatus === WindowStatus.Running || aggregatedStatus === WindowStatus.WaitingForInput;
 
   // 鍒囨崲闈㈡澘鐘舵€?
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
@@ -534,11 +535,12 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
             {embedded && groupId && (
               <>
                 <Tooltip.Provider>
-                  <Tooltip.Root delayDuration={300}>
+                  <Tooltip.Root delayDuration={200}>
                     <Tooltip.Trigger asChild>
                       <button
                         onClick={() => onRemoveFromGroup?.(terminalWindow.id)}
                         className="flex items-center justify-center w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-100 transition-colors"
+                        title={t('terminalView.removeFromGroup')}
                       >
                         <LogOut size={14} />
                       </button>
@@ -554,28 +556,36 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
                   </Tooltip.Root>
                 </Tooltip.Provider>
 
-                {(aggregatedStatus === WindowStatus.Running || aggregatedStatus === WindowStatus.WaitingForInput) && (
-                  <Tooltip.Provider>
-                    <Tooltip.Root delayDuration={300}>
-                      <Tooltip.Trigger asChild>
-                        <button
-                          onClick={() => onStopAndRemoveFromGroup?.(terminalWindow.id)}
-                          className="flex items-center justify-center w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 text-red-500 transition-colors"
-                        >
-                          <SquareX size={14} />
-                        </button>
-                      </Tooltip.Trigger>
-                      <Tooltip.Portal>
-                        <Tooltip.Content
-                          className="bg-zinc-800 text-zinc-100 px-2 py-1 rounded text-xs z-50 shadow-xl border border-zinc-700"
-                          sideOffset={5}
-                        >
-                          {t('terminalView.stopAndRemoveFromGroup')}
-                        </Tooltip.Content>
-                      </Tooltip.Portal>
-                    </Tooltip.Root>
-                  </Tooltip.Provider>
-                )}
+                <Tooltip.Provider>
+                  <Tooltip.Root delayDuration={200}>
+                    <Tooltip.Trigger asChild>
+                      <button
+                        onClick={() => {
+                          if (isWindowRunning) {
+                            onStopAndRemoveFromGroup?.(terminalWindow.id);
+                          }
+                        }}
+                        disabled={!isWindowRunning}
+                        className={`flex items-center justify-center w-6 h-6 rounded bg-zinc-800 transition-colors ${
+                          isWindowRunning
+                            ? 'hover:bg-zinc-700 text-red-500 cursor-pointer'
+                            : 'text-zinc-600 cursor-not-allowed'
+                        }`}
+                        title={t('terminalView.stopAndRemoveFromGroup')}
+                      >
+                        <SquareX size={14} />
+                      </button>
+                    </Tooltip.Trigger>
+                    <Tooltip.Portal>
+                      <Tooltip.Content
+                        className="bg-zinc-800 text-zinc-100 px-2 py-1 rounded text-xs z-50 shadow-xl border border-zinc-700"
+                        sideOffset={5}
+                      >
+                        {t('terminalView.stopAndRemoveFromGroup')}
+                      </Tooltip.Content>
+                    </Tooltip.Portal>
+                  </Tooltip.Root>
+                </Tooltip.Provider>
               </>
             )}
 
