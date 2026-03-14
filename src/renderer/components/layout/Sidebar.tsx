@@ -452,23 +452,18 @@ export function Sidebar({
                           setNewCategoryName('');
                         }
                       }}
+                      onBlur={() => {
+                        // 如果有内容，自动保存；如果没有内容，自动取消
+                        if (newCategoryName.trim()) {
+                          handleCreateCategory();
+                        } else {
+                          setIsCreatingCategory(false);
+                          setNewCategoryName('');
+                        }
+                      }}
                       placeholder={t('category.namePlaceholder')}
                       className="flex-1 min-w-0 text-sm bg-zinc-800 border border-zinc-600 rounded px-1.5 py-0.5 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-blue-500"
                     />
-                    <button
-                      onClick={handleCreateCategory}
-                      className="flex-shrink-0 w-5 h-5 flex items-center justify-center text-green-400 hover:text-green-300 rounded transition-colors"
-                      title={t('common.save')}
-                    >
-                      <Check className="h-3 w-3" />
-                    </button>
-                    <button
-                      onClick={() => { setIsCreatingCategory(false); setNewCategoryName(''); }}
-                      className="flex-shrink-0 w-5 h-5 flex items-center justify-center text-zinc-400 hover:text-zinc-200 rounded transition-colors"
-                      title={t('common.cancel')}
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
                   </div>
                 ) : (
                   <button
