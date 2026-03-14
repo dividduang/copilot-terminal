@@ -81,6 +81,8 @@ export const zhCNMessages = {
   'category.moreActions': '更多操作',
   'category.collapse': '折叠',
   'category.expand': '展开',
+  'category.emptyTitle': '此分类暂无终端',
+  'category.emptyHint': '拖拽窗口或组到此分类即可添加',
 
   'createWindow.defaultName': '窗口 #{count}',
   'createWindow.title': '新建窗口',
@@ -363,8 +365,8 @@ export const enUSMessages: Record<TranslationKey, string> = {
   'category.moreActions': 'More actions',
   'category.collapse': 'Collapse',
   'category.expand': 'Expand',
-
-  'createWindow.defaultName': 'Window #{count}',
+  'category.emptyTitle': 'No terminals in this category',
+  'category.emptyHint': 'Drag windows or groups here to add them',
   'createWindow.title': 'New window',
   'createWindow.description': 'Create a new terminal window',
   'createWindow.nameLabel': 'Window name (optional)',

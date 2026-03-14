@@ -6,7 +6,6 @@ import { Sidebar } from './components/layout/Sidebar';
 import { EmptyState } from './components/EmptyState';
 import { CardGrid } from './components/CardGrid';
 import { CreateGroupDialog } from './components/CreateGroupDialog';
-import { ArchivedView } from './components/ArchivedView';
 import { TerminalView } from './components/TerminalView';
 import { GroupView } from './components/GroupView';
 import { ViewSwitchError } from './components/ViewSwitchError';
@@ -64,6 +63,21 @@ function AppContent() {
       }
     };
     fetchVersion();
+  }, []);
+
+  // 从 settings 恢复上次选择的侧边栏标签
+  useEffect(() => {
+    const loadDefaultTab = async () => {
+      try {
+        const response = await window.electronAPI.getSettings();
+        if (response.success && response.data?.defaultSidebarTab) {
+          setCurrentTab(response.data.defaultSidebarTab);
+        }
+      } catch (error) {
+        console.error('Failed to load default sidebar tab:', error);
+      }
+    };
+    loadDefaultTab();
   }, []);
 
   // 工作区恢复
@@ -278,6 +292,10 @@ function AppContent() {
 
   const handleTabChange = useCallback((tab: 'all' | 'active' | 'archived' | string) => {
     setCurrentTab(tab);
+    // 持久化到 settings
+    window.electronAPI?.updateSettings({ defaultSidebarTab: tab }).catch((error) => {
+      console.error('Failed to save default sidebar tab:', error);
+    });
   }, []);
 
   // 进入组视图
@@ -306,8 +324,8 @@ function AppContent() {
     [windows, mountedTerminalWindowIdSet]
   );
   const hasActiveWindows = useMemo(
-    () => windows.some(w => !w.archived),
-    [windows]
+    () => windows.some(w => !w.archived) || groups.some(g => !g.archived),
+    [windows, groups]
   );
 
   return (
@@ -336,14 +354,16 @@ function AppContent() {
             />
           }
         >
-          {currentTab === 'archived' ? (
-            <ArchivedView onEnterTerminal={handleEnterTerminal} searchQuery={searchQuery} />
+          {currentTab === 'active' && !hasActiveWindows ? (
+            <EmptyState onCreateWindow={handleCreateWindow} />
           ) : (
-            !hasActiveWindows ? (
-              <EmptyState onCreateWindow={handleCreateWindow} />
-            ) : (
-              <CardGrid onEnterTerminal={handleEnterTerminal} onEnterGroup={handleEnterGroup} onCreateWindow={handleCreateWindow} searchQuery={searchQuery} />
-            )
+            <CardGrid
+              onEnterTerminal={handleEnterTerminal}
+              onEnterGroup={handleEnterGroup}
+              onCreateWindow={handleCreateWindow}
+              searchQuery={searchQuery}
+              currentTab={currentTab}
+            />
           )}
         </MainLayout>
       </div>

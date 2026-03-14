@@ -41,6 +41,7 @@ export function Sidebar({
 }: SidebarProps) {
   const { t } = useI18n();
   const windows = useWindowStore((state) => state.windows);
+  const groups = useWindowStore((state) => state.groups);
   const addWindow = useWindowStore((state) => state.addWindow);
   const removeWindow = useWindowStore((state) => state.removeWindow);
   const customCategories = useWindowStore((state) => state.customCategories);
@@ -49,6 +50,13 @@ export function Sidebar({
 
   const activeWindows = windows.filter(w => !w.archived);
   const archivedWindows = windows.filter(w => w.archived);
+  const activeGroups = groups.filter(g => !g.archived);
+  const archivedGroups = groups.filter(g => g.archived);
+
+  // 各标签的计数
+  const allCount = windows.length + groups.length;
+  const activeCount = activeWindows.length + activeGroups.length;
+  const archivedCount = archivedWindows.length + archivedGroups.length;
   const [isBatchDialogOpen, setIsBatchDialogOpen] = useState(false);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
   const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
@@ -129,7 +137,7 @@ export function Sidebar({
         <div className="h-4" />
 
         {/* 搜索框 */}
-        {((currentTab === 'all' && windows.length > 0) || (currentTab === 'active' && activeWindows.length > 0) || (currentTab === 'archived' && archivedWindows.length > 0)) && (
+        {((currentTab === 'all' && allCount > 0) || (currentTab === 'active' && activeCount > 0) || (currentTab === 'archived' && archivedCount > 0) || (currentTab !== 'all' && currentTab !== 'active' && currentTab !== 'archived')) && (
           <div className="px-4 pb-3">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" size={14} />
@@ -178,8 +186,8 @@ export function Sidebar({
             >
               <Grid className="h-4 w-4" />
               <span>{t('sidebar.tab.all')}</span>
-              {windows.length > 0 && (
-                <span className="ml-auto text-xs">{windows.length}</span>
+              {allCount > 0 && (
+                <span className="ml-auto text-xs">{allCount}</span>
               )}
             </button>
             <button
@@ -192,8 +200,8 @@ export function Sidebar({
             >
               <Terminal className="h-4 w-4" />
               <span>{t('sidebar.tab.active')}</span>
-              {activeWindows.length > 0 && (
-                <span className="ml-auto text-xs">{activeWindows.length}</span>
+              {activeCount > 0 && (
+                <span className="ml-auto text-xs">{activeCount}</span>
               )}
             </button>
             <button
@@ -206,8 +214,8 @@ export function Sidebar({
             >
               <Archive className="h-4 w-4" />
               <span>{t('sidebar.tab.archived')}</span>
-              {archivedWindows.length > 0 && (
-                <span className="ml-auto text-xs">{archivedWindows.length}</span>
+              {archivedCount > 0 && (
+                <span className="ml-auto text-xs">{archivedCount}</span>
               )}
             </button>
           </div>
