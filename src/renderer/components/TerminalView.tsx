@@ -31,6 +31,8 @@ export interface TerminalViewProps {
   onRemoveFromGroup?: (windowId: string) => void;
   /** 停止并从组中移除窗口的回调 */
   onStopAndRemoveFromGroup?: (windowId: string) => void;
+  /** 切换到指定组的回调 */
+  onGroupSwitch?: (groupId: string) => void;
 }
 
 /**
@@ -46,6 +48,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
   groupId,
   onRemoveFromGroup,
   onStopAndRemoveFromGroup,
+  onGroupSwitch,
 }) => {
   const { t } = useI18n();
   const { enabledIDEs } = useIDESettings();
@@ -379,6 +382,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
         <Sidebar
           activeWindowId={terminalWindow.id}
           onWindowSelect={onWindowSwitch}
+          onGroupSelect={onGroupSwitch}
           onSettingsClick={() => setIsSettingsPanelOpen(true)}
         />
       )}

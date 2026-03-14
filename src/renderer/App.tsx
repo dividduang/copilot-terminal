@@ -423,6 +423,7 @@ function AppContent() {
               window={terminalWindow}
               onReturn={switchToUnifiedView}
               onWindowSwitch={handleWindowSwitch}
+              onGroupSwitch={handleGroupSwitch}
               isActive={isVisible}
             />
           </div>
