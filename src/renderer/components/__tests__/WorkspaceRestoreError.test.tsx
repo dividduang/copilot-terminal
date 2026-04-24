@@ -3,6 +3,19 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { WorkspaceRestoreError } from '../WorkspaceRestoreError';
 
+vi.mock('../../i18n', () => ({
+  useI18n: () => ({
+    t: (k: string, params?: Record<string, string | number>) => {
+      if (params) {
+        return Object.entries(params).reduce((str, [key, val]) => str.replace(`{${key}}`, String(val)), k);
+      }
+      return k;
+    },
+    language: 'zh-CN',
+    setLanguage: vi.fn(),
+  }),
+}));
+
 describe('WorkspaceRestoreError', () => {
   it('should render error message', () => {
     render(
@@ -11,7 +24,7 @@ describe('WorkspaceRestoreError', () => {
       />
     );
 
-    expect(screen.getByText('工作区加载失败')).toBeInTheDocument();
+    expect(screen.getByText('workspaceRestore.title')).toBeInTheDocument();
     expect(screen.getByText('Failed to load workspace.json')).toBeInTheDocument();
   });
 
@@ -25,7 +38,7 @@ describe('WorkspaceRestoreError', () => {
       />
     );
 
-    const retryButton = screen.getByText('重试');
+    const retryButton = screen.getByText('common.retry');
     expect(retryButton).toBeInTheDocument();
 
     fireEvent.click(retryButton);
@@ -42,7 +55,7 @@ describe('WorkspaceRestoreError', () => {
       />
     );
 
-    const recoverButton = screen.getByText('从备份恢复');
+    const recoverButton = screen.getByText('common.recoverFromBackup');
     expect(recoverButton).toBeInTheDocument();
 
     fireEvent.click(recoverButton);
@@ -61,8 +74,8 @@ describe('WorkspaceRestoreError', () => {
       />
     );
 
-    expect(screen.getByText('重试')).toBeInTheDocument();
-    expect(screen.getByText('从备份恢复')).toBeInTheDocument();
+    expect(screen.getByText('common.retry')).toBeInTheDocument();
+    expect(screen.getByText('common.recoverFromBackup')).toBeInTheDocument();
   });
 
   it('should not render buttons when callbacks are not provided', () => {
@@ -72,7 +85,7 @@ describe('WorkspaceRestoreError', () => {
       />
     );
 
-    expect(screen.queryByText('重试')).not.toBeInTheDocument();
+    expect(screen.queryByText('common.retry')).not.toBeInTheDocument();
     expect(screen.queryByText('从备份恢复')).not.toBeInTheDocument();
   });
 

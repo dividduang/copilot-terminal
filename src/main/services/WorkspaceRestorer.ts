@@ -9,7 +9,7 @@ import { Window } from '../../shared/types/window';
 export interface RestoreResult {
   windowId: string;
   pid: number | null;
-  status: 'restoring' | 'error';
+  status: 'restoring' | 'error' | 'paused';
   error?: string;
 }
 
@@ -84,6 +84,26 @@ export class WorkspaceRestorerImpl implements IWorkspaceRestorer {
   private async restoreWindow(window: Window): Promise<RestoreResult> {
     try {
       console.log(`[WorkspaceRestorer] Restoring window: ${window.id} (${window.name})`);
+
+      // 验证工作目录是否存在
+      const workingDir = (window as any).workingDirectory;
+      if (workingDir) {
+        try {
+          const fs = await import('fs-extra');
+          const exists = await fs.pathExists(workingDir);
+          if (!exists) {
+            console.warn(`[WorkspaceRestorer] Working directory does not exist: ${workingDir}`);
+            return {
+              windowId: window.id,
+              pid: null,
+              status: 'paused',
+              error: `Working directory not found: ${workingDir}`,
+            };
+          }
+        } catch {
+          // 如果检查失败，继续尝试启动
+        }
+      }
 
       // 启动终端进程
       const handle = await this.processManager.spawnTerminal({

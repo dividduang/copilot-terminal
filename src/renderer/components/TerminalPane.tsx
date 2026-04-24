@@ -9,7 +9,17 @@ import { subscribeToPanePtyData } from '../api/ptyDataBus';
 import type { PtyDataPayload, PtyHistorySnapshot } from '../../shared/types/electron-api';
 import '../styles/xterm.css';
 
+const MAX_REPLAY_SESSIONS = 100;
 const completedReplaySessions = new Set<string>();
+
+function addCompletedReplaySession(key: string): void {
+  if (completedReplaySessions.size >= MAX_REPLAY_SESSIONS) {
+    // 删除最早的条目 (Set 保持插入顺序)
+    const firstKey = completedReplaySessions.values().next().value;
+    if (firstKey) completedReplaySessions.delete(firstKey);
+  }
+  completedReplaySessions.add(key);
+}
 
 function getReplaySessionKey(windowId: string, paneId: string, pid: number | null | undefined): string | null {
   if (pid === null || pid === undefined) {
@@ -192,6 +202,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
   const replaySessionKeyRef = useRef<string | null>(getReplaySessionKey(windowId, pane.id, pane.pid));
   const replayHistoryRef = useRef<((options?: { resetTerminal?: boolean }) => Promise<void>) | null>(null);
   const [isHovered, setIsHovered] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
 
   // 确定边框颜色：优先使用自定义 borderColor，否则使用状态颜色
   const customBorderStyle = getCustomBorderStyle(pane.borderColor);
@@ -370,7 +381,8 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
   useEffect(() => {
     if (!terminalContainerRef.current) return;
 
-    const terminal = new Terminal({
+    try {
+      const terminal = new Terminal({
       cols: 80,
       rows: 30,
       theme: {
@@ -541,7 +553,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
         isHistoryLoadedRef.current = true;
         hasCompletedReplayForCurrentSessionRef.current = true;
         if (sessionKey) {
-          completedReplaySessions.add(sessionKey);
+          addCompletedReplaySession(sessionKey);
         }
         const bufferedChunks = bufferedLiveDataRef.current;
         bufferedLiveDataRef.current = [];
@@ -726,6 +738,11 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
 
       terminal.dispose();
     };
+    } catch (error) {
+      console.error('[TerminalPane] Failed to initialize xterm.js:', error);
+      setInitError(error instanceof Error ? error.message : 'Terminal initialization failed');
+      return; // 提前返回，不执行 cleanup
+    }
   }, [windowId, pane.id]); // writeClipboardText 和 readClipboardText 已用 useCallback 包裹且依赖为空，引用稳定，无需作为依赖
 
   useEffect(() => {
@@ -788,6 +805,15 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
       window.electronAPI.ptyWrite(windowId, pane.id, text, { source: 'context-menu-paste' });
     })();
   }, [isActive, onActivate, readClipboardText, windowId, pane.id]);
+
+  // 如果初始化失败，显示错误信息
+  if (initError) {
+    return (
+      <div className="flex items-center justify-center h-full text-status-error text-sm p-4">
+        <p>{initError}</p>
+      </div>
+    );
+  }
 
   return (
     <div

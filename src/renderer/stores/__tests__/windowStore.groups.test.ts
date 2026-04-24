@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { useWindowStore } from '../../windowStore';
+import { useWindowStore } from '../windowStore';
 import type { WindowGroup, GroupLayoutNode } from '@/shared/types/window-group';
 
 /**
@@ -86,7 +86,7 @@ describe('windowStore - Window Groups', () => {
         workingDirectory: '/test/path1',
         command: 'bash',
         status: 'Running' as const,
-        layout: { type: 'pane' as const, id: 'pane-1' },
+        layout: { type: 'pane' as const, id: 'pane-1', pane: { id: 'pane-1', cwd: '/test/path1', command: 'bash', status: 'Running' as const, pid: null } },
         activePaneId: 'pane-1',
         createdAt: new Date().toISOString(),
         lastActiveAt: new Date().toISOString(),
@@ -98,7 +98,7 @@ describe('windowStore - Window Groups', () => {
         workingDirectory: '/test/path2',
         command: 'bash',
         status: 'Running' as const,
-        layout: { type: 'pane' as const, id: 'pane-2' },
+        layout: { type: 'pane' as const, id: 'pane-2', pane: { id: 'pane-2', cwd: '/test/path2', command: 'bash', status: 'Running' as const, pid: null } },
         activePaneId: 'pane-2',
         createdAt: new Date().toISOString(),
         lastActiveAt: new Date().toISOString(),
@@ -146,7 +146,7 @@ describe('windowStore - Window Groups', () => {
         workingDirectory: '/test/path1',
         command: 'bash',
         status: 'Running' as const,
-        layout: { type: 'pane' as const, id: 'pane-1' },
+        layout: { type: 'pane' as const, id: 'pane-1', pane: { id: 'pane-1', cwd: '/test/path1', command: 'bash', status: 'Running' as const, pid: null } },
         activePaneId: 'pane-1',
         createdAt: new Date().toISOString(),
         lastActiveAt: new Date().toISOString(),
@@ -158,7 +158,7 @@ describe('windowStore - Window Groups', () => {
         workingDirectory: '/test/path2',
         command: 'bash',
         status: 'Running' as const,
-        layout: { type: 'pane' as const, id: 'pane-2' },
+        layout: { type: 'pane' as const, id: 'pane-2', pane: { id: 'pane-2', cwd: '/test/path2', command: 'bash', status: 'Running' as const, pid: null } },
         activePaneId: 'pane-2',
         createdAt: new Date().toISOString(),
         lastActiveAt: new Date().toISOString(),
@@ -210,7 +210,7 @@ describe('windowStore - Window Groups', () => {
         workingDirectory: '/test/path1',
         command: 'bash',
         status: 'Running' as const,
-        layout: { type: 'pane' as const, id: 'pane-1' },
+        layout: { type: 'pane' as const, id: 'pane-1', pane: { id: 'pane-1', cwd: '/test/path1', command: 'bash', status: 'Running' as const, pid: null } },
         activePaneId: 'pane-1',
         createdAt: new Date().toISOString(),
         lastActiveAt: new Date().toISOString(),
@@ -222,7 +222,7 @@ describe('windowStore - Window Groups', () => {
         workingDirectory: '/test/path2',
         command: 'bash',
         status: 'Running' as const,
-        layout: { type: 'pane' as const, id: 'pane-2' },
+        layout: { type: 'pane' as const, id: 'pane-2', pane: { id: 'pane-2', cwd: '/test/path2', command: 'bash', status: 'Running' as const, pid: null } },
         activePaneId: 'pane-2',
         createdAt: new Date().toISOString(),
         lastActiveAt: new Date().toISOString(),
@@ -250,16 +250,16 @@ describe('windowStore - Window Groups', () => {
       };
 
       store.addGroup(group);
-      store.setActiveGroup('group-1');
+      useWindowStore.getState().setActiveGroup('group-1');
 
-      // 验证组被激活
-      expect(store.activeGroupId).toBe('group-1');
+      // 验证组被激活（重新获取状态）
+      expect(useWindowStore.getState().activeGroupId).toBe('group-1');
 
       // 归档组
-      store.archiveGroup('group-1');
+      useWindowStore.getState().archiveGroup('group-1');
 
       // 验证 activeGroupId 被清空
-      expect(store.activeGroupId).toBeNull();
+      expect(useWindowStore.getState().activeGroupId).toBeNull();
     });
   });
 
@@ -356,7 +356,7 @@ describe('windowStore - Window Groups', () => {
         workingDirectory: '/test/path1',
         command: 'bash',
         status: 'Running' as const,
-        layout: { type: 'pane' as const, id: 'pane-1' },
+        layout: { type: 'pane' as const, id: 'pane-1', pane: { id: 'pane-1', cwd: '/test/path1', command: 'bash', status: 'Running' as const, pid: null } },
         activePaneId: 'pane-1',
         createdAt: new Date().toISOString(),
         lastActiveAt: new Date().toISOString(),
@@ -368,7 +368,7 @@ describe('windowStore - Window Groups', () => {
         workingDirectory: '/test/path2',
         command: 'bash',
         status: 'Running' as const,
-        layout: { type: 'pane' as const, id: 'pane-2' },
+        layout: { type: 'pane' as const, id: 'pane-2', pane: { id: 'pane-2', cwd: '/test/path2', command: 'bash', status: 'Running' as const, pid: null } },
         activePaneId: 'pane-2',
         createdAt: new Date().toISOString(),
         lastActiveAt: new Date().toISOString(),
@@ -419,7 +419,7 @@ describe('windowStore - Window Groups', () => {
         workingDirectory: '/test/path1',
         command: 'bash',
         status: 'Running' as const,
-        layout: { type: 'pane' as const, id: 'pane-1' },
+        layout: { type: 'pane' as const, id: 'pane-1', pane: { id: 'pane-1', cwd: '/test/path1', command: 'bash', status: 'Running' as const, pid: null } },
         activePaneId: 'pane-1',
         createdAt: new Date().toISOString(),
         lastActiveAt: new Date().toISOString(),
@@ -431,7 +431,7 @@ describe('windowStore - Window Groups', () => {
         workingDirectory: '/test/path2',
         command: 'bash',
         status: 'Running' as const,
-        layout: { type: 'pane' as const, id: 'pane-2' },
+        layout: { type: 'pane' as const, id: 'pane-2', pane: { id: 'pane-2', cwd: '/test/path2', command: 'bash', status: 'Running' as const, pid: null } },
         activePaneId: 'pane-2',
         createdAt: new Date().toISOString(),
         lastActiveAt: new Date().toISOString(),
@@ -482,7 +482,7 @@ describe('windowStore - Window Groups', () => {
         workingDirectory: '/test/path1',
         command: 'bash',
         status: 'Running' as const,
-        layout: { type: 'pane' as const, id: 'pane-1' },
+        layout: { type: 'pane' as const, id: 'pane-1', pane: { id: 'pane-1', cwd: '/test/path1', command: 'bash', status: 'Running' as const, pid: null } },
         activePaneId: 'pane-1',
         createdAt: new Date().toISOString(),
         lastActiveAt: new Date().toISOString(),
@@ -494,7 +494,7 @@ describe('windowStore - Window Groups', () => {
         workingDirectory: '/test/path2',
         command: 'bash',
         status: 'Running' as const,
-        layout: { type: 'pane' as const, id: 'pane-2' },
+        layout: { type: 'pane' as const, id: 'pane-2', pane: { id: 'pane-2', cwd: '/test/path2', command: 'bash', status: 'Running' as const, pid: null } },
         activePaneId: 'pane-2',
         createdAt: new Date().toISOString(),
         lastActiveAt: new Date().toISOString(),
@@ -553,7 +553,7 @@ describe('windowStore - Window Groups', () => {
         workingDirectory: '/test/path1',
         command: 'bash',
         status: 'Running' as const,
-        layout: { type: 'pane' as const, id: 'pane-1' },
+        layout: { type: 'pane' as const, id: 'pane-1', pane: { id: 'pane-1', cwd: '/test/path1', command: 'bash', status: 'Running' as const, pid: null } },
         activePaneId: 'pane-1',
         createdAt: new Date().toISOString(),
         lastActiveAt: new Date().toISOString(),
@@ -565,7 +565,7 @@ describe('windowStore - Window Groups', () => {
         workingDirectory: '/test/path2',
         command: 'bash',
         status: 'Running' as const,
-        layout: { type: 'pane' as const, id: 'pane-2' },
+        layout: { type: 'pane' as const, id: 'pane-2', pane: { id: 'pane-2', cwd: '/test/path2', command: 'bash', status: 'Running' as const, pid: null } },
         activePaneId: 'pane-2',
         createdAt: new Date().toISOString(),
         lastActiveAt: new Date().toISOString(),
@@ -640,7 +640,7 @@ describe('windowStore - Window Groups', () => {
         workingDirectory: '/test/path1',
         command: 'bash',
         status: 'Running' as const,
-        layout: { type: 'pane' as const, id: 'pane-1' },
+        layout: { type: 'pane' as const, id: 'pane-1', pane: { id: 'pane-1', cwd: '/test/path1', command: 'bash', status: 'Running' as const, pid: null } },
         activePaneId: 'pane-1',
         createdAt: new Date().toISOString(),
         lastActiveAt: new Date().toISOString(),
@@ -652,7 +652,7 @@ describe('windowStore - Window Groups', () => {
         workingDirectory: '/test/path2',
         command: 'bash',
         status: 'Running' as const,
-        layout: { type: 'pane' as const, id: 'pane-2' },
+        layout: { type: 'pane' as const, id: 'pane-2', pane: { id: 'pane-2', cwd: '/test/path2', command: 'bash', status: 'Running' as const, pid: null } },
         activePaneId: 'pane-2',
         createdAt: new Date().toISOString(),
         lastActiveAt: new Date().toISOString(),

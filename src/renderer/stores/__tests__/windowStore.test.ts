@@ -17,7 +17,19 @@ describe('windowStore', () => {
         status: WindowStatus.Running,
         pid: 1234,
         createdAt: new Date().toISOString(),
-        lastActiveAt: new Date().toISOString()
+        lastActiveAt: new Date().toISOString(),
+        layout: {
+          type: 'pane',
+          id: 'pane-test-id-1',
+          pane: {
+            id: 'pane-test-id-1',
+            cwd: '/test/path',
+            command: 'bash',
+            status: WindowStatus.Running,
+            pid: 1234,
+          },
+        },
+        activePaneId: 'pane-test-id-1',
       }
 
       useWindowStore.getState().addWindow(window)
@@ -36,7 +48,19 @@ describe('windowStore', () => {
         status: WindowStatus.Running,
         pid: 1234,
         createdAt: new Date().toISOString(),
-        lastActiveAt: new Date().toISOString()
+        lastActiveAt: new Date().toISOString(),
+        layout: {
+          type: 'pane',
+          id: 'pane-test-id-1',
+          pane: {
+            id: 'pane-test-id-1',
+            cwd: '/test/path1',
+            command: 'bash',
+            status: WindowStatus.Running,
+            pid: 1234,
+          },
+        },
+        activePaneId: 'pane-test-id-1',
       }
 
       const window2: Window = {
@@ -47,7 +71,19 @@ describe('windowStore', () => {
         status: WindowStatus.Running,
         pid: 5678,
         createdAt: new Date().toISOString(),
-        lastActiveAt: new Date().toISOString()
+        lastActiveAt: new Date().toISOString(),
+        layout: {
+          type: 'pane',
+          id: 'pane-test-id-2',
+          pane: {
+            id: 'pane-test-id-2',
+            cwd: '/test/path2',
+            command: 'zsh',
+            status: WindowStatus.Running,
+            pid: 5678,
+          },
+        },
+        activePaneId: 'pane-test-id-2',
       }
 
       useWindowStore.getState().addWindow(window1)
@@ -70,7 +106,19 @@ describe('windowStore', () => {
         status: WindowStatus.Running,
         pid: 1234,
         createdAt: new Date().toISOString(),
-        lastActiveAt: new Date().toISOString()
+        lastActiveAt: new Date().toISOString(),
+        layout: {
+          type: 'pane',
+          id: 'pane-test-id-1',
+          pane: {
+            id: 'pane-test-id-1',
+            cwd: '/test/path',
+            command: 'bash',
+            status: WindowStatus.Running,
+            pid: 1234,
+          },
+        },
+        activePaneId: 'pane-test-id-1',
       }
 
       useWindowStore.getState().addWindow(window)
@@ -89,7 +137,19 @@ describe('windowStore', () => {
         status: WindowStatus.Running,
         pid: 1234,
         createdAt: new Date().toISOString(),
-        lastActiveAt: new Date().toISOString()
+        lastActiveAt: new Date().toISOString(),
+        layout: {
+          type: 'pane',
+          id: 'pane-test-id-1',
+          pane: {
+            id: 'pane-test-id-1',
+            cwd: '/test/path',
+            command: 'bash',
+            status: WindowStatus.Running,
+            pid: 1234,
+          },
+        },
+        activePaneId: 'pane-test-id-1',
       }
 
       useWindowStore.getState().addWindow(window)
@@ -109,7 +169,19 @@ describe('windowStore', () => {
         status: WindowStatus.Running,
         pid: 1234,
         createdAt: new Date().toISOString(),
-        lastActiveAt: new Date().toISOString()
+        lastActiveAt: new Date().toISOString(),
+        layout: {
+          type: 'pane',
+          id: 'pane-test-id-1',
+          pane: {
+            id: 'pane-test-id-1',
+            cwd: '/test/path1',
+            command: 'bash',
+            status: WindowStatus.Running,
+            pid: 1234,
+          },
+        },
+        activePaneId: 'pane-test-id-1',
       }
 
       const window2: Window = {
@@ -120,7 +192,19 @@ describe('windowStore', () => {
         status: WindowStatus.Running,
         pid: 5678,
         createdAt: new Date().toISOString(),
-        lastActiveAt: new Date().toISOString()
+        lastActiveAt: new Date().toISOString(),
+        layout: {
+          type: 'pane',
+          id: 'pane-test-id-2',
+          pane: {
+            id: 'pane-test-id-2',
+            cwd: '/test/path2',
+            command: 'zsh',
+            status: WindowStatus.Running,
+            pid: 5678,
+          },
+        },
+        activePaneId: 'pane-test-id-2',
       }
 
       useWindowStore.getState().addWindow(window1)
@@ -134,35 +218,52 @@ describe('windowStore', () => {
   })
 
   describe('updateWindowStatus', () => {
-    it('should update window status', () => {
+    it('should update pane status via updateWindowStatus', () => {
       const window: Window = {
         id: 'test-id-1',
         name: 'Test Window',
-        workingDirectory: '/test/path',
-        command: 'bash',
-        status: WindowStatus.Running,
-        pid: 1234,
         createdAt: new Date().toISOString(),
-        lastActiveAt: new Date().toISOString()
+        lastActiveAt: new Date().toISOString(),
+        layout: {
+          type: 'pane',
+          id: 'pane-test-id-1',
+          pane: {
+            id: 'pane-test-id-1',
+            cwd: '/test/path',
+            command: 'bash',
+            status: WindowStatus.Running,
+            pid: 1234,
+          },
+        },
+        activePaneId: 'pane-test-id-1',
       }
 
       useWindowStore.getState().addWindow(window)
       useWindowStore.getState().updateWindowStatus('test-id-1', WindowStatus.Completed)
 
       const state = useWindowStore.getState()
-      expect(state.windows[0].status).toBe(WindowStatus.Completed)
+      // updateWindowStatus now updates pane status inside layout
+      expect(state.windows[0].layout.pane.status).toBe(WindowStatus.Completed)
     })
 
     it('should update lastActiveAt when updating status', () => {
       const window: Window = {
         id: 'test-id-1',
         name: 'Test Window',
-        workingDirectory: '/test/path',
-        command: 'bash',
-        status: WindowStatus.Running,
-        pid: 1234,
         createdAt: '2024-01-01T00:00:00.000Z',
-        lastActiveAt: '2024-01-01T00:00:00.000Z'
+        lastActiveAt: '2024-01-01T00:00:00.000Z',
+        layout: {
+          type: 'pane',
+          id: 'pane-test-id-1',
+          pane: {
+            id: 'pane-test-id-1',
+            cwd: '/test/path',
+            command: 'bash',
+            status: WindowStatus.Running,
+            pid: 1234,
+          },
+        },
+        activePaneId: 'pane-test-id-1',
       }
 
       useWindowStore.getState().addWindow(window)
@@ -183,7 +284,19 @@ describe('windowStore', () => {
         status: WindowStatus.Running,
         pid: 1234,
         createdAt: new Date().toISOString(),
-        lastActiveAt: new Date().toISOString()
+        lastActiveAt: new Date().toISOString(),
+        layout: {
+          type: 'pane',
+          id: 'pane-test-id-1',
+          pane: {
+            id: 'pane-test-id-1',
+            cwd: '/test/path',
+            command: 'bash',
+            status: WindowStatus.Running,
+            pid: 1234,
+          },
+        },
+        activePaneId: 'pane-test-id-1',
       }
 
       useWindowStore.getState().addWindow(window)
@@ -197,12 +310,20 @@ describe('windowStore', () => {
       const window: Window = {
         id: 'test-id-1',
         name: 'Test Window',
-        workingDirectory: '/test/path',
-        command: 'bash',
-        status: WindowStatus.Running,
-        pid: 1234,
         createdAt: '2024-01-01T00:00:00.000Z',
-        lastActiveAt: '2024-01-01T00:00:00.000Z'
+        lastActiveAt: '2024-01-01T00:00:00.000Z',
+        layout: {
+          type: 'pane',
+          id: 'pane-test-id-1',
+          pane: {
+            id: 'pane-test-id-1',
+            cwd: '/test/path',
+            command: 'bash',
+            status: WindowStatus.Running,
+            pid: 1234,
+          },
+        },
+        activePaneId: 'pane-test-id-1',
       }
 
       useWindowStore.getState().addWindow(window)
@@ -223,7 +344,19 @@ describe('windowStore', () => {
         status: WindowStatus.Running,
         pid: 1234,
         createdAt: new Date().toISOString(),
-        lastActiveAt: new Date().toISOString()
+        lastActiveAt: new Date().toISOString(),
+        layout: {
+          type: 'pane',
+          id: 'pane-test-id-1',
+          pane: {
+            id: 'pane-test-id-1',
+            cwd: '/test/path',
+            command: 'bash',
+            status: WindowStatus.Running,
+            pid: 1234,
+          },
+        },
+        activePaneId: 'pane-test-id-1',
       }
 
       useWindowStore.getState().addWindow(window)
@@ -238,71 +371,105 @@ describe('windowStore', () => {
     })
   })
 
-  describe('getWindowsByStatus', () => {
-    it('should return windows filtered by status', () => {
+  describe('getActiveWindows / getArchivedWindows', () => {
+    it('should return active (non-archived) windows', () => {
       const window1: Window = {
         id: 'test-id-1',
         name: 'Window 1',
-        workingDirectory: '/test/path1',
-        command: 'bash',
-        status: WindowStatus.Running,
-        pid: 1234,
         createdAt: new Date().toISOString(),
-        lastActiveAt: new Date().toISOString()
+        lastActiveAt: new Date().toISOString(),
+        layout: {
+          type: 'pane',
+          id: 'pane-test-id-1',
+          pane: {
+            id: 'pane-test-id-1',
+            cwd: '/test/path1',
+            command: 'bash',
+            status: WindowStatus.Running,
+            pid: 1234,
+          },
+        },
+        activePaneId: 'pane-test-id-1',
       }
 
       const window2: Window = {
         id: 'test-id-2',
         name: 'Window 2',
-        workingDirectory: '/test/path2',
-        command: 'zsh',
-        status: WindowStatus.Completed,
-        pid: 5678,
         createdAt: new Date().toISOString(),
-        lastActiveAt: new Date().toISOString()
+        lastActiveAt: new Date().toISOString(),
+        layout: {
+          type: 'pane',
+          id: 'pane-test-id-2',
+          pane: {
+            id: 'pane-test-id-2',
+            cwd: '/test/path2',
+            command: 'zsh',
+            status: WindowStatus.Running,
+            pid: 5678,
+          },
+        },
+        activePaneId: 'pane-test-id-2',
+        archived: true,
       }
 
       const window3: Window = {
         id: 'test-id-3',
         name: 'Window 3',
-        workingDirectory: '/test/path3',
-        command: 'fish',
-        status: WindowStatus.Running,
-        pid: 9012,
         createdAt: new Date().toISOString(),
-        lastActiveAt: new Date().toISOString()
+        lastActiveAt: new Date().toISOString(),
+        layout: {
+          type: 'pane',
+          id: 'pane-test-id-3',
+          pane: {
+            id: 'pane-test-id-3',
+            cwd: '/test/path3',
+            command: 'fish',
+            status: WindowStatus.Running,
+            pid: 9012,
+          },
+        },
+        activePaneId: 'pane-test-id-3',
       }
 
       useWindowStore.getState().addWindow(window1)
       useWindowStore.getState().addWindow(window2)
       useWindowStore.getState().addWindow(window3)
 
-      const runningWindows = useWindowStore.getState().getWindowsByStatus(WindowStatus.Running)
-      expect(runningWindows).toHaveLength(2)
-      expect(runningWindows[0].id).toBe('test-id-1')
-      expect(runningWindows[1].id).toBe('test-id-3')
+      const activeWindows = useWindowStore.getState().getActiveWindows()
+      expect(activeWindows).toHaveLength(2)
+      expect(activeWindows[0].id).toBe('test-id-1')
+      expect(activeWindows[1].id).toBe('test-id-3')
 
-      const completedWindows = useWindowStore.getState().getWindowsByStatus(WindowStatus.Completed)
-      expect(completedWindows).toHaveLength(1)
-      expect(completedWindows[0].id).toBe('test-id-2')
+      const archivedWindows = useWindowStore.getState().getArchivedWindows()
+      expect(archivedWindows).toHaveLength(1)
+      expect(archivedWindows[0].id).toBe('test-id-2')
     })
 
-    it('should return empty array when no windows match status', () => {
+    it('should return empty array when no active windows exist', () => {
       const window: Window = {
         id: 'test-id-1',
         name: 'Test Window',
-        workingDirectory: '/test/path',
-        command: 'bash',
-        status: WindowStatus.Running,
-        pid: 1234,
         createdAt: new Date().toISOString(),
-        lastActiveAt: new Date().toISOString()
+        lastActiveAt: new Date().toISOString(),
+        layout: {
+          type: 'pane',
+          id: 'pane-test-id-1',
+          pane: {
+            id: 'pane-test-id-1',
+            cwd: '/test/path',
+            command: 'bash',
+            status: WindowStatus.Running,
+            pid: 1234,
+          },
+        },
+        activePaneId: 'pane-test-id-1',
+        archived: true,
       }
 
       useWindowStore.getState().addWindow(window)
-      const errorWindows = useWindowStore.getState().getWindowsByStatus(WindowStatus.Error)
+      const activeWindows = useWindowStore.getState().getActiveWindows()
 
-      expect(errorWindows).toHaveLength(0)
+      expect(activeWindows).toHaveLength(0)
     })
   })
 

@@ -50,19 +50,28 @@ describe('WorkspaceManager', () => {
   describe('saveWorkspace', () => {
     it('should save workspace to file', async () => {
       const workspace: Workspace = {
-        version: '1.0',
+        version: '3.0',
         windows: [
           {
             id: 'test-1',
             name: 'Test Window',
-            workingDirectory: '/test/dir',
-            command: 'claude',
-            status: 'running' as any,
-            pid: 1234,
+            layout: {
+              type: 'pane',
+              id: 'pane-test-1',
+              pane: {
+                id: 'pane-test-1',
+                cwd: '/test/dir',
+                command: 'claude',
+                status: 'running' as any,
+                pid: 1234,
+              },
+            },
+            activePaneId: 'pane-test-1',
             createdAt: '2026-02-28T10:00:00Z',
             lastActiveAt: '2026-02-28T12:00:00Z',
           },
         ],
+        groups: [],
         settings: {
           notificationsEnabled: true,
           theme: 'dark',
@@ -79,7 +88,7 @@ describe('WorkspaceManager', () => {
 
       // Verify content
       const saved = await fs.readJson(workspacePath);
-      expect(saved.version).toBe('1.0');
+      expect(saved.version).toBe('3.0');
       expect(saved.windows).toHaveLength(1);
       expect(saved.windows[0].id).toBe('test-1');
       expect(saved.lastSavedAt).toBeTruthy();
@@ -239,13 +248,13 @@ describe('WorkspaceManager', () => {
       // Load workspace
       const loaded = await workspaceManager.loadWorkspace();
 
-      expect(loaded.version).toBe('2.0');
+      expect(loaded.version).toBe('3.0');
       expect(loaded.windows).toHaveLength(1);
       expect(loaded.windows[0].id).toBe('test-1');
       expect(loaded.settings.language).toBe('zh-CN');
 
       const persisted = await fs.readJson(workspacePath);
-      expect(persisted.version).toBe('2.0');
+      expect(persisted.version).toBe('3.0');
       expect(persisted.settings.language).toBe('zh-CN');
     });
 
@@ -296,7 +305,7 @@ describe('WorkspaceManager', () => {
     it('should return default workspace if file does not exist', async () => {
       const loaded = await workspaceManager.loadWorkspace();
 
-      expect(loaded.version).toBe('2.0');
+      expect(loaded.version).toBe('3.0');
       expect(loaded.windows).toHaveLength(0);
       expect(loaded.settings.notificationsEnabled).toBe(true);
       expect(loaded.settings.theme).toBe('dark');
@@ -354,7 +363,7 @@ describe('WorkspaceManager', () => {
 
     it('should validate workspace version', async () => {
       const invalidWorkspace = {
-        version: '3.0',  // Unsupported version
+        version: '99.0',  // Unsupported version
         windows: [],
         settings: {
           notificationsEnabled: true,
@@ -369,7 +378,7 @@ describe('WorkspaceManager', () => {
 
       // Should return default workspace due to version mismatch
       const loaded = await workspaceManager.loadWorkspace();
-      expect(loaded.version).toBe('2.0');
+      expect(loaded.version).toBe('3.0');
       expect(loaded.windows).toHaveLength(0);
     });
 
@@ -422,10 +431,18 @@ describe('WorkspaceManager', () => {
           {
             id: `window-${i}`,
             name: `Window ${i}`,
-            workingDirectory: '/test',
-            command: 'claude',
-            status: 'running' as any,
-            pid: 1000 + i,
+            layout: {
+              type: 'pane' as const,
+              id: `pane-window-${i}`,
+              pane: {
+                id: `pane-window-${i}`,
+                cwd: '/test',
+                command: 'claude',
+                status: 'running' as any,
+                pid: 1000 + i,
+              },
+            },
+            activePaneId: `pane-window-${i}`,
             createdAt: '2026-02-28T10:00:00Z',
             lastActiveAt: '2026-02-28T12:00:00Z',
           },

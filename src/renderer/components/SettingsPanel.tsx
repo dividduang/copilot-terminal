@@ -209,7 +209,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) =
   };
 
   const handleSaveIDE = async () => {
-    if (!editingIDE || !editingIDE.name || !editingIDE.command) {
+    if (!editingIDE || !editingIDE.name?.trim() || !editingIDE.command?.trim()) {
       return;
     }
 
@@ -261,7 +261,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ open, onClose }) =
   };
 
   const handleSaveNavItem = async () => {
-    if (!editingNavItem || !editingNavItem.name || !editingNavItem.path) {
+    if (!editingNavItem || !editingNavItem.name?.trim() || !editingNavItem.path?.trim()) {
       return;
     }
 

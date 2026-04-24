@@ -5,6 +5,7 @@ import { ViewSwitcherImpl } from '../ViewSwitcher';
 describe('ViewSwitcher', () => {
   let mockWindow: BrowserWindow;
   let viewSwitcher: ViewSwitcherImpl;
+  let getValidWindowIds: () => string[];
 
   beforeEach(() => {
     mockWindow = {
@@ -14,7 +15,8 @@ describe('ViewSwitcher', () => {
       },
     } as unknown as BrowserWindow;
 
-    viewSwitcher = new ViewSwitcherImpl(mockWindow);
+    getValidWindowIds = vi.fn().mockReturnValue(['window-123', 'window-456']);
+    viewSwitcher = new ViewSwitcherImpl(mockWindow, getValidWindowIds);
   });
 
   describe('初始状态', () => {
@@ -51,6 +53,28 @@ describe('ViewSwitcher', () => {
 
       expect(mockWindow.webContents.send).not.toHaveBeenCalled();
     });
+
+    it('应该拒绝无效的窗口 ID', () => {
+      viewSwitcher.switchToTerminalView('invalid-window-id');
+
+      expect(viewSwitcher.getCurrentView()).toBe('unified');
+      expect(viewSwitcher.getActiveWindowId()).toBeNull();
+      expect(mockWindow.webContents.send).not.toHaveBeenCalled();
+    });
+
+    it('应该允许有效的窗口 ID', () => {
+      const validId = 'window-123';
+      vi.mocked(getValidWindowIds).mockReturnValue([validId]);
+
+      viewSwitcher.switchToTerminalView(validId);
+
+      expect(viewSwitcher.getCurrentView()).toBe('terminal');
+      expect(viewSwitcher.getActiveWindowId()).toBe(validId);
+      expect(mockWindow.webContents.send).toHaveBeenCalledWith('view-changed', {
+        view: 'terminal',
+        windowId: validId,
+      });
+    });
   });
 
   describe('switchToUnifiedView', () => {
@@ -81,6 +105,9 @@ describe('ViewSwitcher', () => {
 
   describe('视图切换流程', () => {
     it('应该支持多次切换', () => {
+      // 更新 mock 以包含测试中使用的窗口 ID
+      vi.mocked(getValidWindowIds).mockReturnValue(['window-1', 'window-2']);
+
       viewSwitcher.switchToTerminalView('window-1');
       expect(viewSwitcher.getCurrentView()).toBe('terminal');
       expect(viewSwitcher.getActiveWindowId()).toBe('window-1');
@@ -95,6 +122,9 @@ describe('ViewSwitcher', () => {
     });
 
     it('应该在切换窗口时更新活跃窗口 ID', () => {
+      // 更新 mock 以包含测试中使用的窗口 ID
+      vi.mocked(getValidWindowIds).mockReturnValue(['window-1', 'window-2']);
+
       viewSwitcher.switchToTerminalView('window-1');
       expect(viewSwitcher.getActiveWindowId()).toBe('window-1');
 

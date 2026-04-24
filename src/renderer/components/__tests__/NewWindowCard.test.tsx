@@ -3,6 +3,10 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NewWindowCard } from '../NewWindowCard';
 
+vi.mock('../../i18n', () => ({
+  useI18n: () => ({ t: (k: string) => k, language: 'zh-CN', setLanguage: vi.fn() }),
+}))
+
 describe('NewWindowCard', () => {
   it('renders the + icon', () => {
     render(<NewWindowCard onClick={vi.fn()} />);
@@ -11,17 +15,17 @@ describe('NewWindowCard', () => {
 
   it('renders the label text', () => {
     render(<NewWindowCard onClick={vi.fn()} />);
-    expect(screen.getByText('新建窗口')).toBeInTheDocument();
+    expect(screen.getByText('common.newTerminal')).toBeInTheDocument();
   });
 
   it('has correct aria-label', () => {
     render(<NewWindowCard onClick={vi.fn()} />);
-    expect(screen.getByRole('button', { name: '新建窗口' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'common.newWindow' })).toBeInTheDocument();
   });
 
   it('has tabIndex 0 for keyboard navigation', () => {
     render(<NewWindowCard onClick={vi.fn()} />);
-    const card = screen.getByRole('button', { name: '新建窗口' });
+    const card = screen.getByRole('button', { name: 'common.newWindow' });
     expect(card).toHaveAttribute('tabindex', '0');
   });
 
@@ -30,7 +34,7 @@ describe('NewWindowCard', () => {
     const handleClick = vi.fn();
     render(<NewWindowCard onClick={handleClick} />);
 
-    await user.click(screen.getByRole('button', { name: '新建窗口' }));
+    await user.click(screen.getByRole('button', { name: 'common.newWindow' }));
     expect(handleClick).toHaveBeenCalledTimes(1);
   });
 
@@ -39,7 +43,7 @@ describe('NewWindowCard', () => {
     const handleClick = vi.fn();
     render(<NewWindowCard onClick={handleClick} />);
 
-    const card = screen.getByRole('button', { name: '新建窗口' });
+    const card = screen.getByRole('button', { name: 'common.newWindow' });
     card.focus();
     await user.keyboard('{Enter}');
     expect(handleClick).toHaveBeenCalledTimes(1);
@@ -50,7 +54,7 @@ describe('NewWindowCard', () => {
     const handleClick = vi.fn();
     render(<NewWindowCard onClick={handleClick} />);
 
-    const card = screen.getByRole('button', { name: '新建窗口' });
+    const card = screen.getByRole('button', { name: 'common.newWindow' });
     card.focus();
     await user.keyboard(' ');
     expect(handleClick).toHaveBeenCalledTimes(1);
@@ -60,26 +64,17 @@ describe('NewWindowCard', () => {
     render(<NewWindowCard onClick={vi.fn()} />);
     const card = screen.getByTestId('new-window-card');
     expect(card).toHaveClass('border-dashed');
-    expect(card).toHaveClass('border-zinc-600');
   });
 
-  it('has correct height class matching WindowCard (h-40)', () => {
+  it('has correct height class', () => {
     render(<NewWindowCard onClick={vi.fn()} />);
     const card = screen.getByTestId('new-window-card');
-    expect(card).toHaveClass('h-40');
-  });
-
-  it('has hover classes for visual feedback', () => {
-    render(<NewWindowCard onClick={vi.fn()} />);
-    const card = screen.getByTestId('new-window-card');
-    expect(card).toHaveClass('hover:border-zinc-400');
-    expect(card).toHaveClass('hover:bg-zinc-800');
+    expect(card).toHaveClass('h-56');
   });
 
   it('has focus ring class for accessibility', () => {
     render(<NewWindowCard onClick={vi.fn()} />);
     const card = screen.getByTestId('new-window-card');
     expect(card).toHaveClass('focus:ring-2');
-    expect(card).toHaveClass('focus:ring-blue-500');
   });
 });

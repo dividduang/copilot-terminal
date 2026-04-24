@@ -48,6 +48,16 @@ function createMockWorkspace(): Workspace {
         pid: 1234,
         createdAt: '2026-02-28T10:00:00Z',
         lastActiveAt: '2026-02-28T10:00:00Z',
+        layout: {
+          type: 'pane',
+          id: 'pane-1',
+          pane: {
+            id: 'pane-1',
+            cwd: '/test/path',
+            command: 'bash',
+            pid: 1234,
+          },
+        },
       },
     ],
     settings: {
@@ -117,16 +127,16 @@ describe('AutoSaveManager', () => {
       autoSaveManager.startAutoSave(mockWorkspaceManager, () => mockWorkspace);
 
       autoSaveManager.triggerSave();
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 200));
 
       autoSaveManager.triggerSave();
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 200));
 
-      // Should not have saved yet (timer keeps resetting)
+      // Should not have saved yet (timer keeps resetting, 300ms debounce not elapsed)
       expect(mockWorkspaceManager.saveWorkspaceCalled).toBe(0);
 
       // Wait for full debounce delay
-      await new Promise(resolve => setTimeout(resolve, 600));
+      await new Promise(resolve => setTimeout(resolve, 400));
 
       // Now should have saved
       expect(mockWorkspaceManager.saveWorkspaceCalled).toBe(1);
@@ -194,8 +204,8 @@ describe('AutoSaveManager', () => {
       await autoSaveManager.saveImmediately();
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[AutoSave] Failed to save workspace:'),
-        expect.any(String)
+        '[AutoSave] Failed to save workspace:',
+        expect.any(Error)
       );
 
       consoleErrorSpy.mockRestore();

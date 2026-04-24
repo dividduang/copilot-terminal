@@ -12,6 +12,7 @@ interface QuickNavPanelProps {
 export const QuickNavPanel: React.FC<QuickNavPanelProps> = ({ open, onClose }) => {
   const [items, setItems] = useState<QuickNavItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { t } = useI18n();
 
   // 加载快捷导航配置
@@ -23,6 +24,7 @@ export const QuickNavPanel: React.FC<QuickNavPanelProps> = ({ open, onClose }) =
 
   const loadQuickNavItems = async () => {
     setLoading(true);
+    setError(null);
     try {
       const response = await window.electronAPI.getSettings();
       if (response.success && response.data) {
@@ -32,6 +34,7 @@ export const QuickNavPanel: React.FC<QuickNavPanelProps> = ({ open, onClose }) =
       }
     } catch (error) {
       console.error('Failed to load quick nav items:', error);
+      setError(t('quickNav.loadError'));
     } finally {
       setLoading(false);
     }
@@ -76,6 +79,16 @@ export const QuickNavPanel: React.FC<QuickNavPanelProps> = ({ open, onClose }) =
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="text-zinc-500">{t('common.loading')}</div>
+              </div>
+            ) : error ? (
+              <div className="flex flex-col items-center justify-center py-12 text-zinc-500">
+                <p className="text-lg mb-2">{error}</p>
+                <button
+                  onClick={loadQuickNavItems}
+                  className="mt-4 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-sm transition-colors"
+                >
+                  {t('common.retry')}
+                </button>
               </div>
             ) : items.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-zinc-500">

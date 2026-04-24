@@ -10,6 +10,18 @@ interface ProjectLinksProps {
 }
 
 /**
+ * 验证外部 URL 是否安全（仅允许 http/https 协议）
+ */
+function isValidExternalUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return ['http:', 'https:'].includes(parsed.protocol);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * 项目快捷链接组件
  * 支持两种显示模式：卡片、工具栏
  */
@@ -22,6 +34,11 @@ export const ProjectLinks: React.FC<ProjectLinksProps> = ({
   const handleOpenLink = useCallback(
     (e: React.MouseEvent, url: string) => {
       e.stopPropagation();
+
+      if (!isValidExternalUrl(url)) {
+        console.error('Invalid external URL:', url);
+        return;
+      }
 
       if (!globalThis.electronAPI?.openExternalUrl) {
         console.error('openExternalUrl is not available');

@@ -63,6 +63,14 @@ export function registerPtyHandlers(ctx: HandlerContext) {
         throw new Error('ProcessManager not initialized');
       }
 
+      // 验证 cols 和 rows 的值
+      if (!Number.isInteger(cols) || cols < 1 || cols > 1000) {
+        return errorResponse('Invalid cols value: must be an integer between 1 and 1000');
+      }
+      if (!Number.isInteger(rows) || rows < 1 || rows > 1000) {
+        return errorResponse('Invalid rows value: must be an integer between 1 and 1000');
+      }
+
       // 使用 O(1) 索引查找 PID
       let pid = processManager.getPidByPane(windowId, paneId);
 

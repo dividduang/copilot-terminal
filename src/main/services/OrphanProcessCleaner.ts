@@ -91,12 +91,19 @@ export class OrphanProcessCleaner {
    */
   private findOrphanProcesses(): Array<{ pid: number; name: string; parentPid: number }> {
     try {
-      // 查询所有可疑进程（bash.exe, cygpath.exe, sh.exe, git.exe）
-      const suspiciousProcessNames = ['bash.exe', 'cygpath.exe', 'sh.exe'];
+      // 任务 5: 定义允许的进程名称白名单（防止命令注入）
+      // 只有这些硬编码的进程名称会被用于命令构建
+      const ALLOWED_PROCESS_NAMES = ['bash.exe', 'cygpath.exe', 'sh.exe'];
 
       const orphans: Array<{ pid: number; name: string; parentPid: number }> = [];
 
-      for (const processName of suspiciousProcessNames) {
+      for (const processName of ALLOWED_PROCESS_NAMES) {
+        // 额外安全检查：确保 processName 只包含安全字符
+        if (!/^[a-zA-Z0-9_.-]+\.exe$/.test(processName)) {
+          console.error(`[OrphanProcessCleaner] Invalid process name: ${processName}`);
+          continue;
+        }
+
         const processes = this.getProcessesByName(processName);
 
         for (const proc of processes) {
@@ -119,6 +126,14 @@ export class OrphanProcessCleaner {
    */
   private getProcessesByName(processName: string): Array<{ pid: number; name: string; parentPid: number }> {
     try {
+      // 任务 5: 防御性检查 - 确保进程名称安全
+      // 由于调用者已经进行了白名单验证，这里只做额外的安全检查
+      const SAFE_PROCESS_NAMES = ['bash.exe', 'cygpath.exe', 'sh.exe', 'git.exe', 'node.exe', 'pwsh.exe', 'powershell.exe', 'cmd.exe'];
+      if (!SAFE_PROCESS_NAMES.includes(processName)) {
+        console.error(`[OrphanProcessCleaner] Blocked potentially unsafe process name: ${processName}`);
+        return [];
+      }
+
       const output = execSync(
         `wmic process where "name='${processName}'" get ProcessId,ParentProcessId,Name /format:csv`,
         { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] }

@@ -1,53 +1,54 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+
+vi.mock('../i18n', () => ({
+  useI18n: () => ({ t: (k: string) => k, language: 'zh-CN', setLanguage: vi.fn() }),
+  I18nProvider: ({ children }: any) => children,
+}));
+
+vi.mock('../components/TerminalPane', () => ({
+  TerminalPane: () => null,
+}));
+
 import App from '../App';
 
 describe('App - Main Window and Basic Layout', () => {
-  it('renders main layout with toolbar and content area', () => {
+  it('renders the unified view with MainLayout', () => {
     const { container } = render(<App />);
-    const mainLayout = container.querySelector('.h-screen');
-    expect(mainLayout).toBeDefined();
-    expect(mainLayout?.className).toContain('flex');
-    expect(mainLayout?.className).toContain('flex-col');
-    expect(mainLayout?.className).toContain('bg-bg-app');
+    // MainLayout renders a flex h-screen container
+    const layout = container.querySelector('.h-screen');
+    expect(layout).toBeDefined();
+    expect(layout?.className).toContain('flex');
   });
 
-  it('displays application name in toolbar', () => {
+  it('renders empty state when no windows exist', () => {
     render(<App />);
-    expect(screen.getByText('ausome-terminal')).toBeInTheDocument();
+    // EmptyState uses i18n key 'emptyState.title'
+    expect(screen.getByText('emptyState.title')).toBeInTheDocument();
   });
 
-  it('displays version number in toolbar', () => {
+  it('renders the new terminal button', () => {
     render(<App />);
-    expect(screen.getByText('v0.1.0')).toBeInTheDocument();
-  });
-
-  it('renders empty state with guidance message', () => {
-    render(<App />);
-    expect(screen.getByText('创建你的第一个任务窗口')).toBeInTheDocument();
-  });
-
-  it('renders create window button', () => {
-    render(<App />);
-    const buttons = screen.getAllByRole('button', { name: /新建窗口/i });
+    const buttons = screen.getAllByRole('button', { name: /newTerminal/i });
     expect(buttons.length).toBeGreaterThan(0);
   });
 
-  it('logs to console when create window button is clicked', () => {
-    const consoleSpy = vi.spyOn(console, 'log');
+  it('renders the sidebar component', () => {
     render(<App />);
-
-    const buttons = screen.getAllByRole('button', { name: /新建窗口/i });
-    buttons[0].click();
-
-    // Note: This test may need to be updated based on actual implementation
-    // The button now opens a dialog instead of logging
-    consoleSpy.mockRestore();
+    // Sidebar renders an aside element
+    const sidebar = document.querySelector('aside');
+    expect(sidebar).toBeInTheDocument();
   });
 
-  it('applies dark theme background color', () => {
+  it('wraps content in I18nProvider and DndProvider', () => {
     const { container } = render(<App />);
-    const mainLayout = container.querySelector('.bg-bg-app');
-    expect(mainLayout).toBeDefined();
+    // App renders without crashing when wrapped with providers
+    expect(container).toBeDefined();
+  });
+
+  it('applies dark theme background via CSS variables', () => {
+    const { container } = render(<App />);
+    const mainLayout = container.querySelector('.h-screen');
+    expect(mainLayout?.className).toContain('bg-[rgb(var(--background))]');
   });
 });

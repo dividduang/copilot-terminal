@@ -72,6 +72,19 @@ if (!rpcPath) {
   process.exit(1);
 }
 
+// 添加路径格式验证
+if (process.platform === 'win32') {
+  if (!rpcPath.startsWith('\\\\.\\pipe\\ausome-tmux-')) {
+    process.stderr.write('tmux-shim: Invalid RPC path format\n');
+    process.exit(1);
+  }
+} else {
+  if (!rpcPath.startsWith('/tmp/ausome-tmux-') || !rpcPath.endsWith('.sock')) {
+    process.stderr.write('tmux-shim: Invalid RPC path format\n');
+    process.exit(1);
+  }
+}
+
 debug('startup', {
   rpcPath,
   windowId,

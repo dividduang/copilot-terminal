@@ -1,8 +1,34 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { StatusBar } from '../StatusBar';
 import { useWindowStore } from '../../stores/windowStore';
 import { Window, WindowStatus } from '../../types/window';
+
+// Mock i18n to return actual Chinese translation values
+vi.mock('../../i18n', () => {
+  const messages: Record<string, string> = {
+    'status.running': '运行中',
+    'status.waitingInput': '等待输入',
+    'status.paused': '已暂停',
+    'statusBar.ariaLabel': '窗格状态统计：运行中 {running} 个，等待输入 {waiting} 个，暂停 {paused} 个',
+  }
+  return {
+    useI18n: () => ({
+      t: (k: string, params?: Record<string, string | number>) => {
+        let msg = messages[k] ?? k
+        if (params) {
+          Object.entries(params).forEach(([key, val]) => {
+            msg = msg.replace(`{${key}}`, String(val))
+          })
+        }
+        return msg
+      },
+      language: 'zh-CN',
+      setLanguage: vi.fn(),
+    }),
+    I18nProvider: ({ children }: any) => children,
+  }
+})
 
 // Helper to reset store between tests
 function resetStore() {
@@ -10,16 +36,43 @@ function resetStore() {
 }
 
 function makeWindow(overrides: Partial<Window> = {}): Window {
+  const id = Math.random().toString();
+  // Use overrides.status for both window and pane status by default
+  const winStatus = overrides.status ?? WindowStatus.Running;
   return {
-    id: Math.random().toString(),
+    id,
     name: 'Test Window',
     workingDirectory: '/home/user',
     command: 'claude',
-    status: WindowStatus.Running,
+    status: winStatus,
     pid: null,
     createdAt: '2024-01-01T00:00:00Z',
     lastActiveAt: '2024-01-01T00:00:00Z',
+    layout: {
+      type: 'pane',
+      id: `pane-${id}`,
+      pane: {
+        id: `pane-${id}`,
+        cwd: '/home/user',
+        command: 'claude',
+        status: winStatus,
+        pid: null,
+      },
+    },
+    activePaneId: `pane-${id}`,
     ...overrides,
+    // Ensure layout pane status matches window status after spread
+    layout: overrides.layout ?? {
+      type: 'pane',
+      id: `pane-${id}`,
+      pane: {
+        id: `pane-${id}`,
+        cwd: '/home/user',
+        command: 'claude',
+        status: winStatus,
+        pid: null,
+      },
+    },
   };
 }
 
@@ -28,12 +81,12 @@ describe('StatusBar', () => {
     resetStore();
   });
 
-  // AC1: 状态计数逻辑
+  // AC1: 状态计数逻辑 - 3 status items (running, waiting, paused)
   it('shows zero counts when no windows', () => {
     render(<StatusBar />);
-    // 标准模式下有4个数字，都应为 0
+    // 3 status items, all with count 0
     const zeros = screen.getAllByText('0');
-    expect(zeros.length).toBeGreaterThanOrEqual(4);
+    expect(zeros.length).toBeGreaterThanOrEqual(3);
   });
 
   it('counts running windows correctly', () => {
@@ -45,7 +98,7 @@ describe('StatusBar', () => {
       ],
     });
     render(<StatusBar />);
-    // 标准模式：运行中 2，已完成 1，其余 0
+    // The running count should show 2
     const runningCounts = screen.getAllByText('2');
     expect(runningCounts.length).toBeGreaterThanOrEqual(1);
   });
@@ -56,54 +109,44 @@ describe('StatusBar', () => {
         makeWindow({ status: WindowStatus.Running }),
         makeWindow({ status: WindowStatus.WaitingForInput }),
         makeWindow({ status: WindowStatus.WaitingForInput }),
-        makeWindow({ status: WindowStatus.Completed }),
-        makeWindow({ status: WindowStatus.Completed }),
-        makeWindow({ status: WindowStatus.Completed }),
-        makeWindow({ status: WindowStatus.Error }),
+        makeWindow({ status: WindowStatus.Paused }),
       ],
     });
     render(<StatusBar />);
     expect(screen.getAllByText('1').length).toBeGreaterThanOrEqual(1); // running
     expect(screen.getAllByText('2').length).toBeGreaterThanOrEqual(1); // waiting
-    expect(screen.getAllByText('3').length).toBeGreaterThanOrEqual(1); // completed
+    expect(screen.getAllByText('1').length).toBeGreaterThanOrEqual(1); // paused
   });
 
   // AC2: 状态色应用
-  it('applies blue color class to running count', () => {
+  it('applies green color class to running count', () => {
     useWindowStore.setState({ windows: [makeWindow({ status: WindowStatus.Running })] });
-    const { container } = render(<StatusBar />);
-    const blueSpans = container.querySelectorAll('.text-blue-500');
-    expect(blueSpans.length).toBeGreaterThan(0);
-  });
-
-  it('applies amber color class to waiting count', () => {
-    useWindowStore.setState({ windows: [makeWindow({ status: WindowStatus.WaitingForInput })] });
-    const { container } = render(<StatusBar />);
-    const amberSpans = container.querySelectorAll('.text-amber-500');
-    expect(amberSpans.length).toBeGreaterThan(0);
-  });
-
-  it('applies green color class to completed count', () => {
-    useWindowStore.setState({ windows: [makeWindow({ status: WindowStatus.Completed })] });
     const { container } = render(<StatusBar />);
     const greenSpans = container.querySelectorAll('.text-green-500');
     expect(greenSpans.length).toBeGreaterThan(0);
   });
 
-  it('applies red color class to error count', () => {
-    useWindowStore.setState({ windows: [makeWindow({ status: WindowStatus.Error })] });
+  it('applies blue color class to waiting count', () => {
+    useWindowStore.setState({ windows: [makeWindow({ status: WindowStatus.WaitingForInput })] });
     const { container } = render(<StatusBar />);
-    const redSpans = container.querySelectorAll('.text-red-500');
-    expect(redSpans.length).toBeGreaterThan(0);
+    const blueSpans = container.querySelectorAll('.text-blue-500');
+    expect(blueSpans.length).toBeGreaterThan(0);
+  });
+
+  it('applies gray color class to paused count', () => {
+    useWindowStore.setState({ windows: [makeWindow({ status: WindowStatus.Paused })] });
+    const { container } = render(<StatusBar />);
+    const graySpans = container.querySelectorAll('.text-gray-500');
+    expect(graySpans.length).toBeGreaterThan(0);
   });
 
   // AC3: 实时更新
   it('updates counts when windows array changes', () => {
     const { rerender } = render(<StatusBar />);
-    // 初始：0 个运行中
-    expect(screen.getAllByText('0').length).toBeGreaterThanOrEqual(4);
+    // Initial: all 3 items should show 0
+    expect(screen.getAllByText('0').length).toBeGreaterThanOrEqual(3);
 
-    // 添加一个运行中窗口
+    // Add a running window
     act(() => {
       useWindowStore.setState({ windows: [makeWindow({ status: WindowStatus.Running })] });
     });
@@ -111,20 +154,7 @@ describe('StatusBar', () => {
     expect(screen.getAllByText('1').length).toBeGreaterThanOrEqual(1);
   });
 
-  // AC4: 响应式布局
-  it('renders standard mode container with hidden sm:flex', () => {
-    const { container } = render(<StatusBar />);
-    const standardMode = container.querySelector('.hidden.sm\\:flex');
-    expect(standardMode).toBeInTheDocument();
-  });
-
-  it('renders compact mode container with flex sm:hidden', () => {
-    const { container } = render(<StatusBar />);
-    const compactMode = container.querySelector('.flex.sm\\:hidden');
-    expect(compactMode).toBeInTheDocument();
-  });
-
-  // AC5: 无障碍
+  // AC4: 无障碍
   it('has aria-live="polite" attribute', () => {
     const { container } = render(<StatusBar />);
     const liveRegion = container.querySelector('[aria-live="polite"]');
@@ -135,16 +165,15 @@ describe('StatusBar', () => {
     useWindowStore.setState({
       windows: [
         makeWindow({ status: WindowStatus.Running }),
-        makeWindow({ status: WindowStatus.Error }),
+        makeWindow({ status: WindowStatus.Paused }),
       ],
     });
     const { container } = render(<StatusBar />);
     const liveRegion = container.querySelector('[aria-live="polite"]');
     const label = liveRegion?.getAttribute('aria-label') ?? '';
     expect(label).toContain('运行中 1');
-    expect(label).toContain('出错 1');
+    expect(label).toContain('暂停 1');
     expect(label).toContain('等待输入 0');
-    expect(label).toContain('已完成 0');
   });
 
   it('updates aria-label when windows change', () => {
@@ -161,18 +190,30 @@ describe('StatusBar', () => {
 
   it('icons have aria-hidden="true"', () => {
     const { container } = render(<StatusBar />);
-    // lucide icons render as svg; they should have aria-hidden
     const hiddenIcons = container.querySelectorAll('[aria-hidden="true"]');
     expect(hiddenIcons.length).toBeGreaterThan(0);
   });
 
-  // 标准模式文字标签
-  it('shows text labels in standard mode', () => {
+  // 标签文字显示
+  it('shows text labels for all statuses', () => {
     render(<StatusBar />);
-    const standardMode = screen.getByText('运行中').closest('.hidden');
-    expect(standardMode).toBeInTheDocument();
+    expect(screen.getByText('运行中')).toBeInTheDocument();
     expect(screen.getByText('等待输入')).toBeInTheDocument();
-    expect(screen.getByText('已完成')).toBeInTheDocument();
-    expect(screen.getByText('出错')).toBeInTheDocument();
+    expect(screen.getByText('已暂停')).toBeInTheDocument();
+  });
+
+  // 按钮交互
+  it('renders 3 status filter buttons', () => {
+    render(<StatusBar />);
+    const buttons = screen.getAllByRole('button');
+    expect(buttons.length).toBe(3);
+  });
+
+  it('calls onTabChange when a status button is clicked', () => {
+    const onTabChange = vi.fn();
+    render(<StatusBar onTabChange={onTabChange} />);
+    const buttons = screen.getAllByRole('button');
+    buttons[0].click();
+    expect(onTabChange).toHaveBeenCalledWith('status:running');
   });
 });

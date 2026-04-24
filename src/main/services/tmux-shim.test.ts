@@ -23,7 +23,7 @@ const SHIM_PATH = path.resolve(__dirname, '../../../resources/bin/tmux-shim.js')
 let counter = 0;
 function getTestSocketPath(): string {
   counter++;
-  const id = `test-shim-${process.pid}-${counter}`;
+  const id = `ausome-tmux-test-${process.pid}-${counter}`;
   if (platform() === 'win32') {
     return `\\\\.\\pipe\\${id}`;
   }

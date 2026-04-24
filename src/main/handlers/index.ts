@@ -12,6 +12,28 @@ import { registerStatusLineHandlers } from './statusLineHandlers';
 import { registerGroupHandlers } from './groupHandlers';
 
 /**
+ * 统一错误边界包装器
+ * 包装所有 IPC handlers 以提供统一的错误处理和日志记录
+ */
+function wrapHandler<T extends any[]>(
+  handlerName: string,
+  handler: (...args: T) => Promise<any>
+): (...args: T) => Promise<any> {
+  return async (...args: T) => {
+    try {
+      return await handler(...args);
+    } catch (error) {
+      console.error(`[IPC Handler] ${handlerName} Error:`, error);
+      // 返回标准错误响应格式
+      return {
+        success: false as const,
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  };
+}
+
+/**
  * 注册所有 IPC handlers
  *
  * 将 IPC handlers 按功能分类到不同的模块中，提高代码可维护性
@@ -50,3 +72,6 @@ export function registerAllHandlers(ctx: HandlerContext) {
   // 其他 (ping)
   registerMiscHandlers(ctx);
 }
+
+// 导出 wrapHandler 供其他模块使用（如果需要）
+export { wrapHandler };

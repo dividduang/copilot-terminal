@@ -1,10 +1,12 @@
 import { ipcMain } from 'electron';
 import { readFileSync, existsSync } from 'fs';
+import path from 'path';
 import { HandlerContext } from './HandlerContext';
 import { successResponse, errorResponse } from './HandlerResponse';
 import { scanInstalledIDEs, scanSpecificIDE, getSupportedIDENames } from '../utils/ideScanner';
 import { IDEConfig } from '../types/workspace';
 import { scanAvailableShellPrograms } from '../utils/shell';
+import { PathValidator } from '../utils/pathValidator';
 
 export function registerSettingsHandlers(ctx: HandlerContext) {
   const { workspaceManager, getCurrentWorkspace, setCurrentWorkspace } = ctx;
@@ -168,20 +170,44 @@ export function registerSettingsHandlers(ctx: HandlerContext) {
   // 获取IDE图标数据(base64)
   ipcMain.handle('get-ide-icon', async (_event, iconPath: string) => {
     try {
+      // 1. 路径验证
+      const pathValidation = PathValidator.validate(iconPath);
+      if (!pathValidation.valid) {
+        throw new Error(`Invalid icon path: ${pathValidation.reason}`);
+      }
+
+      // 2. 限制文件扩展名
+      const allowedExts = ['.png', '.jpg', '.jpeg', '.ico', '.icns', '.svg'];
+      const ext = path.extname(iconPath).toLowerCase();
+      if (!allowedExts.includes(ext)) {
+        throw new Error('Invalid file type: only images are allowed');
+      }
+
+      // 3. 检查文件是否存在
       if (!existsSync(iconPath)) {
         throw new Error(`Icon file not found: ${iconPath}`);
       }
 
+      // 4. 限制文件大小 (1MB)
+      const stat = await import('fs').then(m => m.statSync(iconPath));
+      if (stat.size > 1024 * 1024) {
+        throw new Error('Icon file too large: maximum 1MB allowed');
+      }
+
       const iconData = readFileSync(iconPath);
       const base64Data = iconData.toString('base64');
-      const ext = iconPath.split('.').pop()?.toLowerCase();
+      const extName = iconPath.split('.').pop()?.toLowerCase();
 
       // 根据文件扩展名确定MIME类型
       let mimeType = 'image/png';
-      if (ext === 'ico') {
+      if (extName === 'ico') {
         mimeType = 'image/x-icon';
-      } else if (ext === 'jpg' || ext === 'jpeg') {
+      } else if (extName === 'jpg' || extName === 'jpeg') {
         mimeType = 'image/jpeg';
+      } else if (extName === 'svg') {
+        mimeType = 'image/svg+xml';
+      } else if (extName === 'icns') {
+        mimeType = 'image/x-icns';
       }
 
       return successResponse(`data:${mimeType};base64,${base64Data}`);

@@ -56,7 +56,7 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
 
     // 验证至少选择了 2 个窗口
     if (selectedWindowIds.length < 2) {
-      setCreateError('至少需要选择 2 个窗口');
+      setCreateError(t('createGroup.errorMinWindows'));
       return;
     }
 
@@ -65,7 +65,7 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
 
     try {
       // 生成默认组名（如果用户没有输入）
-      const finalGroupName = groupName.trim() || `组 ${new Date().toLocaleTimeString()}`;
+      const finalGroupName = groupName.trim() || t('createGroup.defaultGroupName', { time: new Date().toLocaleTimeString() });
 
       // 创建组（使用前两个窗口创建初始布局）
       const newGroup = createGroup(
@@ -85,7 +85,7 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
       onOpenChange(false);
       resetForm();
     } catch (error) {
-      const errorMessage = (error as Error).message || '创建组失败，请重试';
+      const errorMessage = (error as Error).message || t('createGroup.createFailed');
       setCreateError(errorMessage);
     } finally {
       setIsCreating(false);
@@ -122,15 +122,15 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
         onOpenChange(isOpen);
         if (!isOpen) resetForm();
       }}
-      title="创建窗口组"
-      description="将多个窗口组合在一起，形成工作空间布局"
+      title={t('createGroup.title')}
+      description={t('createGroup.description')}
       contentClassName="max-w-[640px]"
     >
       <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} role="form">
         {/* 组名称 */}
         <div className="mb-4">
           <label htmlFor="group-name" className="block text-sm font-medium text-text-primary mb-2">
-            组名称 <span className="text-xs text-text-secondary ml-2">(可选，留空自动生成)</span>
+            {t('createGroup.nameLabel')} <span className="text-xs text-text-secondary ml-2">({t('createGroup.nameOptional')})</span>
           </label>
           <input
             id="group-name"
@@ -138,7 +138,7 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
             type="text"
             value={groupName}
             onChange={(e) => setGroupName(e.target.value)}
-            placeholder="例如：前端项目组"
+            placeholder={t('createGroup.namePlaceholder')}
             className="w-full px-3 py-2 bg-bg-app border border-border-subtle rounded text-text-primary placeholder-text-disabled focus:outline-none focus:ring-2 focus:ring-status-running"
           />
         </div>
@@ -146,9 +146,9 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
         {/* 选择窗口 */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-text-primary mb-2">
-            选择窗口 <span className="text-status-error">*</span>
+            {t('createGroup.selectWindows')} <span className="text-status-error">*</span>
             <span className="text-xs text-text-secondary ml-2">
-              (至少选择 2 个)
+              ({t('createGroup.selectWindowsRequired')})
             </span>
           </label>
 
@@ -156,7 +156,7 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
           <div className="border border-border-subtle rounded p-3 bg-bg-app max-h-64 overflow-y-auto">
             {availableWindows.length === 0 ? (
               <p className="text-sm text-text-secondary text-center py-4">
-                暂无可用窗口（所有窗口都已在组中或已归档）
+                {t('createGroup.noWindowsAvailable')}
               </p>
             ) : (
               <div className="space-y-2">
@@ -177,7 +177,7 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
                       </div>
                       <div className="text-xs text-text-secondary truncate font-mono">
                         {/* 显示窗口的工作目录 */}
-                        {win.layout.type === 'pane' ? win.layout.pane.cwd : '多窗格'}
+                        {win.layout.type === 'pane' ? win.layout.pane.cwd : t('editGroup.multiPane')}
                       </div>
                     </div>
                   </label>
@@ -187,7 +187,7 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
           </div>
 
           <p className="text-xs text-text-secondary mt-2">
-            已选择 {selectedWindowIds.length} 个窗口
+            {t('createGroup.windowsSelected', { count: selectedWindowIds.length })}
           </p>
         </div>
 
@@ -208,7 +208,7 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
               resetForm();
             }}
           >
-            取消
+            {t('common.cancel')}
           </Button>
           <Button
             type="submit"
@@ -216,7 +216,7 @@ export function CreateGroupDialog({ open, onOpenChange }: CreateGroupDialogProps
             disabled={selectedWindowIds.length < 2 || isCreating}
             aria-busy={isCreating}
           >
-            {isCreating ? '创建中...' : '创建组'}
+            {isCreating ? t('createGroup.creating') : t('createGroup.create')}
           </Button>
         </div>
       </form>

@@ -114,7 +114,13 @@ export function registerFileHandlers(ctx: HandlerContext) {
 
       // 如果配置了路径，使用路径；否则使用命令
       if (ideConfig.path && existsSync(ideConfig.path)) {
-        command = ideConfig.path;
+        // 验证 IDE 路径
+        const idePath = ideConfig.path;
+        const pathValidation = PathValidator.validate(idePath);
+        if (!pathValidation.valid) {
+          return errorResponse(`Invalid IDE path: ${pathValidation.reason}`);
+        }
+        command = idePath;
         args = [path];
       } else {
         command = ideConfig.command;
@@ -156,9 +162,9 @@ export function registerFileHandlers(ctx: HandlerContext) {
 
   ipcMain.handle('open-external-url', async (_event, { url }: { url: string }) => {
     try {
-      // 验证 URL 格式
-      if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        throw new Error('Invalid URL: must start with http:// or https://');
+      // 验证 URL 协议（使用正则白名单）
+      if (!url.match(/^https?:\/\//i)) {
+        throw new Error('Invalid URL: only http and https protocols are allowed');
       }
 
       await shell.openExternal(url);

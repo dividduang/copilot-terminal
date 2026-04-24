@@ -3,17 +3,28 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EmptyState } from '../EmptyState';
 
+vi.mock('../../i18n', () => ({
+  useI18n: () => ({ t: (k: string) => k, language: 'zh-CN', setLanguage: vi.fn() }),
+}))
+
 describe('EmptyState', () => {
   it('should render guidance text', () => {
     render(<EmptyState />);
 
-    expect(screen.getByText('创建你的第一个任务窗口')).toBeInTheDocument();
+    expect(screen.getByText('emptyState.title')).toBeInTheDocument();
+  });
+
+  it('should render description text', () => {
+    render(<EmptyState />);
+
+    expect(screen.getByText('emptyState.description')).toBeInTheDocument();
   });
 
   it('should render create window button', () => {
     render(<EmptyState />);
 
-    const button = screen.getByRole('button', { name: '+ 新建窗口' });
+    // Button text comes from i18n mock returning the key
+    const button = screen.getByRole('button', { name: /common\.newTerminal/ });
     expect(button).toBeInTheDocument();
   });
 
@@ -23,7 +34,7 @@ describe('EmptyState', () => {
 
     render(<EmptyState onCreateWindow={handleCreateWindow} />);
 
-    const button = screen.getByRole('button', { name: '+ 新建窗口' });
+    const button = screen.getByRole('button', { name: /common\.newTerminal/ });
     await user.click(button);
 
     expect(handleCreateWindow).toHaveBeenCalledTimes(1);
@@ -36,26 +47,33 @@ describe('EmptyState', () => {
     expect(wrapper).toHaveClass('flex', 'flex-col', 'items-center', 'justify-center', 'h-full');
   });
 
-  it('should render guidance text with correct styling', () => {
+  it('should render title with correct styling', () => {
     render(<EmptyState />);
 
-    const text = screen.getByText('创建你的第一个任务窗口');
-    expect(text).toHaveClass('text-xl', 'text-text-primary', 'mb-6');
+    const text = screen.getByText('emptyState.title');
+    expect(text).toHaveClass('text-2xl', 'font-semibold');
   });
 
-  it('should render button with primary variant', () => {
+  it('should render description with correct styling', () => {
     render(<EmptyState />);
 
-    const button = screen.getByRole('button', { name: '+ 新建窗口' });
-    expect(button).toHaveClass('text-lg', 'px-8', 'py-3');
+    const text = screen.getByText('emptyState.description');
+    expect(text).toHaveClass('text-base', 'mb-8');
+  });
+
+  it('should render button with correct styling', () => {
+    render(<EmptyState />);
+
+    const button = screen.getByRole('button', { name: /common\.newTerminal/ });
+    expect(button).toHaveClass('px-6', 'py-3');
   });
 
   it('should not crash when onCreateWindow is not provided', async () => {
     const user = userEvent.setup();
     render(<EmptyState />);
 
-    const button = screen.getByRole('button', { name: '+ 新建窗口' });
-    
+    const button = screen.getByRole('button', { name: /common\.newTerminal/ });
+
     // Should not throw error
     await user.click(button);
     expect(button).toBeInTheDocument();

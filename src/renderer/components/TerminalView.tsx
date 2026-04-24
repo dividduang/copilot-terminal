@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useState, useEffect, useMemo } from 'react';
+﻿import React, { useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { ArrowLeft, SplitSquareHorizontal, SplitSquareVertical, Folder, Archive, Square, LogOut, SquareX } from 'lucide-react';
@@ -59,6 +59,13 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
   // 鍒囨崲闈㈡澘鐘舵€?
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
   const [isSettingsPanelOpen, setIsSettingsPanelOpen] = useState(false);
+
+  // 跟踪组件挂载状态，防止 setTimeout 在组件卸载后执行
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
 
   // Store
   const {
@@ -281,9 +288,12 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
 
         // 绛夊緟鍒囨崲瀹屾垚鍚庡啀鍏抽棴鍜屽綊妗ｅ綋鍓嶇獥鍙?
         setTimeout(async () => {
+          if (!isMountedRef.current) return;
           try {
             await window.electronAPI.closeWindow(terminalWindow.id);
-            archiveWindow(terminalWindow.id);
+            if (isMountedRef.current) {
+              archiveWindow(terminalWindow.id);
+            }
           } catch (error) {
             console.error('Failed to close and archive window:', error);
           }

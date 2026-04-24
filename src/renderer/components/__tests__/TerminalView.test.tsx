@@ -1,14 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TerminalView } from '../TerminalView';
 import { Window, WindowStatus } from '../../types/window';
 
 // Mock @xterm/xterm and @xterm/addon-fit — jsdom has no canvas/WebGL
 vi.mock('@xterm/xterm', () => {
-  const onDataCallbacks: Array<(data: string) => void> = [];
-  const onSelectionChangeCallbacks: Array<() => void> = [];
-
   const Terminal = vi.fn().mockImplementation(() => ({
     loadAddon: vi.fn(),
     open: vi.fn(),
@@ -16,14 +13,8 @@ vi.mock('@xterm/xterm', () => {
     dispose: vi.fn(),
     write: vi.fn(),
     getSelection: vi.fn().mockReturnValue(''),
-    onData: vi.fn((cb: (data: string) => void) => {
-      onDataCallbacks.push(cb);
-      return { dispose: vi.fn() };
-    }),
-    onSelectionChange: vi.fn((cb: () => void) => {
-      onSelectionChangeCallbacks.push(cb);
-      return { dispose: vi.fn() };
-    }),
+    onData: vi.fn(() => ({ dispose: vi.fn() })),
+    onSelectionChange: vi.fn(() => ({ dispose: vi.fn() })),
     cols: 80,
     rows: 30,
   }));
@@ -41,133 +32,147 @@ vi.mock('@xterm/addon-fit', () => {
 // Mock xterm CSS import
 vi.mock('../../styles/xterm.css', () => ({}));
 
-const mockWindow: Window = {
-  id: 'win-001',
-  name: 'Test Terminal',
-  workingDirectory: '/home/user/project',
-  command: 'claude',
-  status: WindowStatus.Running,
-  pid: 1234,
-  createdAt: '2024-01-01T10:00:00Z',
-  lastActiveAt: '2024-01-01T10:30:00Z',
-};
+// Mock i18n
+vi.mock('../../i18n', () => ({
+  useI18n: () => ({ t: (k: string) => k, language: 'zh-CN', setLanguage: vi.fn() }),
+  I18nProvider: ({ children }: any) => children,
+}));
+
+// Mock react-dnd
+vi.mock('react-dnd', () => ({
+  useDrop: () => [{ isOver: false, canDrop: false }, vi.fn()],
+  useDrag: () => [{ isDragging: false }, vi.fn()],
+  DndProvider: ({ children }: any) => children,
+}));
+
+vi.mock('react-dnd-html5-backend', () => ({
+  HTML5Backend: {},
+}));
+
+// Mock Sidebar, QuickSwitcher, SettingsPanel, ProjectLinks, IDEIcons, hooks
+vi.mock('../Sidebar', () => ({ Sidebar: () => null }));
+vi.mock('../QuickSwitcher', () => ({ QuickSwitcher: () => null }));
+vi.mock('../SettingsPanel', () => ({ SettingsPanel: () => null }));
+vi.mock('../ProjectLinks', () => ({ ProjectLinks: () => null }));
+vi.mock('../icons/IDEIcons', () => ({ IDEIcon: () => null }));
+vi.mock('../../hooks/useKeyboardShortcuts', () => ({ useKeyboardShortcuts: () => undefined }));
+vi.mock('../../hooks/useIDESettings', () => ({ useIDESettings: () => ({ enabledIDEs: [] }) }));
+
+function createWindow(overrides?: Partial<Window>): Window {
+  return {
+    id: 'win-001',
+    name: 'Test Terminal',
+    createdAt: '2024-01-01T10:00:00Z',
+    lastActiveAt: '2024-01-01T10:30:00Z',
+    layout: {
+      type: 'pane',
+      id: 'pane-win-001',
+      pane: {
+        id: 'pane-win-001',
+        cwd: '/home/user/project',
+        command: 'claude',
+        status: WindowStatus.Running,
+        pid: 1234,
+      },
+    },
+    activePaneId: 'pane-win-001',
+    ...overrides,
+  };
+}
+
+function makeLayoutWithStatus(status: WindowStatus, pid: number | null = 1234) {
+  return {
+    type: 'pane' as const,
+    id: 'pane-win-001',
+    pane: {
+      id: 'pane-win-001',
+      cwd: '/home/user/project',
+      command: 'claude',
+      status,
+      pid,
+    },
+  };
+}
 
 describe('TerminalView', () => {
+  const onReturn = vi.fn();
+  const onWindowSwitch = vi.fn();
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('renders the terminal view container', () => {
-    const onReturn = vi.fn();
-    render(<TerminalView window={mockWindow} onReturn={onReturn} />);
-    expect(screen.getByTestId('terminal-view')).toBeInTheDocument();
-  });
-
-  it('renders the top bar with 40px height', () => {
-    const onReturn = vi.fn();
-    render(<TerminalView window={mockWindow} onReturn={onReturn} />);
-    const topbar = screen.getByTestId('terminal-topbar');
-    expect(topbar).toBeInTheDocument();
-    expect(topbar).toHaveStyle({ height: '40px' });
-  });
-
-  it('renders the return button', () => {
-    const onReturn = vi.fn();
-    render(<TerminalView window={mockWindow} onReturn={onReturn} />);
-    expect(screen.getByTestId('return-button')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '返回统一视图' })).toBeInTheDocument();
+    render(<TerminalView window={createWindow()} onReturn={onReturn} onWindowSwitch={onWindowSwitch} isActive />);
+    // The main container is a div with flex and h-screen classes
+    const container = document.querySelector('.h-screen.w-screen');
+    expect(container).toBeInTheDocument();
   });
 
   it('renders the window name', () => {
-    const onReturn = vi.fn();
-    render(<TerminalView window={mockWindow} onReturn={onReturn} />);
-    expect(screen.getByTestId('window-name')).toHaveTextContent('Test Terminal');
+    render(<TerminalView window={createWindow()} onReturn={onReturn} onWindowSwitch={onWindowSwitch} isActive />);
+    expect(screen.getByText('Test Terminal')).toBeInTheDocument();
   });
 
-  it('renders the status label', () => {
-    const onReturn = vi.fn();
-    render(<TerminalView window={mockWindow} onReturn={onReturn} />);
-    expect(screen.getByTestId('status-label')).toHaveTextContent('运行中');
-  });
-
-  it('renders the terminal container', () => {
-    const onReturn = vi.fn();
-    render(<TerminalView window={mockWindow} onReturn={onReturn} />);
-    expect(screen.getByTestId('terminal-container')).toBeInTheDocument();
+  it('renders the return button', () => {
+    render(<TerminalView window={createWindow()} onReturn={onReturn} onWindowSwitch={onWindowSwitch} isActive />);
+    // Return button contains ArrowLeft icon
+    const buttons = screen.getAllByRole('button');
+    const returnButton = buttons.find(btn => btn.querySelector('svg') && btn.closest('.flex.items-center.justify-center'));
+    expect(returnButton).toBeTruthy();
   });
 
   it('calls onReturn when return button is clicked', async () => {
-    const onReturn = vi.fn();
     const user = userEvent.setup();
-    render(<TerminalView window={mockWindow} onReturn={onReturn} />);
+    render(<TerminalView window={createWindow()} onReturn={onReturn} onWindowSwitch={onWindowSwitch} isActive />);
 
-    await user.click(screen.getByTestId('return-button'));
+    // The return button is the first button in the toolbar
+    const buttons = screen.getAllByRole('button');
+    // First small icon button is the return button (ArrowLeft)
+    await user.click(buttons[0]);
     expect(onReturn).toHaveBeenCalledTimes(1);
   });
 
-  it('calls onReturn when Esc key is pressed', () => {
-    const onReturn = vi.fn();
-    render(<TerminalView window={mockWindow} onReturn={onReturn} />);
-
-    const view = screen.getByTestId('terminal-view');
-    fireEvent.keyDown(view, { key: 'Escape', code: 'Escape' });
-    expect(onReturn).toHaveBeenCalledTimes(1);
+  it('shows split buttons in toolbar', () => {
+    render(<TerminalView window={createWindow()} onReturn={onReturn} onWindowSwitch={onWindowSwitch} isActive />);
+    // Split buttons have title attributes
+    expect(screen.getByTitle('terminalView.splitHorizontal')).toBeInTheDocument();
+    expect(screen.getByTitle('terminalView.splitVertical')).toBeInTheDocument();
   });
 
-  it('shows correct status label for waiting status', () => {
-    const onReturn = vi.fn();
-    const waitingWindow = { ...mockWindow, status: WindowStatus.WaitingForInput };
-    render(<TerminalView window={waitingWindow} onReturn={onReturn} />);
-    expect(screen.getByTestId('status-label')).toHaveTextContent('等待输入');
+  it('shows archive button in toolbar', () => {
+    render(<TerminalView window={createWindow()} onReturn={onReturn} onWindowSwitch={onWindowSwitch} isActive />);
+    expect(screen.getByTitle('terminalView.archive')).toBeInTheDocument();
   });
 
-  it('shows correct status label for completed status', () => {
-    const onReturn = vi.fn();
-    const completedWindow = { ...mockWindow, status: WindowStatus.Completed };
-    render(<TerminalView window={completedWindow} onReturn={onReturn} />);
-    expect(screen.getByTestId('status-label')).toHaveTextContent('已完成');
+  it('shows stop button when window is running', () => {
+    render(<TerminalView window={createWindow()} onReturn={onReturn} onWindowSwitch={onWindowSwitch} isActive />);
+    expect(screen.getByTitle('terminalView.stop')).toBeInTheDocument();
   });
 
-  it('shows correct status label for error status', () => {
-    const onReturn = vi.fn();
-    const errorWindow = { ...mockWindow, status: WindowStatus.Error };
-    render(<TerminalView window={errorWindow} onReturn={onReturn} />);
-    expect(screen.getByTestId('status-label')).toHaveTextContent('出错');
+  it('does not show stop button when window is paused', () => {
+    const pausedWindow = createWindow({
+      layout: makeLayoutWithStatus(WindowStatus.Paused, null),
+    });
+    render(<TerminalView window={pausedWindow} onReturn={onReturn} onWindowSwitch={onWindowSwitch} isActive />);
+    expect(screen.queryByTitle('terminalView.stop')).not.toBeInTheDocument();
   });
 
-  it('registers PTY data listener on mount', () => {
-    const onReturn = vi.fn();
-    render(<TerminalView window={mockWindow} onReturn={onReturn} />);
-    expect(window.electronAPI.onPtyData).toHaveBeenCalledTimes(1);
+  it('renders the terminal layout area', () => {
+    render(<TerminalView window={createWindow()} onReturn={onReturn} onWindowSwitch={onWindowSwitch} isActive />);
+    // The terminal area is rendered inside SplitLayout mock or DropZone
+    const layoutArea = document.querySelector('.flex-1.overflow-hidden');
+    expect(layoutArea).toBeInTheDocument();
   });
 
-  it('unregisters PTY data listener on unmount', () => {
-    const onReturn = vi.fn();
-    const { unmount } = render(<TerminalView window={mockWindow} onReturn={onReturn} />);
-    unmount();
-    expect(window.electronAPI.offPtyData).toHaveBeenCalledTimes(1);
+  it('renders git branch when present', () => {
+    const windowWithBranch = createWindow({ gitBranch: 'main' });
+    render(<TerminalView window={windowWithBranch} onReturn={onReturn} onWindowSwitch={onWindowSwitch} isActive />);
+    expect(screen.getByText('main')).toBeInTheDocument();
   });
 
-  it('return button has accessible aria-label', () => {
-    const onReturn = vi.fn();
-    render(<TerminalView window={mockWindow} onReturn={onReturn} />);
-    const btn = screen.getByTestId('return-button');
-    expect(btn).toHaveAttribute('aria-label', '返回统一视图');
-  });
-
-  it('return button has focus ring class for keyboard navigation', () => {
-    const onReturn = vi.fn();
-    render(<TerminalView window={mockWindow} onReturn={onReturn} />);
-    const btn = screen.getByTestId('return-button');
-    expect(btn.className).toContain('focus:ring-2');
-  });
-
-  it('prevents default on context menu (right-click paste)', () => {
-    const onReturn = vi.fn();
-    render(<TerminalView window={mockWindow} onReturn={onReturn} />);
-    const container = screen.getByTestId('terminal-container');
-    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
-    container.dispatchEvent(event);
-    expect(event.defaultPrevented).toBe(true);
+  it('does not render git branch when absent', () => {
+    render(<TerminalView window={createWindow()} onReturn={onReturn} onWindowSwitch={onWindowSwitch} isActive />);
+    expect(screen.queryByText('main')).not.toBeInTheDocument();
   });
 });

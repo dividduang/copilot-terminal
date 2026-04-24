@@ -23,9 +23,11 @@ export function BatchCreateWindowDialog({
   const [folders, setFolders] = useState<ScannedFolder[]>([]);
   const [parentPath, setParentPath] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleSelectFolder = async () => {
     setIsScanning(true);
+    setValidationError(null);
     try {
       const result = await window.electronAPI.selectAndScanFolder();
 
@@ -36,12 +38,12 @@ export function BatchCreateWindowDialog({
           setFolders(scannedFolders.map(f => ({ ...f, selected: true })));
           setParentPath(path);
         } else {
-          alert(t('batchCreate.noSubfoldersFound'));
+          setValidationError(t('batchCreate.noSubfoldersFound'));
         }
       }
     } catch (error) {
       console.error('Failed to scan folder:', error);
-      alert(t('batchCreate.scanFailed'));
+      setValidationError(t('batchCreate.scanFailed'));
     } finally {
       setIsScanning(false);
     }
@@ -64,7 +66,7 @@ export function BatchCreateWindowDialog({
       .map(f => f.path);
 
     if (selectedPaths.length === 0) {
-      alert(t('batchCreate.selectAtLeastOne'));
+      setValidationError(t('batchCreate.selectAtLeastOne'));
       return;
     }
 
@@ -100,6 +102,11 @@ export function BatchCreateWindowDialog({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
+          {validationError && (
+            <div className="mb-4 p-3 bg-status-error/10 border border-status-error rounded" role="alert">
+              <p className="text-sm text-status-error">{validationError}</p>
+            </div>
+          )}
           {folders.length === 0 ? (
             /* Empty state */
             <div className="flex flex-col items-center justify-center py-12">

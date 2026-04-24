@@ -11,6 +11,18 @@ const makeWindow = (id: string, lastActiveAt: string, createdAt?: string): Windo
   pid: 1000,
   createdAt: createdAt ?? '2024-01-01T10:00:00Z',
   lastActiveAt,
+  layout: {
+    type: 'pane',
+    id: `pane-${id}`,
+    pane: {
+      id: `pane-${id}`,
+      cwd: `/path/${id}`,
+      command: 'claude',
+      status: WindowStatus.Running,
+      pid: 1000,
+    },
+  },
+  activePaneId: `pane-${id}`,
 });
 
 describe('sortWindows', () => {

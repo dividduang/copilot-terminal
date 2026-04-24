@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import { existsSync } from 'fs';
 import { Settings } from '../types/workspace';
 
@@ -64,7 +64,7 @@ function resolveShellPath(command: string): string | null {
 
   try {
     if (process.platform === 'win32') {
-      const output = execSync(`where ${normalized}`, { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' });
+      const output = execFileSync('where.exe', [normalized], { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' });
       const resolved = output
         .split(/\r?\n/)
         .map((line) => line.trim())
@@ -73,7 +73,7 @@ function resolveShellPath(command: string): string | null {
       return resolved ?? null;
     }
 
-    const output = execSync(`command -v ${normalized}`, { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' });
+    const output = execFileSync('command', ['-v', normalized], { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' });
     const resolved = output.trim();
     return resolved || null;
   } catch {

@@ -35,6 +35,7 @@ interface TmuxRpcResponse {
     stderr: string;
   };
   error?: string;
+  errorCode?: string;
 }
 
 /**
@@ -130,7 +131,8 @@ export class TmuxRpcServer {
           try {
             fs.chmodSync(socketPath, 0o600);
           } catch (err) {
-            console.warn(`[TmuxRpcServer] Failed to set socket permissions:`, err);
+            console.error(`[TmuxRpcServer] WARNING: Failed to set socket permissions to 0600. Socket may be accessible to other users:`, err);
+            console.error(`[TmuxRpcServer] Socket path: ${socketPath}`);
           }
         }
 
@@ -194,6 +196,10 @@ export class TmuxRpcServer {
    * 获取指定 window 的 socket 路径
    */
   getSocketPath(windowId: string): string {
+    // 验证 windowId 格式（应为字母数字、下划线、连字符，防止路径注入）
+    if (!/^[a-zA-Z0-9_-]+$/.test(windowId)) {
+      throw new Error(`Invalid windowId format: ${windowId}`);
+    }
     if (platform() === 'win32') {
       return `\\\\.\\pipe\\ausome-tmux-${windowId}`;
     } else {
@@ -362,11 +368,12 @@ export class TmuxRpcServer {
   /**
    * 发送错误响应
    */
-  private sendError(socket: net.Socket, requestId: string, errorMessage: string): void {
+  private sendError(socket: net.Socket, requestId: string, errorMessage: string, errorCode?: string): void {
     const response: TmuxRpcResponse = {
       type: 'response',
       requestId,
       error: errorMessage,
+      ...(errorCode && { errorCode }),
     };
     this.sendResponse(socket, response);
   }

@@ -214,8 +214,8 @@ export const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown); // 使用冒泡阶段
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
   }, [isOpen, filteredItems, selectedIndex, onSelect, onSelectGroup, onClose]);
 
   // 自动滚动到选中项

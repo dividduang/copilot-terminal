@@ -88,24 +88,29 @@ export function CreateWindowDialog({ open, onOpenChange }: CreateWindowDialogPro
       return
     }
 
+    let disposed = false
     setIsValidating(true)
     const timer = setTimeout(async () => {
+      if (disposed) return
       try {
         const response = await window.electronAPI.validatePath(workingDirectory)
-        if (response && response.success) {
+        if (!disposed && response && response.success) {
           setPathError(response.data ? '' : t('createWindow.errorPathNotFound'))
-        } else {
+        } else if (!disposed) {
           setPathError(t('createWindow.errorValidationFailed'))
         }
       } catch (error) {
-        setPathError(t('createWindow.errorValidationFailed'))
+        if (!disposed) setPathError(t('createWindow.errorValidationFailed'))
       } finally {
-        setIsValidating(false)
+        if (!disposed) setIsValidating(false)
       }
     }, 300)
 
-    return () => clearTimeout(timer)
-  }, [workingDirectory])
+    return () => {
+      disposed = true
+      clearTimeout(timer)
+    }
+  }, [workingDirectory, t])
 
   const handleSelectDirectory = async () => {
     try {

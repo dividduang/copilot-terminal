@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { X } from 'lucide-react';
 import { Dialog } from './ui/Dialog';
 import { Button } from './ui/Button';
+import { ConfirmDialog } from './ConfirmDialog';
 import { WindowGroup } from '../../shared/types/window-group';
 import { getAllWindowIds } from '../utils/groupLayoutHelpers';
 import { useWindowStore } from '../stores/windowStore';
@@ -34,6 +35,8 @@ export const EditGroupPanel: React.FC<EditGroupPanelProps> = ({ group, onClose, 
 
   const [name, setName] = useState(group.name);
   const [isSaving, setIsSaving] = useState(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  const pendingRemoveWindowIdRef = useRef<string | null>(null);
 
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -92,14 +95,21 @@ export const EditGroupPanel: React.FC<EditGroupPanelProps> = ({ group, onClose, 
     const windowIds = getAllWindowIds(group.layout);
     if (windowIds.length <= 2) {
       // 如果移除后只剩 1 个窗口，自动解散组
-      if (window.confirm('移除此窗口后组内只剩 1 个窗口，将自动解散组。确定继续吗？')) {
-        removeGroup(group.id);
-        onClose();
-      }
+      pendingRemoveWindowIdRef.current = windowId;
+      setShowRemoveConfirm(true);
     } else {
       // 从组中移除窗口
       removeWindowFromGroupLayout(group.id, windowId);
     }
+  };
+
+  const handleConfirmRemove = () => {
+    if (pendingRemoveWindowIdRef.current) {
+      removeWindowFromGroupLayout(group.id, pendingRemoveWindowIdRef.current);
+      pendingRemoveWindowIdRef.current = null;
+    }
+    setShowRemoveConfirm(false);
+    onClose();
   };
 
   const handleAddWindow = () => {
@@ -112,15 +122,15 @@ export const EditGroupPanel: React.FC<EditGroupPanelProps> = ({ group, onClose, 
     <Dialog
       open={true}
       onOpenChange={onClose}
-      title="编辑窗口组"
-      description="修改组名称或管理组内窗口"
+      title={t('editGroup.title')}
+      description={t('editGroup.description')}
       contentClassName="max-w-[640px]"
     >
       <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} role="form">
         {/* 组名称 */}
         <div className="mb-4">
           <label htmlFor="group-name" className="block text-sm font-medium text-text-primary mb-2">
-            组名称 <span className="text-status-error">*</span>
+            {t('editGroup.nameLabel')} <span className="text-status-error">*</span>
           </label>
           <input
             id="group-name"
@@ -128,7 +138,7 @@ export const EditGroupPanel: React.FC<EditGroupPanelProps> = ({ group, onClose, 
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="输入组名称"
+            placeholder={t('editGroup.namePlaceholder')}
             required
             className="w-full px-3 py-2 bg-bg-app border border-border-subtle rounded text-text-primary placeholder-text-disabled focus:outline-none focus:ring-2 focus:ring-status-running"
           />
@@ -138,9 +148,9 @@ export const EditGroupPanel: React.FC<EditGroupPanelProps> = ({ group, onClose, 
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
             <label className="block text-sm font-medium text-text-primary">
-              组内窗口
+              {t('editGroup.windowsLabel')}
               <span className="text-xs text-text-secondary ml-2">
-                ({windowsInGroup.length} 个)
+                ({t('editGroup.windowsCount', { count: windowsInGroup.length })})
               </span>
             </label>
             <Button
@@ -149,7 +159,7 @@ export const EditGroupPanel: React.FC<EditGroupPanelProps> = ({ group, onClose, 
               onClick={handleAddWindow}
               className="text-xs"
             >
-              添加窗口
+              {t('editGroup.addWindow')}
             </Button>
           </div>
 
@@ -157,7 +167,7 @@ export const EditGroupPanel: React.FC<EditGroupPanelProps> = ({ group, onClose, 
           <div className="border border-border-subtle rounded p-3 bg-bg-app max-h-64 overflow-y-auto">
             {windowsInGroup.length === 0 ? (
               <p className="text-sm text-text-secondary text-center py-4">
-                组内暂无窗口
+                {t('editGroup.noWindows')}
               </p>
             ) : (
               <div className="space-y-2">
@@ -171,14 +181,14 @@ export const EditGroupPanel: React.FC<EditGroupPanelProps> = ({ group, onClose, 
                         {win.name}
                       </div>
                       <div className="text-xs text-text-secondary truncate font-mono">
-                        {win.layout.type === 'pane' ? win.layout.pane.cwd : '多窗格'}
+                        {win.layout.type === 'pane' ? win.layout.pane.cwd : t('editGroup.multiPane')}
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => handleRemoveWindow(win.id)}
                       className="ml-2 p-1 text-status-error hover:bg-status-error/10 rounded transition-colors"
-                      aria-label="移除窗口"
+                      aria-label={t('editGroup.removeWindow')}
                     >
                       <X size={16} />
                     </button>
@@ -189,7 +199,7 @@ export const EditGroupPanel: React.FC<EditGroupPanelProps> = ({ group, onClose, 
           </div>
 
           <p className="text-xs text-text-secondary mt-2">
-            提示：组内至少需要 2 个窗口，移除后只剩 1 个窗口时将自动解散组
+            {t('editGroup.hint')}
           </p>
         </div>
 
@@ -200,7 +210,7 @@ export const EditGroupPanel: React.FC<EditGroupPanelProps> = ({ group, onClose, 
             variant="secondary"
             onClick={onClose}
           >
-            取消
+            {t('common.cancel')}
           </Button>
           <Button
             type="submit"
@@ -208,10 +218,21 @@ export const EditGroupPanel: React.FC<EditGroupPanelProps> = ({ group, onClose, 
             disabled={!name.trim() || isSaving}
             aria-busy={isSaving}
           >
-            {isSaving ? '保存中...' : '保存'}
+            {isSaving ? t('editGroup.saving') : t('editGroup.save')}
           </Button>
         </div>
       </form>
+
+      <ConfirmDialog
+        open={showRemoveConfirm}
+        onOpenChange={setShowRemoveConfirm}
+        title={t('editGroup.removeConfirmTitle')}
+        description={t('editGroup.removeConfirmDescription')}
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
+        onConfirm={handleConfirmRemove}
+        variant="danger"
+      />
     </Dialog>
   );
 };

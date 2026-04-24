@@ -1,95 +1,74 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+
+vi.mock('../i18n', () => ({
+  useI18n: () => ({ t: (k: string) => k, language: 'zh-CN', setLanguage: vi.fn() }),
+  I18nProvider: ({ children }: any) => children,
+}));
+
+vi.mock('../components/TerminalPane', () => ({
+  TerminalPane: () => null,
+}));
+
 import App from '../App';
 
 describe('App - Dark Theme and Design Tokens', () => {
-  it('should apply dark theme background color (#0a0a0a) to main layout', () => {
+  it('should apply background color via CSS variables to main layout', () => {
     const { container } = render(<App />);
-
-    const layout = container.querySelector('.bg-bg-app');
-    expect(layout).toBeInTheDocument();
+    const layout = container.querySelector('.h-screen');
+    expect(layout?.className).toContain('bg-[rgb(var(--background))]');
   });
 
-  it('should apply card background color to toolbar', () => {
-    const { container } = render(<App />);
-
-    const header = container.querySelector('header');
-    expect(header).toHaveClass('bg-bg-card');
-  });
-
-  it('should apply primary text color to app name', () => {
+  it('should apply foreground color to empty state title', () => {
     render(<App />);
-
-    const heading = screen.getByRole('heading', { level: 1 });
-    expect(heading).toHaveClass('text-text-primary');
+    const title = screen.getByText('emptyState.title');
+    expect(title).toHaveClass('text-[rgb(var(--foreground))]');
   });
 
-  it('should apply secondary text color to version', () => {
+  it('should apply muted foreground color to empty state description', () => {
     render(<App />);
-
-    const version = screen.getByText('v0.1.0');
-    expect(version).toHaveClass('text-text-secondary');
+    const desc = screen.getByText('emptyState.description');
+    expect(desc).toHaveClass('text-[rgb(var(--muted-foreground))]');
   });
 
-  it('should apply primary text color to empty state guidance', () => {
+  it('should apply primary background to new terminal button', () => {
     render(<App />);
-
-    const guidance = screen.getByText('创建你的第一个任务窗口');
-    expect(guidance).toHaveClass('text-text-primary');
+    const buttons = screen.getAllByRole('button', { name: /newTerminal/i });
+    // At least one button uses primary background
+    const primaryButtons = buttons.filter(btn =>
+      btn.className.includes('bg-[rgb(var(--primary))]')
+    );
+    expect(primaryButtons.length).toBeGreaterThan(0);
   });
 
-  it('should apply subtle border to toolbar', () => {
+  it('should apply card background to sidebar', () => {
+    render(<App />);
+    const sidebar = document.querySelector('aside');
+    expect(sidebar?.className).toContain('bg-[rgb(var(--sidebar))]');
+  });
+
+  it('should apply border via CSS variables to sidebar', () => {
+    render(<App />);
+    const sidebar = document.querySelector('aside');
+    expect(sidebar?.className).toContain('border-[rgb(var(--border))]');
+  });
+
+  it('should apply icon color via text-[rgb(var(--primary))] to terminal icon', () => {
+    render(<App />);
+    const svg = document.querySelector('.text-\\[rgb\\(var\\(--primary\\)\\)\\]');
+    expect(svg).toBeInTheDocument();
+  });
+
+  it('should maintain consistent design token usage via CSS variables', () => {
     const { container } = render(<App />);
 
-    const header = container.querySelector('header');
-    expect(header).toHaveClass('border-b', 'border-border-subtle');
-  });
+    const elementsWithBackground = container.querySelectorAll('[class*="rgb(var(--background))"]');
+    expect(elementsWithBackground.length).toBeGreaterThan(0);
 
-  it('should use correct spacing for toolbar height (56px / h-14)', () => {
-    const { container } = render(<App />);
+    const elementsWithForeground = container.querySelectorAll('[class*="rgb(var(--foreground))"]');
+    expect(elementsWithForeground.length).toBeGreaterThan(0);
 
-    const header = container.querySelector('header');
-    expect(header).toHaveClass('h-14'); // 14 * 4px = 56px
-  });
-
-  it('should use correct spacing for toolbar padding', () => {
-    const { container } = render(<App />);
-
-    const header = container.querySelector('header');
-    expect(header).toHaveClass('px-6'); // Horizontal padding
-  });
-
-  it('should use correct spacing for empty state text margin', () => {
-    render(<App />);
-
-    const guidance = screen.getByText('创建你的第一个任务窗口');
-    expect(guidance).toHaveClass('mb-6'); // Bottom margin
-  });
-
-  it('should apply status-running color to primary button', () => {
-    render(<App />);
-
-    const buttons = screen.getAllByRole('button', { name: '+ 新建窗口' });
-    // Button component uses bg-status-running for primary variant
-    buttons.forEach(button => {
-      expect(button).toHaveClass('bg-status-running');
-    });
-  });
-
-  it('should maintain consistent design token usage across components', () => {
-    const { container } = render(<App />);
-
-    // Verify all components use design tokens (not hardcoded colors)
-    const elementsWithBgApp = container.querySelectorAll('.bg-bg-app');
-    expect(elementsWithBgApp.length).toBeGreaterThan(0);
-
-    const elementsWithBgCard = container.querySelectorAll('.bg-bg-card');
-    expect(elementsWithBgCard.length).toBeGreaterThan(0);
-
-    const elementsWithTextPrimary = container.querySelectorAll('.text-text-primary');
-    expect(elementsWithTextPrimary.length).toBeGreaterThan(0);
-
-    const elementsWithTextSecondary = container.querySelectorAll('.text-text-secondary');
-    expect(elementsWithTextSecondary.length).toBeGreaterThan(0);
+    const elementsWithBorder = container.querySelectorAll('[class*="rgb(var(--border))"]');
+    expect(elementsWithBorder.length).toBeGreaterThan(0);
   });
 });

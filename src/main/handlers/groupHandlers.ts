@@ -71,8 +71,17 @@ export function registerGroupHandlers(ctx: HandlerContext) {
   // 重命名窗口组
   ipcMain.handle('rename-group', async (_event, groupId: string, name: string) => {
     try {
+      // 验证 name 参数
+      if (!name || typeof name !== 'string') {
+        return errorResponse('Invalid name: must be a non-empty string');
+      }
+      const trimmedName = name.trim();
+      if (trimmedName.length === 0 || trimmedName.length > 100) {
+        return errorResponse('Invalid name: length must be between 1 and 100 characters');
+      }
+
       const ws = getWorkspaceOrThrow();
-      ws.groups = groupManager.renameGroup(groupId, name, ws.groups);
+      ws.groups = groupManager.renameGroup(groupId, trimmedName, ws.groups);
       return saveAndReturn(ws);
     } catch (error) {
       return errorResponse(error);
@@ -116,6 +125,17 @@ export function registerGroupHandlers(ctx: HandlerContext) {
     sizes: number[],
   ) => {
     try {
+      // 验证 sizes 数组
+      if (!Array.isArray(sizes) || sizes.length < 2) {
+        return errorResponse('Invalid sizes: must be an array with at least 2 elements');
+      }
+      // 验证所有 size 值为正数且在合理范围内
+      for (const size of sizes) {
+        if (typeof size !== 'number' || size <= 0 || size > 1) {
+          return errorResponse('Invalid size values: all sizes must be positive numbers between 0 and 1');
+        }
+      }
+
       const ws = getWorkspaceOrThrow();
       ws.groups = groupManager.updateGroupSplitSizes(groupId, splitPath, sizes, ws.groups);
       return saveAndReturn(ws);

@@ -9,15 +9,23 @@ export interface ScannedFolder {
 /**
  * 扫描指定目录下的所有一级子文件夹
  * @param parentPath 父目录路径
+ * @param maxEntries 最大扫描条目数，防止目录遍历攻击（默认 1000）
  * @returns 子文件夹列表
  */
-export function scanSubfolders(parentPath: string): ScannedFolder[] {
+export function scanSubfolders(parentPath: string, maxEntries: number = 1000): ScannedFolder[] {
   try {
     const entries = readdirSync(parentPath, { withFileTypes: true });
 
     const folders: ScannedFolder[] = [];
+    let entryCount = 0;
 
     for (const entry of entries) {
+      // 防止扫描过多条目导致性能问题
+      if (entryCount >= maxEntries) {
+        console.warn(`[FolderScanner] Reached maximum entry limit (${maxEntries}), stopping scan`);
+        break;
+      }
+
       // 跳过非目录项
       if (!entry.isDirectory()) {
         continue;
@@ -37,6 +45,7 @@ export function scanSubfolders(parentPath: string): ScannedFolder[] {
           name: entry.name,
           path: fullPath,
         });
+        entryCount++;
       } catch {
         // 跳过无法访问的文件夹
         continue;

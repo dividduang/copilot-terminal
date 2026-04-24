@@ -3,6 +3,29 @@ import * as path from 'path';
 import * as os from 'os';
 
 /**
+ * Claude Code 配置文件类型定义
+ */
+interface ClaudeCodeConfigType {
+  statusLine?: {
+    type?: string;
+    command?: string;
+    padding?: number;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
+/**
+ * StatusLine 配置类型
+ */
+interface StatusLineConfig {
+  type?: string;
+  command?: string;
+  padding?: number;
+  [key: string]: unknown;
+}
+
+/**
  * Claude Code 配置管理
  */
 export class ClaudeCodeConfig {
@@ -29,7 +52,7 @@ export class ClaudeCodeConfig {
    * 检查是否存在其他 statusLine 配置
    * @returns 如果存在其他配置，返回配置对象；否则返回 null
    */
-  checkExistingStatusLine(): any | null {
+  checkExistingStatusLine(): StatusLineConfig | null {
     const config = this.getCurrentConfig();
     if (!config || !config.statusLine) {
       return null;
@@ -58,7 +81,7 @@ export class ClaudeCodeConfig {
     }
 
     // 读取现有配置
-    let config: any = {};
+    let config: ClaudeCodeConfigType = {};
     if (fs.existsSync(this.configPath)) {
       const content = fs.readFileSync(this.configPath, 'utf-8');
       try {
@@ -119,7 +142,7 @@ export class ClaudeCodeConfig {
 
     // 读取现有配置
     const content = fs.readFileSync(this.configPath, 'utf-8');
-    let config: any = {};
+    let config: ClaudeCodeConfigType = {};
 
     try {
       config = JSON.parse(content);
@@ -167,7 +190,7 @@ export class ClaudeCodeConfig {
   /**
    * 获取当前配置
    */
-  getCurrentConfig(): any {
+  getCurrentConfig(): ClaudeCodeConfigType | null {
     if (!fs.existsSync(this.configPath)) {
       return null;
     }
@@ -186,7 +209,7 @@ export class ClaudeCodeConfig {
    */
   isConfigured(): boolean {
     const config = this.getCurrentConfig();
-    return config && config.statusLine != null;
+    return !!(config && config.statusLine != null);
   }
 
   /**

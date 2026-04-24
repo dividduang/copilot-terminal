@@ -13,6 +13,18 @@ const makeWindow = (overrides: Partial<Window> & { id: string }): Window => ({
   pid: 1000,
   createdAt: '2024-01-01T10:00:00Z',
   lastActiveAt: '2024-01-01T10:00:00Z',
+  layout: {
+    type: 'pane',
+    id: `pane-${overrides.id}`,
+    pane: {
+      id: `pane-${overrides.id}`,
+      cwd: `/path/${overrides.id}`,
+      command: 'claude',
+      status: WindowStatus.Running,
+      pid: 1000,
+    },
+  },
+  activePaneId: `pane-${overrides.id}`,
   ...overrides,
 });
 

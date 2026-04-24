@@ -12,12 +12,21 @@ export class ViewSwitcherImpl implements ViewSwitcher {
   private currentView: 'unified' | 'terminal' = 'unified';
   private activeWindowId: string | null = null;
   private mainWindow: BrowserWindow;
+  private getValidWindowIds: () => string[];
 
-  constructor(mainWindow: BrowserWindow) {
+  constructor(mainWindow: BrowserWindow, getValidWindowIds: () => string[]) {
     this.mainWindow = mainWindow;
+    this.getValidWindowIds = getValidWindowIds;
   }
 
   switchToTerminalView(windowId: string): void {
+    // 验证 windowId 是否有效
+    const validIds = this.getValidWindowIds();
+    if (windowId && !validIds.includes(windowId)) {
+      console.warn(`[ViewSwitcher] Invalid windowId: ${windowId}`);
+      return;
+    }
+
     this.currentView = 'terminal';
     this.activeWindowId = windowId;
 

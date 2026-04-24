@@ -15,6 +15,15 @@ import { registerAllHandlers } from './handlers';
 import { HandlerContext } from './handlers/HandlerContext';
 import { TmuxCompatService } from './services/TmuxCompatService';
 
+// 任务 1: 全局未处理异常捕获
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Main] Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('[Main] Uncaught Exception:', error);
+});
+
 let mainWindow: BrowserWindow | null = null;
 let processManager: ProcessManager | null = null;
 let statusPoller: StatusPoller | null = null;
@@ -30,6 +39,30 @@ let currentWorkspace: Workspace | null = null; // 缓存当前工作区状态
 
 // 退出标志，防止重复执行退出逻辑
 let isQuitting = false;
+
+// 任务 4: 存储 tmux 事件监听器引用以便清理
+const tmuxEventHandlers = {
+  paneTitleChanged: (data: any) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('tmux:pane-title-changed', data);
+    }
+  },
+  paneStyleChanged: (data: any) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('tmux:pane-style-changed', data);
+    }
+  },
+  windowSynced: (data: any) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('tmux:window-synced', data);
+    }
+  },
+  windowRemoved: (data: any) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('tmux:window-removed', data);
+    }
+  },
+};
 
 function createWindow() {
   const preloadPath = path.join(__dirname, '../preload/index.js');
@@ -58,9 +91,16 @@ function createWindow() {
   // 🎯 等待渲染进程明确通知"我准备好了"
   // 使用淡入效果掩盖任何系统级的白色闪烁
   let rendererReady = false;
+  let rendererReadyTimeout: NodeJS.Timeout | null = null;
 
   ipcMain.once('renderer-ready', () => {
     rendererReady = true;
+    // 任务 2: 清理超时保护定时器
+    if (rendererReadyTimeout) {
+      clearTimeout(rendererReadyTimeout);
+      rendererReadyTimeout = null;
+    }
+
     if (mainWindow && !mainWindow.isDestroyed()) {
       console.log('[ELECTRON] Renderer ready, showing window');
       // 1. 先设置窗口为完全透明
@@ -73,15 +113,21 @@ function createWindow() {
       // 3. 延迟 50ms 后开始淡入（确保内容完全渲染）
       setTimeout(() => {
         if (mainWindow && !mainWindow.isDestroyed()) {
-          // 使用平滑的淡入动画（约 160ms）
+          // 任务 3: 修复淡入 setInterval 泄漏 - 添加窗口销毁检查
           let opacity = 0;
           const fadeInterval = setInterval(() => {
+            // 检查窗口是否已销毁
+            if (!mainWindow || mainWindow.isDestroyed()) {
+              clearInterval(fadeInterval);
+              return;
+            }
+
             opacity += 0.05;
             if (opacity >= 1) {
-              mainWindow?.setOpacity(1);
+              mainWindow.setOpacity(1);
               clearInterval(fadeInterval);
             } else {
-              mainWindow?.setOpacity(opacity);
+              mainWindow.setOpacity(opacity);
             }
           }, 8); // 每 8ms 增加 0.05
         }
@@ -90,7 +136,7 @@ function createWindow() {
   });
 
   // 超时保护：如果 5 秒后还没收到 renderer-ready，强制显示窗口
-  setTimeout(() => {
+  rendererReadyTimeout = setTimeout(() => {
     if (!rendererReady && mainWindow && !mainWindow.isDestroyed()) {
       console.log('[ELECTRON] Renderer ready timeout, forcing window show');
       mainWindow.setOpacity(1);
@@ -99,7 +145,10 @@ function createWindow() {
       // 打开开发者工具以便调试
       mainWindow.webContents.openDevTools();
     }
+    rendererReadyTimeout = null;
   }, 5000);
+  // 任务 2: 防止定时器阻止进程退出
+  rendererReadyTimeout?.unref();
 
   // 开发环境加载 dev server，优先读取环境变量，避免 localhost 在不同系统下解析差异
   if (process.env.NODE_ENV === 'development') {
@@ -219,30 +268,11 @@ app.whenReady().then(async () => {
   // 将 tmuxCompatService 注入 ProcessManager（解决循环依赖）
   processManager.setTmuxCompatService(tmuxCompatService);
 
-  // 监听 TmuxCompatService 事件并转发到渲染进程
-  tmuxCompatService.on('pane-title-changed', (data: any) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('tmux:pane-title-changed', data);
-    }
-  });
-
-  tmuxCompatService.on('pane-style-changed', (data: any) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('tmux:pane-style-changed', data);
-    }
-  });
-
-  tmuxCompatService.on('window-synced', (data: any) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('tmux:window-synced', data);
-    }
-  });
-
-  tmuxCompatService.on('window-removed', (data: any) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('tmux:window-removed', data);
-    }
-  });
+  // 任务 4: 监听 TmuxCompatService 事件并转发到渲染进程（使用命名函数以便清理）
+  tmuxCompatService.on('pane-title-changed', tmuxEventHandlers.paneTitleChanged);
+  tmuxCompatService.on('pane-style-changed', tmuxEventHandlers.paneStyleChanged);
+  tmuxCompatService.on('window-synced', tmuxEventHandlers.windowSynced);
+  tmuxCompatService.on('window-removed', tmuxEventHandlers.windowRemoved);
 
   // 初始化 PtySubscriptionManager
   ptySubscriptionManager = new PtySubscriptionManager();
@@ -262,7 +292,10 @@ app.whenReady().then(async () => {
   if (mainWindow) {
     statusPoller = new StatusPoller(processManager.getStatusDetector(), mainWindow);
     statusPoller.startPolling();
-    viewSwitcher = new ViewSwitcherImpl(mainWindow);
+    viewSwitcher = new ViewSwitcherImpl(mainWindow, () => {
+      // 返回当前工作区中所有有效窗口的 ID
+      return currentWorkspace?.windows?.map(w => w.id) || [];
+    });
 
     // 初始化 GitBranchWatcher（基于 FileWatcherService）
     gitBranchWatcher = new GitBranchWatcher(fileWatcherService);

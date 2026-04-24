@@ -3,6 +3,20 @@ import * as path from 'path';
 import { ProjectConfig } from '../../shared/types/project-config';
 
 /**
+ * 验证 URL 是否为有效的 HTTP/HTTPS 协议
+ * @param url 待验证的 URL
+ * @returns 是否为有效 URL
+ */
+function isValidUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return ['http:', 'https:'].includes(parsed.protocol);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * 从指定目录读取 copilot.json 配置文件
  * @param directory 项目根目录
  * @returns 项目配置对象，如果文件不存在或解析失败则返回 null
@@ -26,7 +40,7 @@ export function readProjectConfig(directory: string): ProjectConfig | null {
       return null;
     }
 
-    // 验证 name 唯一性
+    // 验证 name 唯一性和 URL 有效性
     const names = new Set<string>();
     for (const link of config.links) {
       if (!link.name || !link.url) {
@@ -35,6 +49,10 @@ export function readProjectConfig(directory: string): ProjectConfig | null {
       }
       if (names.has(link.name)) {
         console.warn(`Duplicate link name in copilot.json: ${link.name}`);
+        return null;
+      }
+      if (!isValidUrl(link.url)) {
+        console.warn(`Invalid URL in copilot.json: ${link.url} (only http/https protocols are allowed)`);
         return null;
       }
       names.add(link.name);

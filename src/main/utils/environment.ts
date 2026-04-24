@@ -144,7 +144,18 @@ function readWindowsRegistryEnvironment(): RegistryEnvironmentPayload {
     },
   );
 
-  return JSON.parse(output) as RegistryEnvironmentPayload;
+  // 防止解析过大的 JSON 数据导致拒绝服务
+  const MAX_JSON_SIZE = 10 * 1024 * 1024; // 10MB
+  if (output.length > MAX_JSON_SIZE) {
+    throw new Error('Registry data exceeds maximum size');
+  }
+
+  const parsed = JSON.parse(output) as RegistryEnvironmentPayload;
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('Invalid registry data format');
+  }
+
+  return parsed;
 }
 
 function mergeRequiredWindowsRuntimeVariables(

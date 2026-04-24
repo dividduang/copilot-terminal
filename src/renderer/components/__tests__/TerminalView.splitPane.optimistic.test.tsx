@@ -46,6 +46,17 @@ vi.mock('../../i18n', () => ({
   }),
 }));
 
+// Mock react-dnd (DropZone requires DndProvider context)
+vi.mock('react-dnd', () => ({
+  useDrop: () => [{ isOver: false, canDrop: false }, vi.fn()],
+  useDrag: () => [{ isDragging: false }, vi.fn()],
+  DndProvider: ({ children }: any) => children,
+}));
+
+vi.mock('react-dnd-html5-backend', () => ({
+  HTML5Backend: {},
+}));
+
 vi.mock('../SplitLayout', async () => {
   const React = require('react');
   const { getAllPanes } = await vi.importActual<typeof import('../../utils/layoutHelpers')>('../../utils/layoutHelpers');

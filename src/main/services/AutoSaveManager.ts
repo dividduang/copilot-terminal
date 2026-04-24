@@ -118,6 +118,7 @@ export class AutoSaveManagerImpl implements IAutoSaveManager {
       await this.workspaceManager.saveWorkspace(deduplicatedWorkspace);
     } catch (error) {
       // 保存失败时记录错误日志，不影响应用运行
+      console.error('[AutoSave] Failed to save workspace:', error);
     }
   }
 

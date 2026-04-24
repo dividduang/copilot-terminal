@@ -13,6 +13,11 @@ import type {
 export function subscribeToWindowStatusChange(
   callback: (windowId: string, status: WindowStatus) => void
 ): () => void {
+  if (!window.electronAPI) {
+    console.warn('[events] electronAPI not available');
+    return () => {};
+  }
+
   const handler = (_event: unknown, payload: WindowStatusChangedPayload) => {
     callback(payload.windowId, payload.status);
   };
@@ -32,6 +37,11 @@ export function subscribeToWindowStatusChange(
 export function subscribeToPaneStatusChange(
   callback: (windowId: string, paneId: string, status: WindowStatus) => void
 ): () => void {
+  if (!window.electronAPI) {
+    console.warn('[events] electronAPI not available');
+    return () => {};
+  }
+
   const handler = (_event: unknown, payload: PaneStatusChangedPayload) => {
     callback(payload.windowId, payload.paneId, payload.status);
   };
@@ -51,6 +61,11 @@ export function subscribeToPaneStatusChange(
 export function subscribeToWindowGitBranchChange(
   callback: (windowId: string, gitBranch: string | undefined) => void
 ): () => void {
+  if (!window.electronAPI) {
+    console.warn('[events] electronAPI not available');
+    return () => {};
+  }
+
   const handler = (_event: unknown, payload: WindowGitBranchChangedPayload) => {
     callback(payload.windowId, payload.gitBranch);
   };

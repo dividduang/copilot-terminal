@@ -59,13 +59,17 @@ export class PathValidator {
         return { valid: false, reason: 'Sensitive system path' };
       }
 
-      // 6. 检查路径是否存在
-      if (!existsSync(resolvedPath)) {
-        return { valid: false, reason: 'Path does not exist' };
+      // 6. 检查路径是否存在且为目录（原子操作，避免 TOCTOU 竞态条件）
+      let stats: import('fs').Stats;
+      try {
+        stats = statSync(resolvedPath);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+          return { valid: false, reason: 'Path does not exist' };
+        }
+        throw error;
       }
 
-      // 7. 检查是否为目录
-      const stats = statSync(resolvedPath);
       if (!stats.isDirectory()) {
         return { valid: false, reason: 'Path is not a directory' };
       }
@@ -119,8 +123,18 @@ export class PathValidator {
         return { valid: false, reason: 'Sensitive system path' };
       }
 
-      if (existsSync(resolvedPath)) {
-        const stats = statSync(resolvedPath);
+      // 原子检查路径是否存在（避免 TOCTOU 竞态条件）
+      let stats: import('fs').Stats | undefined;
+      try {
+        stats = statSync(resolvedPath);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+          throw error;
+        }
+        // 路径不存在，继续检查父目录
+      }
+
+      if (stats) {
         if (!stats.isDirectory()) {
           return { valid: false, reason: 'Path is not a directory' };
         }
@@ -250,14 +264,22 @@ export class PathValidator {
   private static findNearestExistingParent(pathStr: string): string | null {
     let currentPath = pathStr;
 
-    while (!existsSync(currentPath)) {
+    while (true) {
+      // 原子检查路径是否存在（避免 TOCTOU 竞态条件）
+      try {
+        statSync(currentPath);
+        return currentPath;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+          throw error;
+        }
+      }
+
       const parentPath = path.dirname(currentPath);
       if (parentPath === currentPath) {
         return null;
       }
       currentPath = parentPath;
     }
-
-    return currentPath;
   }
 }

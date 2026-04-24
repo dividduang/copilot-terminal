@@ -103,3 +103,17 @@ export function subscribeToPanePtyData(
   };
 }
 
+/**
+ * 清理 PTY 数据总线
+ * 移除全局监听器并清空所有订阅者和缓冲区
+ * 用于应用卸载或测试清理
+ */
+export function cleanupPtyDataBus(): void {
+  if (globalPtyHandler && window.electronAPI) {
+    window.electronAPI.offPtyData(globalPtyHandler);
+    globalPtyHandler = null;
+  }
+  subscribersByPaneKey.clear();
+  earlyDataBuffers.clear();
+}
+

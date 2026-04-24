@@ -1,5 +1,13 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { ElectronAPI, PtyWriteMetadata } from '../shared/types/electron-api';
+import type {
+  ElectronAPI,
+  PtyWriteMetadata,
+  SettingsPatch,
+  SplitPaneConfig,
+} from '../shared/types/electron-api';
+import type { IDEConfig } from '../shared/types/workspace';
+import type { Window } from '../shared/types/window';
+import type { WindowGroup } from '../shared/types/window-group';
 
 // 暴露受控的 IPC API 到渲染进程
 const electronAPI: ElectronAPI = {
@@ -35,12 +43,12 @@ const electronAPI: ElectronAPI = {
 
   // Settings
   getSettings: () => ipcRenderer.invoke('get-settings'),
-  updateSettings: (settings: unknown) => ipcRenderer.invoke('update-settings', settings),
+  updateSettings: (settings: SettingsPatch) => ipcRenderer.invoke('update-settings', settings),
   getAvailableShells: () => ipcRenderer.invoke('get-available-shells'),
   scanIDEs: () => ipcRenderer.invoke('scan-ides'),
   scanSpecificIDE: (ideName: string) => ipcRenderer.invoke('scan-specific-ide', ideName),
   getSupportedIDENames: () => ipcRenderer.invoke('get-supported-ide-names'),
-  updateIDEConfig: (ideConfig: unknown) => ipcRenderer.invoke('update-ide-config', ideConfig),
+  updateIDEConfig: (ideConfig: IDEConfig) => ipcRenderer.invoke('update-ide-config', ideConfig),
   deleteIDEConfig: (ideId: string) => ipcRenderer.invoke('delete-ide-config', ideId),
   getIDEIcon: (iconPath: string) => ipcRenderer.invoke('get-ide-icon', iconPath),
 
@@ -125,7 +133,7 @@ const electronAPI: ElectronAPI = {
   },
 
   // Pane management
-  splitPane: (config: unknown) =>
+  splitPane: (config: SplitPaneConfig) =>
     ipcRenderer.invoke('split-pane', config),
   closePane: (windowId: string, paneId: string) =>
     ipcRenderer.invoke('close-pane', { windowId, paneId }),
@@ -145,7 +153,7 @@ const electronAPI: ElectronAPI = {
   },
 
   // Workspace management
-  saveWorkspace: (windows: unknown[]) =>
+  saveWorkspace: (windows: Window[]) =>
     ipcRenderer.invoke('save-workspace', windows),
   loadWorkspace: () =>
     ipcRenderer.invoke('load-workspace'),
@@ -157,7 +165,7 @@ const electronAPI: ElectronAPI = {
   },
 
   // Auto-save
-  triggerAutoSave: (windows?: unknown[], groups?: unknown[]) =>
+  triggerAutoSave: (windows?: Window[], groups?: WindowGroup[]) =>
     ipcRenderer.send('trigger-auto-save', windows, groups),
 
   // Clipboard

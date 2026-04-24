@@ -51,6 +51,8 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
   private workspacePath: string;
   private tempPath: string;
   private backupBasePath: string;
+  private saveInProgress = false;
+  private saveQueue: Workspace | null = null;
 
   constructor() {
     // 获取用户数据目录
@@ -65,8 +67,18 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
   /**
    * 保存工作区配置
    * 使用原子写入机制确保数据完整性
+   * 添加并发控制，防止多个调用者同时保存导致数据竞争
    */
   async saveWorkspace(workspace: Workspace): Promise<void> {
+    // 并发控制：如果已有保存操作在进行，记住最新数据
+    if (this.saveInProgress) {
+      this.saveQueue = workspace;
+      console.log('[WorkspaceManager] Save already in progress, queued latest workspace data');
+      return;
+    }
+
+    this.saveInProgress = true;
+
     try {
       // 🔥 保存前检查：如果新数据明显少于旧数据，创建紧急备份
       if (await fs.pathExists(this.workspacePath)) {
@@ -117,6 +129,16 @@ export class WorkspaceManagerImpl implements IWorkspaceManager {
       // 清理临时文件
       await fs.remove(this.tempPath).catch(() => {});
       throw new Error(`Failed to save workspace: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      this.saveInProgress = false;
+
+      // 处理队列中的最新数据
+      if (this.saveQueue) {
+        const queued = this.saveQueue;
+        this.saveQueue = null;
+        console.log('[WorkspaceManager] Processing queued workspace save');
+        await this.saveWorkspace(queued);
+      }
     }
   }
 

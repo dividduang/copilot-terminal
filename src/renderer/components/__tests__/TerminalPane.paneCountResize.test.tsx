@@ -17,7 +17,9 @@ vi.mock('@xterm/xterm', () => ({
     focus: vi.fn(),
     blur: vi.fn(),
     dispose: vi.fn(),
-    write: vi.fn(),
+    write: vi.fn((data: string, callback?: () => void) => {
+      callback?.();
+    }),
     getSelection: vi.fn().mockReturnValue(''),
     onData: vi.fn(() => ({ dispose: vi.fn() })),
     onSelectionChange: vi.fn(() => ({ dispose: vi.fn() })),
@@ -43,15 +45,24 @@ vi.mock('../../api/ptyDataBus', () => ({
 
 vi.mock('../../styles/xterm.css', () => ({}));
 
+// Mock i18n
+vi.mock('../../i18n', () => ({
+  useI18n: () => ({ t: (k: string) => k, language: 'zh-CN', setLanguage: vi.fn() }),
+  I18nProvider: ({ children }: any) => children,
+}));
+
 describe('TerminalPane resize on resume', () => {
   const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
   const originalClientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight');
   const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
   const originalCancelAnimationFrame = globalThis.cancelAnimationFrame;
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     fitAddonInstances.length = 0;
+    // Suppress React error boundary warnings from component cleanup errors
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
       configurable: true,
@@ -70,6 +81,8 @@ describe('TerminalPane resize on resume', () => {
   });
 
   afterEach(() => {
+    consoleErrorSpy.mockRestore();
+
     if (originalClientWidth) {
       Object.defineProperty(HTMLElement.prototype, 'clientWidth', originalClientWidth);
     }
@@ -152,13 +165,14 @@ describe('TerminalPane resize on resume', () => {
       />
     );
 
-    expect(screen.getByTitle('窗格状态')).toBeInTheDocument();
-    expect(screen.queryByTitle('关闭窗格')).not.toBeInTheDocument();
+    // i18n mock returns key names, not translated text
+    expect(screen.getByTitle('terminalPane.status')).toBeInTheDocument();
+    expect(screen.queryByTitle('terminalPane.close')).not.toBeInTheDocument();
 
     fireEvent.mouseEnter(container.firstElementChild as HTMLElement);
 
-    expect(screen.queryByTitle('窗格状态')).not.toBeInTheDocument();
-    const closeButton = screen.getByTitle('关闭窗格');
+    expect(screen.queryByTitle('terminalPane.status')).not.toBeInTheDocument();
+    const closeButton = screen.getByTitle('terminalPane.close');
     expect(closeButton).toBeInTheDocument();
     expect(closeButton).not.toHaveClass('absolute');
 

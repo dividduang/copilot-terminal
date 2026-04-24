@@ -44,6 +44,11 @@ export function registerPaneHandlers(ctx: HandlerContext) {
         ptySubscriptionManager.add(config.paneId, unsubscribe);
       }
 
+      // 注册到 StatusPoller 以支持状态轮询
+      if (statusPoller && config.paneId && config.windowId) {
+        statusPoller.addPane(config.windowId, config.paneId, handle.pid);
+      }
+
       return successResponse({ pid: handle.pid });
     } catch (error) {
       return errorResponse(error);

@@ -125,6 +125,7 @@ export const zhCNMessages = {
   'quickNav.title': '快捷导航',
   'quickNav.emptyTitle': '暂无快捷导航',
   'quickNav.emptyDescription': '在设置中添加常用的网址或文件夹',
+  'quickNav.loadError': '加载快捷导航失败',
 
   'about.title': '软件信息',
   'about.description': '{appName} 桌面应用信息',
@@ -290,6 +291,39 @@ export const zhCNMessages = {
   'viewSwitch.toUnifiedFailed': '切换到统一视图失败',
 
   'splitLayout.invalid': '布局数据无效',
+
+  'createGroup.title': '创建窗口组',
+  'createGroup.description': '将多个窗口组合在一起，形成工作空间布局',
+  'createGroup.nameLabel': '组名称',
+  'createGroup.nameOptional': '可选，留空自动生成',
+  'createGroup.namePlaceholder': '例如：前端项目组',
+  'createGroup.selectWindows': '选择窗口',
+  'createGroup.selectWindowsRequired': '至少选择 2 个',
+  'createGroup.windowsSelected': '已选择 {count} 个窗口',
+  'createGroup.noWindowsAvailable': '暂无可用窗口（所有窗口都已在组中或已归档）',
+  'createGroup.errorMinWindows': '至少需要选择 2 个窗口',
+  'createGroup.defaultGroupName': '组 {time}',
+  'createGroup.createFailed': '创建组失败，请重试',
+  'createGroup.creating': '创建中...',
+  'createGroup.create': '创建组',
+
+  'editGroup.title': '编辑窗口组',
+  'editGroup.description': '修改组名称或管理组内窗口',
+  'editGroup.nameLabel': '组名称',
+  'editGroup.namePlaceholder': '输入组名称',
+  'editGroup.windowsLabel': '组内窗口',
+  'editGroup.windowsCount': '{count} 个',
+  'editGroup.addWindow': '添加窗口',
+  'editGroup.noWindows': '组内暂无窗口',
+  'editGroup.multiPane': '多窗格',
+  'editGroup.removeWindow': '移除窗口',
+  'editGroup.hint': '提示：组内至少需要 2 个窗口，移除后只剩 1 个窗口时将自动解散组',
+  'editGroup.removeConfirmTitle': '确认移除窗口',
+  'editGroup.removeConfirmDescription': '移除此窗口后组内只剩 1 个窗口，将自动解散组。确定继续吗？',
+  'editGroup.saving': '保存中...',
+  'editGroup.save': '保存',
+
+  'sidebar.archived': '归档',
 } as const;
 
 export type TranslationKey = keyof typeof zhCNMessages;
@@ -420,6 +454,7 @@ export const enUSMessages: Record<TranslationKey, string> = {
   'quickNav.title': 'Quick Navigation',
   'quickNav.emptyTitle': 'No quick links yet',
   'quickNav.emptyDescription': 'Add your frequent URLs or folders in Settings',
+  'quickNav.loadError': 'Failed to load quick navigation',
 
   'about.title': 'About',
   'about.description': '{appName} desktop application information',
@@ -585,4 +620,37 @@ export const enUSMessages: Record<TranslationKey, string> = {
   'viewSwitch.toUnifiedFailed': 'Failed to switch to unified view',
 
   'splitLayout.invalid': 'Invalid layout data',
+
+  'createGroup.title': 'Create window group',
+  'createGroup.description': 'Combine multiple windows into a workspace layout',
+  'createGroup.nameLabel': 'Group name',
+  'createGroup.nameOptional': 'Optional, auto-generate if empty',
+  'createGroup.namePlaceholder': 'e.g., Frontend project group',
+  'createGroup.selectWindows': 'Select windows',
+  'createGroup.selectWindowsRequired': 'Select at least 2',
+  'createGroup.windowsSelected': '{count} windows selected',
+  'createGroup.noWindowsAvailable': 'No windows available (all windows are already in groups or archived)',
+  'createGroup.errorMinWindows': 'At least 2 windows must be selected',
+  'createGroup.defaultGroupName': 'Group {time}',
+  'createGroup.createFailed': 'Failed to create group, please try again',
+  'createGroup.creating': 'Creating...',
+  'createGroup.create': 'Create group',
+
+  'editGroup.title': 'Edit window group',
+  'editGroup.description': 'Modify group name or manage windows in the group',
+  'editGroup.nameLabel': 'Group name',
+  'editGroup.namePlaceholder': 'Enter group name',
+  'editGroup.windowsLabel': 'Windows in group',
+  'editGroup.windowsCount': '{count} windows',
+  'editGroup.addWindow': 'Add window',
+  'editGroup.noWindows': 'No windows in group',
+  'editGroup.multiPane': 'Multi-pane',
+  'editGroup.removeWindow': 'Remove window',
+  'editGroup.hint': 'Hint: At least 2 windows are required in a group. The group will be automatically dissolved when only 1 window remains.',
+  'editGroup.removeConfirmTitle': 'Confirm remove window',
+  'editGroup.removeConfirmDescription': 'After removing this window, only 1 window will remain in the group and the group will be automatically dissolved. Continue?',
+  'editGroup.saving': 'Saving...',
+  'editGroup.save': 'Save',
+
+  'sidebar.archived': 'Archived',
 };

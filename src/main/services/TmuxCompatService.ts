@@ -75,6 +75,29 @@ type PaneStartupBarrier = {
 export class TmuxCompatService extends EventEmitter implements ITmuxCompatService {
   private config: TmuxCompatServiceConfig;
 
+  /** 命令白名单：仅允许这些 tmux 命令被执行 */
+  private readonly ALLOWED_COMMANDS = new Set<TmuxCommand>([
+    TmuxCommand.Version,
+    TmuxCommand.DisplayMessage,
+    TmuxCommand.ListPanes,
+    TmuxCommand.ListWindows,
+    TmuxCommand.HasSession,
+    TmuxCommand.SplitWindow,
+    TmuxCommand.KillPane,
+    TmuxCommand.SelectPane,
+    TmuxCommand.ResizePane,
+    TmuxCommand.SendKeys,
+    TmuxCommand.SelectLayout,
+    TmuxCommand.NewSession,
+    TmuxCommand.KillSession,
+    TmuxCommand.AttachSession,
+    TmuxCommand.SwitchClient,
+    TmuxCommand.NewWindow,
+    TmuxCommand.SetOption,
+    TmuxCommand.BreakPane,
+    TmuxCommand.JoinPane,
+  ]);
+
   /** tmux pane ID 闂傚倷娴囧畷鍨叏瀹曞洦濯奸柡灞诲劚缁€鍫熺節闂堟侗鍎忔慨瑙勭叀閺岋綁寮崒姘粯闂傚倸鍋嗛崹閬嶅Φ閸曨垼鏁囬柣鏃堫棑椤戝倻绱撴担鎻掍壕闂佸憡娲﹂崐?1 闂備浇顕х€涒晠顢欓弽顓炵獥闁圭儤顨呯壕濠氭煙閻愵剚鐏遍柡鈧懞銉ｄ簻闁哄啫鍊甸幏锟犳煕鎼淬垻鐭岀紒?*/
   private paneIdCounter: number = 1;
 
@@ -132,6 +155,15 @@ export class TmuxCompatService extends EventEmitter implements ITmuxCompatServic
         options: parsed.options,
         args: parsed.args,
       });
+
+      // 命令白名单验证：拒绝不在白名单中的命令
+      if (!this.ALLOWED_COMMANDS.has(parsed.command)) {
+        return {
+          exitCode: 1,
+          stdout: '',
+          stderr: `tmux: unknown command: ${parsed.command}`,
+        };
+      }
 
       const response = await (async () => {
         switch (parsed.command) {

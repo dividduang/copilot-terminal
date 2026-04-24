@@ -33,7 +33,9 @@ export function useWindowSwitcher(onSwitchView: (windowId: string) => void | Pro
 
       void (async () => {
         const startTime = Date.now();
-        console.log(`[useWindowSwitcher] Starting PTY processes for window ${win.id}...`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[useWindowSwitcher] Starting PTY processes for window ${win.id}...`);
+        }
 
         await Promise.all(
           panes.map(async (pane) => {
@@ -46,7 +48,9 @@ export function useWindowSwitcher(onSwitchView: (windowId: string) => void | Pro
               command: pane.command,
             });
             const paneStartDuration = Date.now() - paneStartTime;
-            console.log(`[useWindowSwitcher] Pane ${pane.id} PTY started in ${paneStartDuration}ms`);
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`[useWindowSwitcher] Pane ${pane.id} PTY started in ${paneStartDuration}ms`);
+            }
 
             if (response && response.success && response.data) {
               updatePane(win.id, pane.id, {
@@ -61,7 +65,9 @@ export function useWindowSwitcher(onSwitchView: (windowId: string) => void | Pro
         );
 
         const totalStartDuration = Date.now() - startTime;
-        console.log(`[useWindowSwitcher] All PTY processes started in ${totalStartDuration}ms`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[useWindowSwitcher] All PTY processes started in ${totalStartDuration}ms`);
+        }
       })().catch((error) => {
         console.error('Failed to start window:', error);
         for (const pane of panes) {

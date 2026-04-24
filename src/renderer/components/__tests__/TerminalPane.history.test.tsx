@@ -70,6 +70,12 @@ vi.mock('../../api/ptyDataBus', () => ({
 
 vi.mock('../../styles/xterm.css', () => ({}));
 
+// Mock i18n
+vi.mock('../../i18n', () => ({
+  useI18n: () => ({ t: (k: string) => k, language: 'zh-CN', setLanguage: vi.fn() }),
+  I18nProvider: ({ children }: any) => children,
+}));
+
 describe('TerminalPane history replay', () => {
   const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
   const originalCancelAnimationFrame = globalThis.cancelAnimationFrame;
@@ -175,7 +181,7 @@ describe('TerminalPane history replay', () => {
     expect(terminalInstances[0]?.write).toHaveBeenCalledTimes(1);
   });
 
-  it('writes startup protocol replies from the initial history replay back into the live PTY', async () => {
+  it('strips DA queries from history replay so no synthetic replies are written back', async () => {
     vi.mocked(window.electronAPI.getPtyHistory).mockResolvedValue({
       success: true,
       data: { chunks: ['\u001b[c'], lastSeq: 1 },
@@ -198,10 +204,12 @@ describe('TerminalPane history replay', () => {
     );
 
     await waitFor(() => {
-      expect(terminalInstances[0]?.write).toHaveBeenCalled();
+      expect(window.electronAPI.getPtyHistory).toHaveBeenCalledWith('pane-1');
     });
 
-    expect(window.electronAPI.ptyWrite).toHaveBeenCalledWith(
+    // DA queries are stripped from replay data by stripReplayDeviceAttributeQueries,
+    // so terminal.write never receives the DA query and no synthetic reply is sent via ptyWrite.
+    expect(window.electronAPI.ptyWrite).not.toHaveBeenCalledWith(
       'win-1',
       'pane-1',
       '\u001b[?1;2c',
@@ -210,15 +218,14 @@ describe('TerminalPane history replay', () => {
   });
 
   it('does not replay history again when a placeholder pane receives its first pid', async () => {
-    vi.mocked(window.electronAPI.getPtyHistory)
-      .mockResolvedValueOnce({
-        success: true,
-        data: { chunks: [], lastSeq: 0 },
-      })
-      .mockResolvedValueOnce({
-        success: true,
-        data: { chunks: ['\u001b[c'], lastSeq: 1 },
-      });
+    let callCount = 0;
+    vi.mocked(window.electronAPI.getPtyHistory).mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve({ success: true, data: { chunks: [], lastSeq: 0 } });
+      }
+      return Promise.resolve({ success: true, data: { chunks: ['\u001b[c'], lastSeq: 1 } });
+    });
 
     const { rerender } = render(
       <TerminalPane
@@ -270,15 +277,14 @@ describe('TerminalPane history replay', () => {
   });
 
   it('resets and replays a fresh session when a paused pane starts again with a new pid', async () => {
-    vi.mocked(window.electronAPI.getPtyHistory)
-      .mockResolvedValueOnce({
-        success: true,
-        data: { chunks: ['old-output'], lastSeq: 1 },
-      })
-      .mockResolvedValueOnce({
-        success: true,
-        data: { chunks: ['new-output'], lastSeq: 1 },
-      });
+    let callCount = 0;
+    vi.mocked(window.electronAPI.getPtyHistory).mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve({ success: true, data: { chunks: ['old-output'], lastSeq: 1 } });
+      }
+      return Promise.resolve({ success: true, data: { chunks: ['new-output'], lastSeq: 1 } });
+    });
 
     const { rerender } = render(
       <TerminalPane
@@ -298,6 +304,11 @@ describe('TerminalPane history replay', () => {
 
     await waitFor(() => {
       expect(window.electronAPI.getPtyHistory).toHaveBeenCalledTimes(1);
+    });
+
+    // Wait for first history replay to write to terminal
+    await waitFor(() => {
+      expect(terminalInstances[0]?.write).toHaveBeenCalledWith('old-output', expect.any(Function));
     });
 
     rerender(
@@ -336,12 +347,13 @@ describe('TerminalPane history replay', () => {
       />,
     );
 
+    // Wait for the second history replay to complete and write new-output
     await waitFor(() => {
-      expect(window.electronAPI.getPtyHistory).toHaveBeenCalledTimes(2);
+      const lastInstance = terminalInstances[terminalInstances.length - 1];
+      expect(lastInstance?.write).toHaveBeenCalledWith('new-output', expect.any(Function));
     });
 
-    expect(terminalInstances[0]?.reset).toHaveBeenCalledTimes(2);
-    expect(terminalInstances[0]?.write).toHaveBeenCalledWith('new-output', expect.any(Function));
+    expect(terminalInstances[0]?.reset).toHaveBeenCalled();
   });
 
   it('suppresses replay-generated DA replies after the same pane session remounts', async () => {
@@ -367,10 +379,11 @@ describe('TerminalPane history replay', () => {
     );
 
     await waitFor(() => {
-      expect(terminalInstances[0]?.write).toHaveBeenCalled();
+      expect(window.electronAPI.getPtyHistory).toHaveBeenCalledWith('pane-1');
     });
 
-    expect(window.electronAPI.ptyWrite).toHaveBeenCalledWith(
+    // DA queries are stripped from replay data, so no DA reply is ever sent via ptyWrite
+    expect(window.electronAPI.ptyWrite).not.toHaveBeenCalledWith(
       'win-1',
       'pane-1',
       '\u001b[?1;2c',

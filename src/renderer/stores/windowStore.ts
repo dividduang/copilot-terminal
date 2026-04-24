@@ -21,6 +21,12 @@ import {
 } from '../utils/groupLayoutHelpers';
 import { updateSettingsCategories } from './categoryHelpers';
 
+/**
+ * 重要说明：Zustand 的 set() 方法是同步的
+ * 即使使用 immer 中间件，set() 也是同步执行的，因此 set() 之后立即调用 get() 是安全的。
+ * 这个特性确保了 triggerAutoSave(get().windows, get().groups) 能拿到最新状态。
+ */
+
 // 全局标志：是否启用自动保存
 let autoSaveEnabled = true;
 const runtimeOnlyPaneFields = new Set<keyof Pane>([
@@ -195,7 +201,7 @@ export const useWindowStore = create<WindowStore>()(
         // 添加到 MRU 列表首位
         state.mruList = [window.id, ...state.mruList.filter(id => id !== window.id)];
       });
-      // 触发自动保存，传递最新的窗口列表和组列表
+      // 注意：Zustand 的 set() 是同步的（即使使用 immer 中间件），所以这里 get() 能拿到最新值
       const { windows, groups } = get();
       triggerAutoSave(windows, groups);
     },
@@ -642,6 +648,7 @@ export const useWindowStore = create<WindowStore>()(
         state.groups.push(group);
         state.groupMruList = [group.id, ...state.groupMruList.filter(id => id !== group.id)];
       });
+      // 注意：Zustand 的 set() 是同步的（即使使用 immer 中间件），所以这里 get() 能拿到最新值
       triggerAutoSave(get().windows, get().groups);
     },
 

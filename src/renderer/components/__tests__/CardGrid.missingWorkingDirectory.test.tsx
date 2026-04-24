@@ -1,9 +1,30 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { DndProvider } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
 import { CardGrid } from '../CardGrid';
 import { useWindowStore } from '../../stores/windowStore';
 import { Window, WindowStatus } from '../../types/window';
+
+vi.mock('../../i18n', () => ({
+  useI18n: () => ({
+    t: (k: string, params?: Record<string, string | number>) => {
+      if (params) {
+        return Object.entries(params).reduce((str, [key, val]) => str.replace(`{${key}}`, String(val)), k);
+      }
+      return k;
+    },
+    language: 'zh-CN',
+    setLanguage: vi.fn(),
+  }),
+  formatRelativeTime: () => '刚刚',
+}));
+
+function renderWithDnd(ui: React.ReactElement) {
+  return render(<DndProvider backend={HTML5Backend}>{ui}</DndProvider>);
+}
 
 function makeWindow(overrides: Partial<Window> = {}): Window {
   const paneId = overrides.activePaneId || 'pane-1';
@@ -29,6 +50,13 @@ function makeWindow(overrides: Partial<Window> = {}): Window {
   };
 }
 
+/** Click the WindowCard that contains the given text */
+async function clickWindowCard(text: string, user: ReturnType<typeof userEvent.setup>) {
+  const nameEl = screen.getByText(text);
+  const card = nameEl.closest('[role="button"]')!;
+  await user.click(card);
+}
+
 describe('CardGrid missing working directory guard', () => {
   beforeEach(() => {
     useWindowStore.setState({
@@ -37,6 +65,9 @@ describe('CardGrid missing working directory guard', () => {
       mruList: [],
       sidebarExpanded: false,
       sidebarWidth: 200,
+      groups: [],
+      customCategories: [],
+      hideGroupedWindows: false,
     });
     vi.clearAllMocks();
     vi.mocked(window.electronAPI.getSettings).mockResolvedValue({
@@ -60,14 +91,14 @@ describe('CardGrid missing working directory guard', () => {
     useWindowStore.getState().addWindow(terminalWindow);
     vi.mocked(window.electronAPI.validatePath).mockResolvedValueOnce({ success: true, data: true });
 
-    render(<CardGrid onEnterTerminal={handleEnterTerminal} />);
+    renderWithDnd(<CardGrid onEnterTerminal={handleEnterTerminal} />);
 
-    await user.click(screen.getByRole('button', { name: /Test Window/ }));
+    await clickWindowCard('Test Window', user);
 
     await waitFor(() => {
       expect(handleEnterTerminal).toHaveBeenCalledWith(terminalWindow);
     });
-    expect(screen.queryByText('工作目录不存在')).not.toBeInTheDocument();
+    expect(screen.queryByText('windowDirectory.missingTitle')).not.toBeInTheDocument();
   });
 
   it('creates the missing directory and then enters terminal', async () => {
@@ -82,12 +113,12 @@ describe('CardGrid missing working directory guard', () => {
       data: 'D:\\missing\\repo',
     });
 
-    render(<CardGrid onEnterTerminal={handleEnterTerminal} />);
+    renderWithDnd(<CardGrid onEnterTerminal={handleEnterTerminal} />);
 
-    await user.click(screen.getByRole('button', { name: /Test Window/ }));
+    await clickWindowCard('Test Window', user);
 
-    expect(await screen.findByText('工作目录不存在')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: '自动创建目录' }));
+    expect(await screen.findByText('windowDirectory.missingTitle')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'windowDirectory.autoCreate' }));
 
     await waitFor(() => {
       expect(window.electronAPI.createDirectory).toHaveBeenCalledWith('D:\\missing\\repo');
@@ -103,10 +134,10 @@ describe('CardGrid missing working directory guard', () => {
     vi.mocked(window.electronAPI.validatePath).mockResolvedValueOnce({ success: true, data: false });
     vi.mocked(window.electronAPI.deleteWindow).mockResolvedValueOnce({ success: true });
 
-    render(<CardGrid onEnterTerminal={handleEnterTerminal} />);
+    renderWithDnd(<CardGrid onEnterTerminal={handleEnterTerminal} />);
 
-    await user.click(screen.getByRole('button', { name: /Test Window/ }));
-    await user.click(await screen.findByRole('button', { name: '删除该窗口' }));
+    await clickWindowCard('Test Window', user);
+    await user.click(await screen.findByRole('button', { name: 'windowDirectory.deleteWindow' }));
 
     await waitFor(() => {
       expect(window.electronAPI.deleteWindow).toHaveBeenCalledWith('win-1');
@@ -121,11 +152,11 @@ describe('CardGrid missing working directory guard', () => {
     useWindowStore.getState().addWindow(makeWindow());
     vi.mocked(window.electronAPI.validatePath).mockResolvedValueOnce({ success: true, data: false });
 
-    render(<CardGrid />);
+    renderWithDnd(<CardGrid />);
 
-    await user.click(screen.getByRole('button', { name: '启动' }));
+    await user.click(screen.getByRole('button', { name: 'windowCard.start' }));
 
-    expect(await screen.findByText('工作目录不存在')).toBeInTheDocument();
+    expect(await screen.findByText('windowDirectory.missingTitle')).toBeInTheDocument();
     expect(window.electronAPI.startWindow).not.toHaveBeenCalled();
   });
 
@@ -148,11 +179,11 @@ describe('CardGrid missing working directory guard', () => {
     useWindowStore.getState().addWindow(runningWindow);
     vi.mocked(window.electronAPI.validatePath).mockResolvedValueOnce({ success: true, data: false });
 
-    render(<CardGrid />);
+    renderWithDnd(<CardGrid />);
 
-    await user.click(screen.getByRole('button', { name: '打开文件夹' }));
+    await user.click(screen.getByRole('button', { name: 'common.openFolder' }));
 
-    expect(await screen.findByText('工作目录不存在')).toBeInTheDocument();
+    expect(await screen.findByText('windowDirectory.missingTitle')).toBeInTheDocument();
     expect(window.electronAPI.openFolder).not.toHaveBeenCalled();
   });
 
@@ -175,14 +206,17 @@ describe('CardGrid missing working directory guard', () => {
     useWindowStore.getState().addWindow(runningWindow);
     vi.mocked(window.electronAPI.validatePath).mockResolvedValueOnce({ success: true, data: false });
 
-    render(<CardGrid />);
+    renderWithDnd(<CardGrid />);
 
+    // IDE button aria-label is t('common.openInIDE', { name: ide.name }) which resolves to 'common.openInIDE' (key has no placeholder matched)
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: '在 VS Code 中打开' })).toBeInTheDocument();
+      const ideButtons = screen.getAllByRole('button').filter(b => b.getAttribute('aria-label')?.includes('common.openInIDE'));
+      expect(ideButtons.length).toBeGreaterThan(0);
     });
-    await user.click(screen.getByRole('button', { name: '在 VS Code 中打开' }));
+    const ideButton = screen.getAllByRole('button').find(b => b.getAttribute('aria-label')?.includes('common.openInIDE'))!;
+    await user.click(ideButton);
 
-    expect(await screen.findByText('工作目录不存在')).toBeInTheDocument();
+    expect(await screen.findByText('windowDirectory.missingTitle')).toBeInTheDocument();
     expect(window.electronAPI.openInIDE).not.toHaveBeenCalled();
   });
 });

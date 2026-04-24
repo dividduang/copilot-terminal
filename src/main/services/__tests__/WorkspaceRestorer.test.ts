@@ -68,7 +68,7 @@ describe('WorkspaceRestorer', () => {
           {
             id: 'window-1',
             name: 'Test Window',
-            workingDirectory: '/test/path',
+            workingDirectory: process.cwd(),
             command: 'bash',
             status: WindowStatus.Running,
             pid: null,
@@ -100,7 +100,7 @@ describe('WorkspaceRestorer', () => {
       });
 
       expect(mockProcessManager.spawnTerminal).toHaveBeenCalledWith({
-        workingDirectory: '/test/path',
+        workingDirectory: process.cwd(),
         command: 'bash',
         windowId: 'window-1',
       });
@@ -119,7 +119,7 @@ describe('WorkspaceRestorer', () => {
           {
             id: 'window-1',
             name: 'Window 1',
-            workingDirectory: '/test/path1',
+            workingDirectory: process.cwd(),
             command: 'bash',
             status: WindowStatus.Running,
             pid: null,
@@ -129,7 +129,7 @@ describe('WorkspaceRestorer', () => {
           {
             id: 'window-2',
             name: 'Window 2',
-            workingDirectory: '/test/path2',
+            workingDirectory: process.cwd(),
             command: 'zsh',
             status: WindowStatus.Running,
             pid: null,
@@ -139,7 +139,7 @@ describe('WorkspaceRestorer', () => {
           {
             id: 'window-3',
             name: 'Window 3',
-            workingDirectory: '/test/path3',
+            workingDirectory: process.cwd(),
             command: 'fish',
             status: WindowStatus.Running,
             pid: null,
@@ -187,7 +187,7 @@ describe('WorkspaceRestorer', () => {
           {
             id: 'window-1',
             name: 'Good Window',
-            workingDirectory: '/test/path1',
+            workingDirectory: process.cwd(),
             command: 'bash',
             status: WindowStatus.Running,
             pid: null,
@@ -215,8 +215,7 @@ describe('WorkspaceRestorer', () => {
       };
 
       mockProcessManager.spawnTerminal
-        .mockResolvedValueOnce({ pid: 1234, pty: {} as any })
-        .mockRejectedValueOnce(new Error('Working directory does not exist'));
+        .mockResolvedValueOnce({ pid: 1234, pty: {} as any });
 
       const results = await workspaceRestorer.restoreWorkspace(workspace);
 
@@ -229,16 +228,16 @@ describe('WorkspaceRestorer', () => {
       expect(results[1]).toEqual({
         windowId: 'window-2',
         pid: null,
-        status: 'error',
-        error: 'Working directory does not exist',
+        status: 'paused',
+        error: 'Working directory not found: /invalid/path',
       });
 
-      // 验证错误窗口也发送了通知
+      // 验证暂停窗口也发送了通知
       expect(mockMainWindow.webContents.send).toHaveBeenCalledWith('window-restored', {
         windowId: 'window-2',
         pid: null,
-        status: 'error',
-        error: 'Working directory does not exist',
+        status: 'paused',
+        error: 'Working directory not found: /invalid/path',
       });
     });
 
@@ -249,7 +248,7 @@ describe('WorkspaceRestorer', () => {
           {
             id: 'window-1',
             name: 'Test Window',
-            workingDirectory: '/test/path',
+            workingDirectory: process.cwd(),
             command: 'bash',
             status: WindowStatus.Running,
             pid: null,
@@ -283,7 +282,7 @@ describe('WorkspaceRestorer', () => {
       const windows = Array.from({ length: 15 }, (_, i) => ({
         id: `window-${i}`,
         name: `Window ${i}`,
-        workingDirectory: `/test/path${i}`,
+        workingDirectory: process.cwd(),
         command: 'bash',
         status: WindowStatus.Running,
         pid: null,
@@ -334,7 +333,7 @@ describe('WorkspaceRestorer', () => {
           {
             id: 'window-1',
             name: 'Test Window',
-            workingDirectory: '/test/path',
+            workingDirectory: process.cwd(),
             command: 'bash',
             status: WindowStatus.Running,
             pid: null,

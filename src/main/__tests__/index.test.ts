@@ -7,6 +7,9 @@ const mockLoadFile = vi.fn();
 const mockOn = vi.fn();
 const mockWebContents = {
   openDevTools: vi.fn(),
+  on: vi.fn(),
+  send: vi.fn(),
+  setWindowOpenHandler: vi.fn(),
 };
 
 vi.mock('electron', () => ({
@@ -14,11 +17,17 @@ vi.mock('electron', () => ({
     whenReady: vi.fn(() => Promise.resolve()),
     on: vi.fn(),
     quit: vi.fn(),
+    getPath: vi.fn(() => '/mock'),
+    getLocale: vi.fn(() => 'zh-CN'),
   },
   BrowserWindow: mockBrowserWindow,
   ipcMain: {
     handle: vi.fn(),
+    on: vi.fn(),
+    once: vi.fn(),
   },
+  nativeTheme: { themeSource: 'dark' },
+  Menu: { setApplicationMenu: vi.fn() },
 }));
 
 describe('Electron Main Process', () => {
@@ -77,7 +86,7 @@ describe('Electron Main Process', () => {
       const config = mockBrowserWindow.mock.calls[0][0];
       
       // Verify window title (AC: 2)
-      expect(config.title).toBe('ausome-terminal');
+      expect(config.title).toBe('Copilot-Terminal');
     });
 
     it('should configure security settings correctly', async () => {
