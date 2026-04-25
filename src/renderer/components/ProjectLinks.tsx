@@ -97,14 +97,14 @@ export const ProjectLinks: React.FC<ProjectLinksProps> = ({
         {displayLinks.map((link, index) => (
           <React.Fragment key={link.name}>
             {index > 0 && (
-              <div className="w-px h-4 bg-zinc-700" />
+              <div className="w-px h-4 bg-[rgb(var(--accent))]" />
             )}
             <Tooltip.Provider>
               <Tooltip.Root delayDuration={300}>
                 <Tooltip.Trigger asChild>
                   <button
                     onClick={(e) => handleOpenLink(e, link.url)}
-                    className="flex items-center justify-center w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-100 transition-colors"
+                    className="flex items-center justify-center w-6 h-6 rounded bg-[rgb(var(--card))] hover:bg-[rgb(var(--accent))] text-[rgb(var(--foreground))] transition-colors"
                     title={link.name}
                   >
                     <ExternalLink size={14} />
@@ -112,7 +112,7 @@ export const ProjectLinks: React.FC<ProjectLinksProps> = ({
                 </Tooltip.Trigger>
                 <Tooltip.Portal>
                   <Tooltip.Content
-                    className="bg-zinc-800 text-zinc-100 px-2 py-1 rounded text-xs z-50 shadow-xl border border-zinc-700"
+                    className="bg-[rgb(var(--card))] text-[rgb(var(--foreground))] px-2 py-1 rounded text-xs z-50 shadow-xl border border-[rgb(var(--border))]"
                     sideOffset={5}
                   >
                     {link.name}

@@ -829,7 +829,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
     >
       {/* Pane Header - 显示 tmux 元数据（title, agentName） */}
       {showPaneHeader && (
-        <div className="flex items-center justify-between px-2 py-1 bg-zinc-900/50 border-b border-zinc-800">
+        <div className="flex items-center justify-between px-2 py-1 bg-[rgb(var(--background))]/50 border-b border-[rgb(var(--border))]">
           <div className="flex items-center gap-2 min-w-0">
             {/* Agent 颜色指示器 */}
             {pane.agentColor && (
@@ -839,7 +839,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
               />
             )}
             {/* Pane 标题或 Agent 名称 */}
-            <span className="text-xs text-zinc-400 truncate font-mono">
+            <span className="text-xs text-[rgb(var(--muted-foreground))] truncate font-mono">
               {pane.title || pane.agentName}
             </span>
           </div>
@@ -850,7 +850,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
                   e.stopPropagation();
                   onClose?.();
                 }}
-                className="w-6 h-6 flex items-center justify-center rounded bg-zinc-800/90 text-zinc-400 hover:text-zinc-100 hover:bg-red-600 transition-colors shadow-lg"
+                className="w-6 h-6 flex items-center justify-center rounded bg-[rgb(var(--card))]/90 text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] hover:bg-red-600 transition-colors shadow-lg"
                 title={t('terminalPane.close')}
                 aria-label={t('terminalPane.close')}
               >
@@ -872,7 +872,7 @@ export const TerminalPane: React.FC<TerminalPaneProps> = ({
                 e.stopPropagation();
                 onClose?.();
               }}
-              className="w-6 h-6 flex items-center justify-center rounded bg-zinc-800/90 text-zinc-400 hover:text-zinc-100 hover:bg-red-600 transition-colors shadow-lg"
+              className="w-6 h-6 flex items-center justify-center rounded bg-[rgb(var(--card))]/90 text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] hover:bg-red-600 transition-colors shadow-lg"
               title={t('terminalPane.close')}
               aria-label={t('terminalPane.close')}
             >

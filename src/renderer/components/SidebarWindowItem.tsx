@@ -78,11 +78,11 @@ function getWindowBackgroundColor(status: WindowStatus, isActive: boolean): stri
     case WindowStatus.WaitingForInput:
       return 'bg-blue-900/10 hover:bg-blue-900/20'; // 等待输入：蓝色背景
     case WindowStatus.Paused:
-      return 'bg-zinc-800 hover:bg-zinc-700'; // 暂停：灰色背景
+      return 'bg-[rgb(var(--card))] hover:bg-[rgb(var(--accent))]'; // 暂停：灰色背景
     case WindowStatus.Error:
       return 'bg-red-900/10 hover:bg-red-900/20'; // 已退出：红色背景
     default:
-      return 'bg-zinc-800 hover:bg-zinc-700';
+      return 'bg-[rgb(var(--card))] hover:bg-[rgb(var(--accent))]';
   }
 }
 
@@ -193,12 +193,12 @@ export const SidebarWindowItem: React.FC<SidebarWindowItemProps> = ({
         {/* 窗口信息 */}
         <div className="flex-1 min-w-0">
           {/* 窗口名称 */}
-          <div className="text-sm font-medium text-zinc-100 truncate">
+          <div className="text-sm font-medium text-[rgb(var(--foreground))] truncate">
             {terminalWindow.name}
           </div>
 
           {/* 工作目录 */}
-          <div className="text-xs text-zinc-400 truncate">
+          <div className="text-xs text-[rgb(var(--muted-foreground))] truncate">
             {workingDirectory}
           </div>
         </div>
@@ -206,12 +206,12 @@ export const SidebarWindowItem: React.FC<SidebarWindowItemProps> = ({
 
       {/* 悬停时显示的操作按钮 */}
       {isHovered && isExpanded && (
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-zinc-800 rounded px-1 py-0.5 shadow-lg border border-zinc-700">
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-[rgb(var(--card))] rounded px-1 py-0.5 shadow-lg border border-[rgb(var(--border))]">
           {enabledIDEs.map((ide) => (
             <button
               key={ide.id}
               onClick={(e) => handleIDEClick(e, ide.id)}
-              className="p-1 hover:bg-zinc-700 rounded transition-colors"
+              className="p-1 hover:bg-[rgb(var(--accent))] rounded transition-colors"
               title={`在 ${ide.name} 中打开`}
             >
               <IDEIcon icon={ide.icon || ''} size={12} />
@@ -219,7 +219,7 @@ export const SidebarWindowItem: React.FC<SidebarWindowItemProps> = ({
           ))}
           <button
             onClick={handleFolderClick}
-            className="p-1 hover:bg-zinc-700 rounded transition-colors"
+            className="p-1 hover:bg-[rgb(var(--accent))] rounded transition-colors"
             title="打开文件夹"
           >
             <Folder size={12} />

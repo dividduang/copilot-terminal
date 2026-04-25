@@ -44,7 +44,7 @@ export const GroupSplitLayout: React.FC<GroupSplitLayoutProps> = ({
   const updateGroupSplitSizes = useWindowStore((state) => state.updateGroupSplitSizes);
 
   if (!layout) {
-    return <div className="flex items-center justify-center h-full text-zinc-500">布局无效</div>;
+    return <div className="flex items-center justify-center h-full text-[rgb(var(--muted-foreground))]">布局无效</div>;
   }
 
   const totalWindowCount = getWindowCount(layout);
@@ -330,7 +330,7 @@ const GroupWindowPane: React.FC<GroupWindowPaneProps> = ({
 
   if (!terminalWindow) {
     return (
-      <div className="flex items-center justify-center h-full text-zinc-500 bg-zinc-900">
+      <div className="flex items-center justify-center h-full text-[rgb(var(--muted-foreground))] bg-[rgb(var(--background))]">
         窗口不存在
       </div>
     );
@@ -350,7 +350,7 @@ const GroupWindowPane: React.FC<GroupWindowPaneProps> = ({
         className="h-full w-full"
       >
         <div
-          className={`h-full w-full border ${isActive ? 'border-blue-500/50' : 'border-zinc-800'}`}
+          className={`h-full w-full border ${isActive ? 'border-blue-500/50' : 'border-[rgb(var(--border))]'}`}
           onMouseDown={onActivate}
         >
           <TerminalView

@@ -229,8 +229,8 @@ export const QuickSwitcherItem: React.FC<QuickSwitcherItemProps> = ({
         transition-all duration-150 ease-out
         border-2
         ${isSelected
-          ? `${borderColor} bg-zinc-700/50 shadow-lg`
-          : 'border-transparent bg-zinc-800/50 hover:bg-zinc-700/30'
+          ? `${borderColor} bg-[rgb(var(--accent))]/50 shadow-lg`
+          : 'border-transparent bg-[rgb(var(--card))]/50 hover:bg-[rgb(var(--accent))]/30'
         }
       `}
     >
@@ -240,7 +240,7 @@ export const QuickSwitcherItem: React.FC<QuickSwitcherItemProps> = ({
         <div className="flex-1 min-w-0 space-y-1">
           {/* 窗口名称 */}
           <div className="flex items-center gap-2">
-            <span className="text-base font-semibold text-zinc-100">
+            <span className="text-base font-semibold text-[rgb(var(--foreground))]">
               {nameHighlights.map((part, index) => (
                 <span
                   key={index}
@@ -254,16 +254,16 @@ export const QuickSwitcherItem: React.FC<QuickSwitcherItemProps> = ({
             {workingDirectory && (
               <button
                 onClick={handleOpenFolder}
-                className="flex-shrink-0 p-1 rounded hover:bg-zinc-600/50 transition-colors group"
+                className="flex-shrink-0 p-1 rounded hover:bg-[rgb(var(--accent))]/50 transition-colors group"
                 title={t('quickSwitcher.openFolderTitle', { path: workingDirectory })}
               >
-                <Folder size={16} className="text-zinc-400 group-hover:text-zinc-200" />
+                <Folder size={16} className="text-[rgb(var(--muted-foreground))] group-hover:text-[rgb(var(--foreground))]" />
               </button>
             )}
           </div>
 
           {/* 完整路径 */}
-          <div className="text-sm text-zinc-400 truncate">
+          <div className="text-sm text-[rgb(var(--muted-foreground))] truncate">
             {cwdHighlights.map((part, index) => (
               <span
                 key={index}
@@ -279,19 +279,19 @@ export const QuickSwitcherItem: React.FC<QuickSwitcherItemProps> = ({
         <div className="flex-shrink-0 space-y-1 text-xs">
           {/* 创建时间 */}
           <div className="flex items-center gap-2">
-            <span className="text-zinc-500">{t('quickSwitcher.createdAt')}</span>
-            <span className="text-zinc-300">{createdTime}</span>
+            <span className="text-[rgb(var(--muted-foreground))]">{t('quickSwitcher.createdAt')}</span>
+            <span className="text-[rgb(var(--muted-foreground))]">{createdTime}</span>
           </div>
 
           {/* 上次运行 */}
           <div className="flex items-center gap-2">
-            <span className="text-zinc-500">{t('quickSwitcher.lastRun')}</span>
-            <span className="text-zinc-300">{relativeTime}</span>
+            <span className="text-[rgb(var(--muted-foreground))]">{t('quickSwitcher.lastRun')}</span>
+            <span className="text-[rgb(var(--muted-foreground))]">{relativeTime}</span>
           </div>
 
           {/* 窗格状态 */}
           <div className="flex items-center gap-2">
-            <span className="text-zinc-500">{t('quickSwitcher.paneStatus')}</span>
+            <span className="text-[rgb(var(--muted-foreground))]">{t('quickSwitcher.paneStatus')}</span>
             <div className="flex items-center gap-1.5">
               {panes.map((pane, index) => (
                 <StatusDot
@@ -313,7 +313,7 @@ export const QuickSwitcherItem: React.FC<QuickSwitcherItemProps> = ({
                   <button
                     key={link.name}
                     onClick={(e) => handleOpenLink(e, link.url)}
-                    className="flex items-center justify-center w-4 h-4 rounded bg-zinc-700 text-zinc-400 hover:bg-zinc-600 hover:text-zinc-200 transition-colors cursor-pointer"
+                    className="flex items-center justify-center w-4 h-4 rounded bg-[rgb(var(--accent))] text-[rgb(var(--muted-foreground))] hover:bg-[rgb(var(--accent))] hover:text-[rgb(var(--foreground))] transition-colors cursor-pointer"
                     title={link.name}
                   >
                     <ExternalLink size={10} />
@@ -324,7 +324,7 @@ export const QuickSwitcherItem: React.FC<QuickSwitcherItemProps> = ({
 
             {/* 分隔线 */}
             {terminalWindow.projectConfig && terminalWindow.projectConfig.links.length > 0 && enabledIDEs.length > 0 && (
-              <div className="w-px h-3 bg-zinc-600" />
+              <div className="w-px h-3 bg-[rgb(var(--accent))]" />
             )}
 
             {/* IDE 图标 */}

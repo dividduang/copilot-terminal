@@ -22,14 +22,14 @@ export const AboutPanel: React.FC<AboutPanelProps> = ({
     <Dialog.Root open={open} onOpenChange={(nextOpen) => !nextOpen && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[60] animate-fade-in" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(92vw,420px)] bg-zinc-900 rounded-xl shadow-2xl border border-zinc-800 z-[70] overflow-hidden animate-scale-in">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800 bg-zinc-900/50">
-            <Dialog.Title className="text-lg font-semibold text-zinc-100">
+        <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(92vw,420px)] bg-[rgb(var(--background))] rounded-xl shadow-2xl border border-[rgb(var(--border))] z-[70] overflow-hidden animate-scale-in">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-[rgb(var(--border))] bg-[rgb(var(--background))]/50">
+            <Dialog.Title className="text-lg font-semibold text-[rgb(var(--foreground))]">
               {t('about.title')}
             </Dialog.Title>
             <Dialog.Close asChild>
               <button
-                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100 transition-colors"
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[rgb(var(--card))] text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] transition-colors"
                 aria-label={t('about.close')}
                 title={t('about.close')}
               >
@@ -50,17 +50,17 @@ export const AboutPanel: React.FC<AboutPanelProps> = ({
                 className="w-20 h-20 rounded-2xl shadow-lg mb-4"
               />
 
-              <div className="text-xl font-semibold text-zinc-100 mb-1">{appName}</div>
-              <div className="text-sm text-zinc-400 mb-6">{t('about.description', { appName })}</div>
+              <div className="text-xl font-semibold text-[rgb(var(--foreground))] mb-1">{appName}</div>
+              <div className="text-sm text-[rgb(var(--muted-foreground))] mb-6">{t('about.description', { appName })}</div>
 
-              <div className="w-full space-y-3 rounded-xl border border-zinc-800 bg-zinc-950/40 p-4 text-left">
+              <div className="w-full space-y-3 rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--background))]/40 p-4 text-left">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-sm text-zinc-400">{t('about.version')}</span>
-                  <span className="text-sm font-medium text-zinc-100">{version}</span>
+                  <span className="text-sm text-[rgb(var(--muted-foreground))]">{t('about.version')}</span>
+                  <span className="text-sm font-medium text-[rgb(var(--foreground))]">{version}</span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-sm text-zinc-400">{t('about.author')}</span>
-                  <span className="text-sm font-medium text-zinc-100">licheng2</span>
+                  <span className="text-sm text-[rgb(var(--muted-foreground))]">{t('about.author')}</span>
+                  <span className="text-sm font-medium text-[rgb(var(--foreground))]">licheng2</span>
                 </div>
               </div>
             </div>

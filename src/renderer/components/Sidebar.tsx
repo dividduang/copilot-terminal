@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Menu, Archive, ChevronDown, Settings } from 'lucide-react';
+import { Menu, Archive, ChevronDown, Settings, Sun, Moon } from 'lucide-react';
 import { useWindowStore } from '../stores/windowStore';
 import { SidebarWindowItem } from './SidebarWindowItem';
 import { GroupStatusIcon } from './GroupStatusIcon';
@@ -7,6 +7,7 @@ import { getAggregatedStatus, getAllPanes } from '../utils/layoutHelpers';
 import { getWindowCount, getAllWindowIds } from '../utils/groupLayoutHelpers';
 import { WindowStatus } from '../types/window';
 import { useI18n } from '../i18n';
+import { useThemeStore } from '../stores/themeStore';
 
 interface SidebarProps {
   activeWindowId: string | null;
@@ -30,6 +31,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSettingsClick,
 }) => {
   const { t } = useI18n();
+  const { theme, toggleTheme } = useThemeStore();
   const {
     sidebarExpanded,
     sidebarWidth,
@@ -154,16 +156,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <div
       ref={sidebarRef}
-      className="flex flex-shrink-0 bg-zinc-900 border-r border-zinc-800 transition-all duration-250 ease-in-out"
+      className="flex flex-shrink-0 bg-[rgb(var(--background))] border-r border-[rgb(var(--border))] transition-all duration-250 ease-in-out"
       style={{ width: sidebarExpanded ? `${sidebarWidth}px` : '32px' }}
     >
       {/* 侧边栏内容 */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* 顶部：切换按钮 */}
-        <div className={`h-10 flex items-center border-b border-zinc-800 flex-shrink-0 ${sidebarExpanded ? 'justify-start pl-1' : 'justify-center'}`}>
+        <div className={`h-10 flex items-center border-b border-[rgb(var(--border))] flex-shrink-0 ${sidebarExpanded ? 'justify-start pl-1' : 'justify-center'}`}>
           <button
             onClick={toggleSidebar}
-            className="w-8 h-8 flex items-center justify-center rounded text-zinc-400 hover:text-zinc-100 hover:bg-zinc-700 transition-all duration-200"
+            className="w-8 h-8 flex items-center justify-center rounded text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] hover:bg-[rgb(var(--accent))] transition-all duration-200"
             aria-label={sidebarExpanded ? '折叠侧边栏' : '展开侧边栏'}
             title={sidebarExpanded ? '折叠侧边栏 (Ctrl+B)' : '展开侧边栏 (Ctrl+B)'}
           >
@@ -174,7 +176,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* 标题（仅展开时显示） - 淡入淡出 */}
         {sidebarExpanded && (
           <div
-            className={`px-3 py-2 text-xs font-semibold text-zinc-400 tracking-wide border-b border-zinc-800 flex-shrink-0 transition-opacity duration-200 flex items-center justify-between ${
+            className={`px-3 py-2 text-xs font-semibold text-[rgb(var(--muted-foreground))] tracking-wide border-b border-[rgb(var(--border))] flex-shrink-0 transition-opacity duration-200 flex items-center justify-between ${
               sidebarExpanded ? 'opacity-100' : 'opacity-0'
             }`}
           >
@@ -187,12 +189,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className="flex items-center gap-1.5 cursor-pointer normal-case tracking-normal font-normal"
               title="勾选后隐藏已加入窗口组的窗口"
             >
-              <span className="text-[10px] text-zinc-500">{t('sidebar.hideGroupedWindows')}</span>
+              <span className="text-[10px] text-[rgb(var(--muted-foreground))]">{t('sidebar.hideGroupedWindows')}</span>
               <span
                 className={`inline-flex items-center justify-center w-3.5 h-3.5 rounded-sm border transition-colors ${
                   hideGroupedWindows
                     ? 'bg-blue-500 border-blue-500'
-                    : 'bg-transparent border-zinc-500'
+                    : 'bg-transparent border-[rgb(var(--border))]'
                 }`}
               >
                 {hideGroupedWindows && (
@@ -236,14 +238,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {/* 归档区域 */}
           {archivedWindows.length > 0 && (
-            <div className="border-t border-zinc-800 mt-2">
+            <div className="border-t border-[rgb(var(--border))] mt-2">
               {/* 归档标题 */}
               <button
                 onClick={() => setShowArchived(!showArchived)}
                 className={`
                   w-full px-3 py-2 flex items-center gap-2
-                  text-xs font-semibold text-zinc-400 tracking-wide
-                  hover:bg-zinc-700 transition-all duration-200
+                  text-xs font-semibold text-[rgb(var(--muted-foreground))] tracking-wide
+                  hover:bg-[rgb(var(--accent))] transition-all duration-200
                   ${!sidebarExpanded ? 'justify-center' : ''}
                 `}
                 title={sidebarExpanded ? undefined : `Archived (${archivedWindows.length})`}
@@ -257,7 +259,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       }`}
                     />
                     <span className="transition-opacity duration-200">Archived</span>
-                    <span className="ml-auto text-zinc-500 transition-opacity duration-200">
+                    <span className="ml-auto text-[rgb(var(--muted-foreground))] transition-opacity duration-200">
                       ({archivedWindows.length})
                     </span>
                   </>
@@ -265,7 +267,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <div className="relative">
                     <Archive size={14} />
                     {archivedWindows.length > 0 && (
-                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-zinc-600 text-[8px] rounded-full flex items-center justify-center">
+                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-[rgb(var(--accent))] text-[8px] rounded-full flex items-center justify-center">
                         {archivedWindows.length}
                       </span>
                     )}
@@ -291,12 +293,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* 底部设置按钮 */}
-        <div className="border-t border-zinc-800 flex-shrink-0">
+        <div className="border-t border-[rgb(var(--border))] flex-shrink-0">
+          <button
+            onClick={toggleTheme}
+            className={`
+              w-full h-10 flex items-center gap-2
+              text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] hover:bg-[rgb(var(--accent))]
+              transition-all duration-200
+              ${sidebarExpanded ? 'px-3 justify-start' : 'justify-center'}
+            `}
+            title={sidebarExpanded ? undefined : (theme === 'dark' ? t('theme.light') : t('theme.dark'))}
+            aria-label={theme === 'dark' ? t('theme.light') : t('theme.dark')}
+          >
+            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+            {sidebarExpanded && (
+              <span className="text-sm transition-opacity duration-200">
+                {theme === 'dark' ? t('theme.light') : t('theme.dark')}
+              </span>
+            )}
+          </button>
           <button
             onClick={() => onSettingsClick?.()}
             className={`
               w-full h-10 flex items-center gap-2
-              text-zinc-400 hover:text-zinc-100 hover:bg-zinc-700
+              text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] hover:bg-[rgb(var(--accent))]
               transition-all duration-200
               ${sidebarExpanded ? 'px-3 justify-start' : 'justify-center'}
             `}
@@ -345,7 +365,7 @@ const SidebarGroupItem: React.FC<SidebarGroupItemProps> = ({
 }) => {
   const { windows } = useWindowStore();
   const windowCount = getWindowCount(group.layout);
-  const bgColor = isActive ? 'bg-blue-600/50' : 'bg-zinc-800 hover:bg-zinc-700';
+  const bgColor = isActive ? 'bg-blue-600/50' : 'bg-[rgb(var(--card))] hover:bg-[rgb(var(--accent))]';
 
   if (!isExpanded) {
     return (
@@ -370,8 +390,8 @@ const SidebarGroupItem: React.FC<SidebarGroupItemProps> = ({
         <GroupStatusIcon group={group} windows={windows} />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium text-zinc-100 truncate">{group.name}</div>
-        <div className="text-xs text-zinc-400">{windowCount} 个窗口</div>
+        <div className="text-sm font-medium text-[rgb(var(--foreground))] truncate">{group.name}</div>
+        <div className="text-xs text-[rgb(var(--muted-foreground))]">{windowCount} 个窗口</div>
       </div>
     </button>
   );

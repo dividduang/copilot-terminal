@@ -324,6 +324,10 @@ export const zhCNMessages = {
   'editGroup.save': '保存',
 
   'sidebar.archived': '归档',
+
+  'theme.toggle': '切换主题',
+  'theme.light': '亮色模式',
+  'theme.dark': '暗色模式',
 } as const;
 
 export type TranslationKey = keyof typeof zhCNMessages;
@@ -653,4 +657,8 @@ export const enUSMessages: Record<TranslationKey, string> = {
   'editGroup.save': 'Save',
 
   'sidebar.archived': 'Archived',
+
+  'theme.toggle': 'Toggle Theme',
+  'theme.light': 'Light Mode',
+  'theme.dark': 'Dark Mode',
 };

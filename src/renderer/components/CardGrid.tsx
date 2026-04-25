@@ -538,7 +538,7 @@ export const CardGrid = React.memo<CardGridProps>(({ onEnterTerminal, onEnterGro
   // 自定义分类空状态
   if (isCustomCategory && cardItems.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-zinc-500">
+      <div className="flex flex-col items-center justify-center h-full text-[rgb(var(--muted-foreground))]">
         <Folder size={48} className="mb-4 opacity-50" />
         <p className="text-lg">{t('category.emptyTitle')}</p>
         <p className="text-sm mt-2">{t('category.emptyHint')}</p>
@@ -549,7 +549,7 @@ export const CardGrid = React.memo<CardGridProps>(({ onEnterTerminal, onEnterGro
   // 归档标签空状态
   if (currentTab === 'archived' && cardItems.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-zinc-500">
+      <div className="flex flex-col items-center justify-center h-full text-[rgb(var(--muted-foreground))]">
         <Archive size={48} className="mb-4 opacity-50" />
         <p className="text-lg">{t('archived.emptyTitle')}</p>
       </div>
@@ -623,7 +623,7 @@ export const CardGrid = React.memo<CardGridProps>(({ onEnterTerminal, onEnterGro
           </div>
           {/* 无搜索结果提示 */}
           {searchQuery && filteredCardItems.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-64 text-zinc-500">
+            <div className="flex flex-col items-center justify-center h-64 text-[rgb(var(--muted-foreground))]">
               <Search size={48} className="mb-4 opacity-50" />
               <p className="text-lg">{t('common.noMatchingWindows')}</p>
               <p className="text-sm mt-2">{t('common.tryDifferentSearch')}</p>
@@ -632,9 +632,9 @@ export const CardGrid = React.memo<CardGridProps>(({ onEnterTerminal, onEnterGro
         </ScrollArea.Viewport>
         <ScrollArea.Scrollbar
           orientation="vertical"
-          className="flex w-2.5 touch-none select-none bg-transparent p-0.5 transition-colors hover:bg-zinc-800/50"
+          className="flex w-2.5 touch-none select-none bg-transparent p-0.5 transition-colors hover:bg-[rgb(var(--card))]/50"
         >
-          <ScrollArea.Thumb className="relative flex-1 rounded-full bg-zinc-700 hover:bg-zinc-600 transition-colors" />
+          <ScrollArea.Thumb className="relative flex-1 rounded-full bg-[rgb(var(--accent))] hover:bg-[rgb(var(--accent))] transition-colors" />
         </ScrollArea.Scrollbar>
       </ScrollArea.Root>
 

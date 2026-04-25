@@ -42,6 +42,32 @@
     --radius: 0.75rem;
   }
 
+  [data-theme="light"] {
+    --background: 245 245 245;
+    --foreground: 24 24 27;
+    --card: 255 255 255;
+    --card-foreground: 24 24 27;
+    --primary: 130 132 56;
+    --primary-foreground: 255 255 255;
+    --secondary: 240 240 240;
+    --secondary-foreground: 24 24 27;
+    --muted: 240 240 240;
+    --muted-foreground: 113 113 122;
+    --accent: 234 234 220;
+    --accent-foreground: 100 102 40;
+    --destructive: 220 38 38;
+    --destructive-foreground: 255 255 255;
+    --border: 228 228 231;
+    --input: 228 228 231;
+    --ring: 130 132 56;
+    --sidebar: 250 250 250;
+    --sidebar-foreground: 24 24 27;
+    --success: 34 160 120;
+    --warning: 160 165 10;
+    --info: 50 130 220;
+    --error: 220 38 38;
+  }
+
   * {
     border-color: rgb(var(--border));
   }

@@ -259,9 +259,9 @@ export const ArchivedView = React.memo<ArchivedViewProps>(({ onEnterTerminal, se
         </ScrollArea.Viewport>
         <ScrollArea.Scrollbar
           orientation="vertical"
-          className="flex w-2.5 touch-none select-none bg-transparent p-0.5 transition-colors hover:bg-zinc-800/50"
+          className="flex w-2.5 touch-none select-none bg-transparent p-0.5 transition-colors hover:bg-[rgb(var(--card))]/50"
         >
-          <ScrollArea.Thumb className="relative flex-1 rounded-full bg-zinc-700 hover:bg-zinc-600 transition-colors" />
+          <ScrollArea.Thumb className="relative flex-1 rounded-full bg-[rgb(var(--accent))] hover:bg-[rgb(var(--accent))] transition-colors" />
         </ScrollArea.Scrollbar>
       </ScrollArea.Root>
 

@@ -86,8 +86,8 @@ export const QuickSwitcherGroupItem: React.FC<QuickSwitcherGroupItemProps> = ({
         transition-all duration-150 ease-out
         border-2
         ${isSelected
-          ? `${borderColor} bg-zinc-700/50 shadow-lg`
-          : 'border-transparent bg-zinc-800/50 hover:bg-zinc-700/30'
+          ? `${borderColor} bg-[rgb(var(--accent))]/50 shadow-lg`
+          : 'border-transparent bg-[rgb(var(--card))]/50 hover:bg-[rgb(var(--accent))]/30'
         }
       `}
     >
@@ -98,7 +98,7 @@ export const QuickSwitcherGroupItem: React.FC<QuickSwitcherGroupItemProps> = ({
           {/* 组名称 */}
           <div className="flex items-center gap-2">
             <Layers size={16} className="text-purple-400 flex-shrink-0" />
-            <span className="text-base font-semibold text-zinc-100">
+            <span className="text-base font-semibold text-[rgb(var(--foreground))]">
               {nameHighlights.map((part, index) => (
                 <span
                   key={index}
@@ -114,7 +114,7 @@ export const QuickSwitcherGroupItem: React.FC<QuickSwitcherGroupItemProps> = ({
           </div>
 
           {/* 窗口数量 */}
-          <div className="text-sm text-zinc-400">
+          <div className="text-sm text-[rgb(var(--muted-foreground))]">
             {t('quickSwitcher.windowCount', { count: windowCount })}
           </div>
         </div>
@@ -123,19 +123,19 @@ export const QuickSwitcherGroupItem: React.FC<QuickSwitcherGroupItemProps> = ({
         <div className="flex-shrink-0 space-y-1 text-xs">
           {/* 创建时间 */}
           <div className="flex items-center gap-2">
-            <span className="text-zinc-500">{t('quickSwitcher.createdAt')}</span>
-            <span className="text-zinc-300">{createdTime}</span>
+            <span className="text-[rgb(var(--muted-foreground))]">{t('quickSwitcher.createdAt')}</span>
+            <span className="text-[rgb(var(--muted-foreground))]">{createdTime}</span>
           </div>
 
           {/* 上次运行 */}
           <div className="flex items-center gap-2">
-            <span className="text-zinc-500">{t('quickSwitcher.lastRun')}</span>
-            <span className="text-zinc-300">{relativeTime}</span>
+            <span className="text-[rgb(var(--muted-foreground))]">{t('quickSwitcher.lastRun')}</span>
+            <span className="text-[rgb(var(--muted-foreground))]">{relativeTime}</span>
           </div>
 
           {/* 窗口状态 */}
           <div className="flex items-center gap-2">
-            <span className="text-zinc-500">{t('quickSwitcher.windowStatus')}</span>
+            <span className="text-[rgb(var(--muted-foreground))]">{t('quickSwitcher.windowStatus')}</span>
             <div className="flex items-center gap-1.5">
               {windowStatuses.map((ws, index) => (
                 <StatusDot

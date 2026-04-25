@@ -246,11 +246,11 @@ export const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
           isAnimating ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
         }`}
       >
-        <div className="bg-zinc-900 rounded-xl shadow-2xl overflow-hidden border border-zinc-700">
+        <div className="bg-[rgb(var(--background))] rounded-xl shadow-2xl overflow-hidden border border-[rgb(var(--border))]">
           {/* 搜索框区域 */}
-          <div className="px-6 py-4 border-b border-zinc-800 bg-zinc-900/95 backdrop-blur">
+          <div className="px-6 py-4 border-b border-[rgb(var(--border))] bg-[rgb(var(--background))]/95 backdrop-blur">
             <div className="flex items-center gap-3">
-              <Search size={20} className="text-zinc-400 flex-shrink-0" />
+              <Search size={20} className="text-[rgb(var(--muted-foreground))] flex-shrink-0" />
               <input
                 ref={inputRef}
                 type="text"
@@ -260,10 +260,10 @@ export const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
                   setSelectedIndex(0);
                 }}
                 placeholder={t('quickSwitcher.searchPlaceholder')}
-                className="flex-1 bg-transparent text-zinc-100 placeholder-zinc-500 outline-none text-base"
+                className="flex-1 bg-transparent text-[rgb(var(--foreground))] placeholder-[rgb(var(--muted-foreground))] outline-none text-base"
               />
               {query && (
-                <span className="text-xs text-zinc-500">
+                <span className="text-xs text-[rgb(var(--muted-foreground))]">
                   {t('quickSwitcher.resultsCount', { count: filteredItems.length })}
                 </span>
               )}
@@ -281,8 +281,8 @@ export const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
           >
             {filteredItems.length === 0 ? (
               <div className="px-6 py-12 text-center">
-                <div className="text-zinc-400 text-sm mb-2">{t('quickSwitcher.noResults')}</div>
-                <div className="text-zinc-600 text-xs">
+                <div className="text-[rgb(var(--muted-foreground))] text-sm mb-2">{t('quickSwitcher.noResults')}</div>
+                <div className="text-[rgb(var(--muted-foreground))] text-xs">
                   {query ? t('quickSwitcher.noResultsHint') : t('quickSwitcher.emptyHint')}
                 </div>
               </div>
@@ -318,22 +318,22 @@ export const QuickSwitcher: React.FC<QuickSwitcherProps> = ({
           </div>
 
           {/* 提示栏 */}
-          <div className="px-6 py-3 bg-zinc-900/95 border-t border-zinc-800 flex items-center justify-between text-xs text-zinc-500">
+          <div className="px-6 py-3 bg-[rgb(var(--background))]/95 border-t border-[rgb(var(--border))] flex items-center justify-between text-xs text-[rgb(var(--muted-foreground))]">
             <div className="flex items-center gap-4">
               <span className="flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded text-zinc-400">↑↓</kbd>
+                <kbd className="px-1.5 py-0.5 bg-[rgb(var(--card))] rounded text-[rgb(var(--muted-foreground))]">↑↓</kbd>
                 <span>{t('quickSwitcher.select')}</span>
               </span>
               <span className="flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded text-zinc-400">Enter</kbd>
+                <kbd className="px-1.5 py-0.5 bg-[rgb(var(--card))] rounded text-[rgb(var(--muted-foreground))]">Enter</kbd>
                 <span>{t('quickSwitcher.switch')}</span>
               </span>
               <span className="flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 bg-zinc-800 rounded text-zinc-400">Esc</kbd>
+                <kbd className="px-1.5 py-0.5 bg-[rgb(var(--card))] rounded text-[rgb(var(--muted-foreground))]">Esc</kbd>
                 <span>{t('quickSwitcher.cancel')}</span>
               </span>
             </div>
-            <div className="text-zinc-600">
+            <div className="text-[rgb(var(--muted-foreground))]">
               {t('quickSwitcher.shortcutHint')}
             </div>
           </div>

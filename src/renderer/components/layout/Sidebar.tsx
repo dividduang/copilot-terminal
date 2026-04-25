@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Settings, HelpCircle, Archive, FolderPlus, Search, X, Trash2, Terminal, Compass, Folder, Grid, ChevronRight, ChevronDown, Tag, Check, Edit2 } from 'lucide-react';
+import { Plus, Settings, HelpCircle, Archive, FolderPlus, Search, X, Trash2, Terminal, Compass, Folder, Grid, ChevronRight, ChevronDown, Tag, Check, Edit2, Sun, Moon } from 'lucide-react';
 import { StatusBar } from '../StatusBar';
 import { CreateWindowDialog } from '../CreateWindowDialog';
 import { BatchCreateWindowDialog } from '../BatchCreateWindowDialog';
@@ -11,6 +11,7 @@ import { CategoryDropZone } from '../dnd/CategoryDropZone';
 import { CustomCategory } from '../../../shared/types/custom-category';
 import { useWindowStore } from '../../stores/windowStore';
 import { useI18n } from '../../i18n';
+import { useThemeStore } from '../../stores/themeStore';
 
 interface SidebarProps {
   appName?: string;
@@ -38,6 +39,7 @@ export function Sidebar({
   onSearchChange,
 }: SidebarProps) {
   const { t } = useI18n();
+  const { theme, toggleTheme } = useThemeStore();
   const windows = useWindowStore((state) => state.windows);
   const groups = useWindowStore((state) => state.groups);
   const addWindow = useWindowStore((state) => state.addWindow);
@@ -232,18 +234,18 @@ export function Sidebar({
         {(allCount > 0) && (
           <div className="px-4 pb-3">
             <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500" size={14} />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[rgb(var(--muted-foreground))]" size={14} />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => onSearchChange?.(e.target.value)}
                 placeholder={t('common.searchWindows')}
-                className="w-full pl-8 pr-7 py-1.5 text-sm bg-zinc-800 border border-zinc-700 rounded-md text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all"
+                className="w-full pl-8 pr-7 py-1.5 text-sm bg-[rgb(var(--card))] border border-[rgb(var(--border))] rounded-md text-[rgb(var(--foreground))] placeholder-[rgb(var(--muted-foreground))] focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all"
               />
               {searchQuery && (
                 <button
                   onClick={() => onSearchChange?.('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--muted-foreground))] transition-colors"
                   title={t('common.clearSearch')}
                 >
                   <X size={12} />
@@ -277,7 +279,7 @@ export function Sidebar({
                 className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors ${
                   hideGroupedWindows
                     ? 'bg-blue-500 border-blue-500'
-                    : 'border-zinc-500 bg-transparent hover:border-zinc-400'
+                    : 'border-[rgb(var(--border))] bg-transparent hover:border-[rgb(var(--border))]'
                 }`}
               >
                 {hideGroupedWindows && (
@@ -388,7 +390,7 @@ export function Sidebar({
                             }}
                             onBlur={handleSaveEdit}
                             onClick={(e) => e.stopPropagation()}
-                            className="flex-1 min-w-0 text-sm bg-zinc-800 border border-zinc-600 rounded px-1.5 py-0.5 text-zinc-100 focus:outline-none focus:border-blue-500"
+                            className="flex-1 min-w-0 text-sm bg-[rgb(var(--card))] border border-[rgb(var(--border))] rounded px-1.5 py-0.5 text-[rgb(var(--foreground))] focus:outline-none focus:border-blue-500"
                           />
                           <button
                             onClick={(e) => { e.stopPropagation(); handleSaveEdit(); }}
@@ -399,7 +401,7 @@ export function Sidebar({
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); setEditingCategoryId(null); }}
-                            className="flex-shrink-0 w-5 h-5 flex items-center justify-center text-zinc-400 hover:text-zinc-200 rounded transition-colors"
+                            className="flex-shrink-0 w-5 h-5 flex items-center justify-center text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] rounded transition-colors"
                             title={t('common.cancel')}
                           >
                             <X className="h-3 w-3" />
@@ -418,14 +420,14 @@ export function Sidebar({
                           <div className="flex-shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={(e) => { e.stopPropagation(); handleStartEdit(category); }}
-                              className="w-5 h-5 flex items-center justify-center text-zinc-400 hover:text-zinc-200 rounded hover:bg-zinc-700 transition-colors"
+                              className="w-5 h-5 flex items-center justify-center text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] rounded hover:bg-[rgb(var(--accent))] transition-colors"
                               title={t('category.rename')}
                             >
                               <Edit2 className="h-3 w-3" />
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); setCategoryToDelete(category); }}
-                              className="w-5 h-5 flex items-center justify-center text-zinc-400 hover:text-red-400 rounded hover:bg-zinc-700 transition-colors"
+                              className="w-5 h-5 flex items-center justify-center text-[rgb(var(--muted-foreground))] hover:text-red-400 rounded hover:bg-[rgb(var(--accent))] transition-colors"
                               title={t('category.delete')}
                             >
                               <Trash2 className="h-3 w-3" />
@@ -462,7 +464,7 @@ export function Sidebar({
                         }
                       }}
                       placeholder={t('category.namePlaceholder')}
-                      className="flex-1 min-w-0 text-sm bg-zinc-800 border border-zinc-600 rounded px-1.5 py-0.5 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-blue-500"
+                      className="flex-1 min-w-0 text-sm bg-[rgb(var(--card))] border border-[rgb(var(--border))] rounded px-1.5 py-0.5 text-[rgb(var(--foreground))] placeholder-[rgb(var(--muted-foreground))] focus:outline-none focus:border-blue-500"
                     />
                   </div>
                 ) : (
@@ -489,6 +491,14 @@ export function Sidebar({
             >
               <Settings className="h-4 w-4" />
               <span>{t('settings.title')}</span>
+            </button>
+            <button
+              className="flex items-center justify-center w-9 h-9 rounded-lg text-[rgb(var(--foreground))] hover:bg-[rgb(var(--accent))] transition-colors"
+              onClick={toggleTheme}
+              title={theme === 'dark' ? t('theme.light') : t('theme.dark')}
+              aria-label={theme === 'dark' ? t('theme.light') : t('theme.dark')}
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
             <button
               className="flex items-center justify-center w-9 h-9 rounded-lg text-[rgb(var(--foreground))] hover:bg-[rgb(var(--accent))] transition-colors"
@@ -558,7 +568,7 @@ export function Sidebar({
             return (
               <button
                 onClick={() => setIsConfirmDialogOpen(true)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-red-600 text-zinc-300 hover:text-white transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[rgb(var(--card))] hover:bg-red-600 text-[rgb(var(--muted-foreground))] hover:text-white transition-colors"
                 title={titleText}
               >
                 <Trash2 className="h-4 w-4" />

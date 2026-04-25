@@ -12,6 +12,7 @@ import { ViewSwitchError } from './components/ViewSwitchError';
 import { CleanupOverlay } from './components/CleanupOverlay';
 import { QuickNavPanel } from './components/QuickNavPanel';
 import { useWindowStore } from './stores/windowStore';
+import { useThemeStore } from './stores/themeStore';
 import { useViewSwitcher } from './hooks/useViewSwitcher';
 import { useWindowSwitcher } from './hooks/useWindowSwitcher';
 import { useWorkspaceRestore } from './hooks/useWorkspaceRestore';
@@ -32,6 +33,8 @@ import './api/ptyDataBus';
 function AppContent() {
   const windows = useWindowStore((state) => state.windows);
   const syncWindow = useWindowStore((state) => state.syncWindow);
+  const theme = useThemeStore((state) => state.theme);
+  const initTheme = useThemeStore((state) => state.initTheme);
   const removeWindow = useWindowStore((state) => state.removeWindow);
   const updatePane = useWindowStore((state) => state.updatePane);
   const updateWindow = useWindowStore((state) => state.updateWindow);
@@ -79,6 +82,16 @@ function AppContent() {
     };
     loadDefaultTab();
   }, []);
+
+  // 初始化主题
+  useEffect(() => {
+    initTheme();
+  }, []);
+
+  // 应用主题到 DOM
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   // 工作区恢复
   useWorkspaceRestore();

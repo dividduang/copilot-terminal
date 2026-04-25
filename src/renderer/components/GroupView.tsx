@@ -324,10 +324,10 @@ export const GroupView: React.FC<GroupViewProps> = ({
     ? 'bg-green-500'
     : groupAggregatedStatus === WindowStatus.WaitingForInput
       ? 'bg-blue-500'
-      : 'bg-zinc-500';
+      : 'bg-[rgb(var(--accent))]';
 
   return (
-    <div className="flex h-screen bg-zinc-900">
+    <div className="flex h-screen bg-[rgb(var(--background))]">
       {/* 侧边栏 */}
       <Sidebar
         activeWindowId={group.activeWindowId}
@@ -350,21 +350,21 @@ export const GroupView: React.FC<GroupViewProps> = ({
       {/* 主内容区 */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* 顶部工具栏 */}
-        <div className="h-10 bg-zinc-900 border-b border-zinc-800 flex items-center px-3 gap-2 flex-shrink-0">
+        <div className="h-10 bg-[rgb(var(--background))] border-b border-[rgb(var(--border))] flex items-center px-3 gap-2 flex-shrink-0">
           {/* 返回按钮 */}
           <Tooltip.Provider>
             <Tooltip.Root delayDuration={300}>
               <Tooltip.Trigger asChild>
                 <button
                   onClick={onReturn}
-                  className="flex items-center justify-center w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-100 transition-colors"
+                  className="flex items-center justify-center w-6 h-6 rounded bg-[rgb(var(--card))] hover:bg-[rgb(var(--accent))] text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] transition-colors"
                 >
                   <ArrowLeft size={14} />
                 </button>
               </Tooltip.Trigger>
               <Tooltip.Portal>
                 <Tooltip.Content
-                  className="bg-zinc-800 text-zinc-100 px-2 py-1 rounded text-xs z-50 shadow-xl border border-zinc-700"
+                  className="bg-[rgb(var(--card))] text-[rgb(var(--foreground))] px-2 py-1 rounded text-xs z-50 shadow-xl border border-[rgb(var(--border))]"
                   sideOffset={5}
                 >
                   返回
@@ -378,11 +378,11 @@ export const GroupView: React.FC<GroupViewProps> = ({
 
           {/* 组名称 */}
           <div className="flex items-center gap-1.5">
-            <FolderOpen size={14} className="text-zinc-400" />
-            <span className="text-sm font-medium text-zinc-100 truncate max-w-[200px]">
+            <FolderOpen size={14} className="text-[rgb(var(--muted-foreground))]" />
+            <span className="text-sm font-medium text-[rgb(var(--foreground))] truncate max-w-[200px]">
               {group.name}
             </span>
-            <span className="text-xs text-zinc-500">
+            <span className="text-xs text-[rgb(var(--muted-foreground))]">
               ({windowCount} 个窗口)
             </span>
           </div>
@@ -397,14 +397,14 @@ export const GroupView: React.FC<GroupViewProps> = ({
                 <Tooltip.Trigger asChild>
                   <button
                     onClick={handleStartAll}
-                    className="flex items-center justify-center w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 text-green-500 transition-colors"
+                    className="flex items-center justify-center w-6 h-6 rounded bg-[rgb(var(--card))] hover:bg-[rgb(var(--accent))] text-green-500 transition-colors"
                   >
                     <Play size={14} fill="currentColor" />
                   </button>
                 </Tooltip.Trigger>
                 <Tooltip.Portal>
                   <Tooltip.Content
-                    className="bg-zinc-800 text-zinc-100 px-2 py-1 rounded text-xs z-50 shadow-xl border border-zinc-700"
+                    className="bg-[rgb(var(--card))] text-[rgb(var(--foreground))] px-2 py-1 rounded text-xs z-50 shadow-xl border border-[rgb(var(--border))]"
                     sideOffset={5}
                   >
                     启动全部
@@ -420,10 +420,10 @@ export const GroupView: React.FC<GroupViewProps> = ({
                   <button
                     onClick={handlePauseAll}
                     disabled={groupAggregatedStatus !== WindowStatus.Running && groupAggregatedStatus !== WindowStatus.WaitingForInput}
-                    className={`flex items-center justify-center w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 transition-colors ${
+                    className={`flex items-center justify-center w-6 h-6 rounded bg-[rgb(var(--card))] hover:bg-[rgb(var(--accent))] transition-colors ${
                       groupAggregatedStatus === WindowStatus.Running || groupAggregatedStatus === WindowStatus.WaitingForInput
                         ? 'text-red-500 cursor-pointer'
-                        : 'text-zinc-600 cursor-not-allowed opacity-50'
+                        : 'text-[rgb(var(--muted-foreground))] cursor-not-allowed opacity-50'
                     }`}
                     title={groupAggregatedStatus === WindowStatus.Running || groupAggregatedStatus === WindowStatus.WaitingForInput ? '暂停全部' : '窗口未运行'}
                   >
@@ -432,7 +432,7 @@ export const GroupView: React.FC<GroupViewProps> = ({
                 </Tooltip.Trigger>
                 <Tooltip.Portal>
                   <Tooltip.Content
-                    className="bg-zinc-800 text-zinc-100 px-2 py-1 rounded text-xs z-50 shadow-xl border border-zinc-700"
+                    className="bg-[rgb(var(--card))] text-[rgb(var(--foreground))] px-2 py-1 rounded text-xs z-50 shadow-xl border border-[rgb(var(--border))]"
                     sideOffset={5}
                   >
                     {groupAggregatedStatus === WindowStatus.Running || groupAggregatedStatus === WindowStatus.WaitingForInput
@@ -449,14 +449,14 @@ export const GroupView: React.FC<GroupViewProps> = ({
                 <Tooltip.Trigger asChild>
                   <button
                     onClick={handleArchiveGroup}
-                    className="flex items-center justify-center w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-100 transition-colors"
+                    className="flex items-center justify-center w-6 h-6 rounded bg-[rgb(var(--card))] hover:bg-[rgb(var(--accent))] text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] transition-colors"
                   >
                     <Archive size={14} />
                   </button>
                 </Tooltip.Trigger>
                 <Tooltip.Portal>
                   <Tooltip.Content
-                    className="bg-zinc-800 text-zinc-100 px-2 py-1 rounded text-xs z-50 shadow-xl border border-zinc-700"
+                    className="bg-[rgb(var(--card))] text-[rgb(var(--foreground))] px-2 py-1 rounded text-xs z-50 shadow-xl border border-[rgb(var(--border))]"
                     sideOffset={5}
                   >
                     归档组

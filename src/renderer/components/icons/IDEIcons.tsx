@@ -51,7 +51,7 @@ export const IDEIcon: React.FC<{ icon: string; size?: number; className?: string
     // 加载中显示占位符
     return (
       <div
-        className={`bg-zinc-700 rounded animate-pulse ${className}`}
+        className={`bg-[rgb(var(--accent))] rounded animate-pulse ${className}`}
         style={{ width: size, height: size }}
       />
     );

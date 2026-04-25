@@ -17,11 +17,11 @@ function getStatusDotColor(status: WindowStatus): string {
     case WindowStatus.Error:
       return 'bg-red-500';
     case WindowStatus.Completed:
-      return 'bg-zinc-500';
+      return 'bg-[rgb(var(--accent))]';
     case WindowStatus.Restoring:
       return 'bg-yellow-500';
     default:
-      return 'bg-zinc-600';
+      return 'bg-[rgb(var(--accent))]';
   }
 }
 
@@ -35,9 +35,9 @@ function getStatusIconColor(status: WindowStatus): string {
     case WindowStatus.WaitingForInput:
       return 'text-blue-500';
     case WindowStatus.Paused:
-      return 'text-zinc-500';
+      return 'text-[rgb(var(--muted-foreground))]';
     default:
-      return 'text-zinc-600';
+      return 'text-[rgb(var(--muted-foreground))]';
   }
 }
 

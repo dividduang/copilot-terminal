@@ -19,15 +19,15 @@ function getStatusIconColor(status: WindowStatus): string {
     case WindowStatus.WaitingForInput:
       return 'text-blue-500';
     case WindowStatus.Paused:
-      return 'text-zinc-500';
+      return 'text-[rgb(var(--muted-foreground))]';
     case WindowStatus.Error:
       return 'text-red-500';
     case WindowStatus.Completed:
-      return 'text-zinc-500';
+      return 'text-[rgb(var(--muted-foreground))]';
     case WindowStatus.Restoring:
       return 'text-yellow-500';
     default:
-      return 'text-zinc-600';
+      return 'text-[rgb(var(--muted-foreground))]';
   }
 }
 
@@ -95,7 +95,7 @@ export const StatusIconWithBadge: React.FC<StatusIconWithBadgeProps> = ({
 
       {/* 数字角标 */}
       <div
-        className={`absolute ${badgeOffset} ${badgeSize} bg-zinc-800/80 backdrop-blur-sm rounded-full grid place-items-center transition-all duration-200`}
+        className={`absolute ${badgeOffset} ${badgeSize} bg-[rgb(var(--card))]/80 backdrop-blur-sm rounded-full grid place-items-center transition-all duration-200`}
       >
         <span className="text-white font-bold leading-none">
           {count}

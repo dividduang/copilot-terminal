@@ -207,7 +207,7 @@ export const WindowCard = React.memo<WindowCardProps>(({
         <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-10 flex flex-col items-center justify-center gap-3 rounded-lg transition-opacity duration-200">
           <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
           <div className="text-white text-sm font-medium">{t('windowCard.startingTerminal')}</div>
-          <div className="text-zinc-400 text-xs">{t('windowCard.pleaseWait')}</div>
+          <div className="text-[rgb(var(--muted-foreground))] text-xs">{t('windowCard.pleaseWait')}</div>
         </div>
       )}
 
@@ -220,7 +220,7 @@ export const WindowCard = React.memo<WindowCardProps>(({
               {window.name}
             </h3>
             {paneCount > 1 && (
-              <span className="text-xs text-zinc-500 bg-zinc-800 px-2 py-0.5 rounded flex-shrink-0">
+              <span className="text-xs text-[rgb(var(--muted-foreground))] bg-[rgb(var(--card))] px-2 py-0.5 rounded flex-shrink-0">
                 {t('windowCard.panesCount', { count: paneCount })}
               </span>
             )}

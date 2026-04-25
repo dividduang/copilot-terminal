@@ -397,7 +397,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
   );
 
   return (
-    <div className={`flex ${embedded ? 'h-full w-full' : 'h-screen w-screen'} bg-zinc-900 overflow-hidden`}>
+    <div className={`flex ${embedded ? 'h-full w-full' : 'h-screen w-screen'} bg-[rgb(var(--background))] overflow-hidden`}>
       {/* 渚ц竟鏍?*/}
       {!embedded && (
         <Sidebar
@@ -411,7 +411,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
       {/* 主内容区 */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* 顶部工具栏 - 在嵌入模式下也显示 */}
-        <div className="h-8 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between pl-1 pr-4 flex-shrink-0">
+        <div className="h-8 bg-[rgb(var(--background))] border-b border-[rgb(var(--border))] flex items-center justify-between pl-1 pr-4 flex-shrink-0">
           <div className="flex items-center gap-2">
             {/* 返回按钮 - 仅在非嵌入模式显示 */}
             {!embedded && (
@@ -420,14 +420,14 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
                 <Tooltip.Trigger asChild>
                   <button
                     onClick={onReturn}
-                    className="flex items-center justify-center w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-100 transition-colors"
+                    className="flex items-center justify-center w-6 h-6 rounded bg-[rgb(var(--card))] hover:bg-[rgb(var(--accent))] text-[rgb(var(--foreground))] transition-colors"
                   >
                     <ArrowLeft size={14} />
                   </button>
                 </Tooltip.Trigger>
                 <Tooltip.Portal>
                   <Tooltip.Content
-                    className="bg-zinc-800 text-zinc-100 px-2 py-1 rounded text-xs z-50 shadow-xl border border-zinc-700"
+                    className="bg-[rgb(var(--card))] text-[rgb(var(--foreground))] px-2 py-1 rounded text-xs z-50 shadow-xl border border-[rgb(var(--border))]"
                     sideOffset={5}
                   >
                     {t('terminalView.return')}
@@ -439,9 +439,9 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
 
             {/* 绐楀彛鍚嶇О鍜?git 鍒嗘敮 */}
             <div className="flex items-center gap-2">
-              <span className="text-zinc-100 font-medium text-sm">{terminalWindow.name}</span>
+              <span className="text-[rgb(var(--foreground))] font-medium text-sm">{terminalWindow.name}</span>
               {terminalWindow.gitBranch && (
-                <span className="text-xs text-zinc-400 flex items-center gap-1">
+                <span className="text-xs text-[rgb(var(--muted-foreground))] flex items-center gap-1">
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
                     <path d="M11.75 2.5a.75.75 0 100 1.5.75.75 0 000-1.5zm-2.25.75a2.25 2.25 0 113 2.122V6A2.5 2.5 0 0110 8.5H6a1 1 0 00-1 1v1.128a2.251 2.251 0 11-1.5 0V5.372a2.25 2.25 0 111.5 0v1.836A2.492 2.492 0 016 7h4a1 1 0 001-1v-.628A2.25 2.25 0 019.5 3.25zM4.25 12a.75.75 0 100 1.5.75.75 0 000-1.5zM3.5 3.25a.75.75 0 111.5 0 .75.75 0 01-1.5 0z"/>
                   </svg>
@@ -462,7 +462,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
                   maxDisplay={6}
                 />
                 {/* 鍒嗛殧绾?*/}
-                <div className="w-px h-4 bg-zinc-700" />
+                <div className="w-px h-4 bg-[rgb(var(--accent))]" />
               </>
             )}
 
@@ -473,7 +473,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
                   <Tooltip.Trigger asChild>
                     <button
                       onClick={() => handleOpenInIDE(ide.id)}
-                      className="flex items-center justify-center w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-100 transition-colors"
+                      className="flex items-center justify-center w-6 h-6 rounded bg-[rgb(var(--card))] hover:bg-[rgb(var(--accent))] text-[rgb(var(--foreground))] transition-colors"
                       title={t('common.openInIDE', { name: ide.name })}
                     >
                       <IDEIcon icon={ide.icon || ''} size={14} />
@@ -481,7 +481,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
                   </Tooltip.Trigger>
                   <Tooltip.Portal>
                     <Tooltip.Content
-                      className="bg-zinc-800 text-zinc-100 px-2 py-1 rounded text-xs z-50 shadow-xl border border-zinc-700"
+                      className="bg-[rgb(var(--card))] text-[rgb(var(--foreground))] px-2 py-1 rounded text-xs z-50 shadow-xl border border-[rgb(var(--border))]"
                       sideOffset={5}
                     >
                       {t('common.openInIDE', { name: ide.name })}
@@ -497,7 +497,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
                 <Tooltip.Trigger asChild>
                   <button
                     onClick={handleArchiveWindow}
-                    className="flex items-center justify-center w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-100 transition-colors"
+                    className="flex items-center justify-center w-6 h-6 rounded bg-[rgb(var(--card))] hover:bg-[rgb(var(--accent))] text-[rgb(var(--foreground))] transition-colors"
                     title={t('terminalView.archive')}
                   >
                     <Archive size={14} />
@@ -505,7 +505,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
                 </Tooltip.Trigger>
                 <Tooltip.Portal>
                   <Tooltip.Content
-                    className="bg-zinc-800 text-zinc-100 px-2 py-1 rounded text-xs z-50 shadow-xl border border-zinc-700"
+                    className="bg-[rgb(var(--card))] text-[rgb(var(--foreground))] px-2 py-1 rounded text-xs z-50 shadow-xl border border-[rgb(var(--border))]"
                     sideOffset={5}
                   >
                     {t('terminalView.archive')}
@@ -520,7 +520,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
                 <Tooltip.Trigger asChild>
                   <button
                     onClick={handleOpenFolder}
-                    className="flex items-center justify-center w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-100 transition-colors"
+                    className="flex items-center justify-center w-6 h-6 rounded bg-[rgb(var(--card))] hover:bg-[rgb(var(--accent))] text-[rgb(var(--foreground))] transition-colors"
                     title={t('terminalView.openFolder')}
                   >
                     <Folder size={14} />
@@ -528,7 +528,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
                 </Tooltip.Trigger>
                 <Tooltip.Portal>
                   <Tooltip.Content
-                    className="bg-zinc-800 text-zinc-100 px-2 py-1 rounded text-xs z-50 shadow-xl border border-zinc-700"
+                    className="bg-[rgb(var(--card))] text-[rgb(var(--foreground))] px-2 py-1 rounded text-xs z-50 shadow-xl border border-[rgb(var(--border))]"
                     sideOffset={5}
                   >
                     {t('terminalView.openFolder')}
@@ -540,7 +540,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
             {/* 宸﹀彸鎷嗗垎鎸夐挳 */}
             <button
               onClick={() => handleSplitPane('horizontal')}
-              className="flex items-center justify-center w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-100 transition-colors"
+              className="flex items-center justify-center w-6 h-6 rounded bg-[rgb(var(--card))] hover:bg-[rgb(var(--accent))] text-[rgb(var(--foreground))] transition-colors"
               title={t('terminalView.splitHorizontal')}
             >
               <SplitSquareHorizontal size={14} />
@@ -549,7 +549,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
             {/* 涓婁笅鎷嗗垎鎸夐挳 */}
             <button
               onClick={() => handleSplitPane('vertical')}
-              className="flex items-center justify-center w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-100 transition-colors"
+              className="flex items-center justify-center w-6 h-6 rounded bg-[rgb(var(--card))] hover:bg-[rgb(var(--accent))] text-[rgb(var(--foreground))] transition-colors"
               title={t('terminalView.splitVertical')}
             >
               <SplitSquareVertical size={14} />
@@ -564,7 +564,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
                     <Tooltip.Trigger asChild>
                       <button
                         onClick={() => onRemoveFromGroup?.(terminalWindow.id)}
-                        className="flex items-center justify-center w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-100 transition-colors"
+                        className="flex items-center justify-center w-6 h-6 rounded bg-[rgb(var(--card))] hover:bg-[rgb(var(--accent))] text-[rgb(var(--muted-foreground))] hover:text-[rgb(var(--foreground))] transition-colors"
                         title={t('terminalView.removeFromGroup')}
                       >
                         <LogOut size={14} />
@@ -572,7 +572,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
                     </Tooltip.Trigger>
                     <Tooltip.Portal>
                       <Tooltip.Content
-                        className="bg-zinc-800 text-zinc-100 px-2 py-1 rounded text-xs z-50 shadow-xl border border-zinc-700"
+                        className="bg-[rgb(var(--card))] text-[rgb(var(--foreground))] px-2 py-1 rounded text-xs z-50 shadow-xl border border-[rgb(var(--border))]"
                         sideOffset={5}
                       >
                         {t('terminalView.removeFromGroup')}
@@ -591,10 +591,10 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
                           }
                         }}
                         disabled={!isWindowRunning}
-                        className={`flex items-center justify-center w-6 h-6 rounded bg-zinc-800 transition-colors ${
+                        className={`flex items-center justify-center w-6 h-6 rounded bg-[rgb(var(--card))] transition-colors ${
                           isWindowRunning
-                            ? 'hover:bg-zinc-700 text-red-500 cursor-pointer'
-                            : 'text-zinc-600 cursor-not-allowed'
+                            ? 'hover:bg-[rgb(var(--accent))] text-red-500 cursor-pointer'
+                            : 'text-[rgb(var(--muted-foreground))] cursor-not-allowed'
                         }`}
                         title={t('terminalView.stopAndRemoveFromGroup')}
                       >
@@ -603,7 +603,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
                     </Tooltip.Trigger>
                     <Tooltip.Portal>
                       <Tooltip.Content
-                        className="bg-zinc-800 text-zinc-100 px-2 py-1 rounded text-xs z-50 shadow-xl border border-zinc-700"
+                        className="bg-[rgb(var(--card))] text-[rgb(var(--foreground))] px-2 py-1 rounded text-xs z-50 shadow-xl border border-[rgb(var(--border))]"
                         sideOffset={5}
                       >
                         {t('terminalView.stopAndRemoveFromGroup')}
@@ -621,7 +621,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
                   <Tooltip.Trigger asChild>
                     <button
                       onClick={handlePauseWindow}
-                      className="flex items-center justify-center w-6 h-6 rounded bg-zinc-800 hover:bg-zinc-700 text-red-500 transition-colors"
+                      className="flex items-center justify-center w-6 h-6 rounded bg-[rgb(var(--card))] hover:bg-[rgb(var(--accent))] text-red-500 transition-colors"
                       title={t('terminalView.stop')}
                     >
                       <Square size={14} fill="currentColor" />
@@ -629,7 +629,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
                   </Tooltip.Trigger>
                   <Tooltip.Portal>
                     <Tooltip.Content
-                      className="bg-zinc-800 text-zinc-100 px-2 py-1 rounded text-xs z-50 shadow-xl border border-zinc-700"
+                      className="bg-[rgb(var(--card))] text-[rgb(var(--foreground))] px-2 py-1 rounded text-xs z-50 shadow-xl border border-[rgb(var(--border))]"
                       sideOffset={5}
                     >
                       {t('terminalView.stop')}

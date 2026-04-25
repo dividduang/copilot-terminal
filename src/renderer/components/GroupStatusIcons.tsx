@@ -59,7 +59,7 @@ export const GroupStatusIcons: React.FC<GroupStatusIconsProps> = React.memo(({
                   size="sm"
                 />
                 {item.paneCount > 1 && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-zinc-800/80 text-white text-[8px] font-bold rounded-full w-3 h-3 flex items-center justify-center leading-none">
+                  <span className="absolute -top-1.5 -right-1.5 bg-[rgb(var(--card))]/80 text-white text-[8px] font-bold rounded-full w-3 h-3 flex items-center justify-center leading-none">
                     {item.paneCount}
                   </span>
                 )}
