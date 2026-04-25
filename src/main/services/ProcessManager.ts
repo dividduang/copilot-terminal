@@ -920,7 +920,7 @@ export class ProcessManager extends EventEmitter implements IProcessManager {
 
   private shouldEnableTmuxCompat(): boolean {
     const settings = this.getSettings?.();
-    return settings?.tmux?.enabled ?? false;
+    return settings?.tmux?.enabled ?? true;
   }
 
   /**
