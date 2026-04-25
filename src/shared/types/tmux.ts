@@ -22,6 +22,7 @@ export enum TmuxCommand {
   SwitchClient = 'switch-client',
   NewWindow = 'new-window',
   SetOption = 'set-option',
+  ShowOptions = 'show-options',
   BreakPane = 'break-pane',
   JoinPane = 'join-pane',
 }

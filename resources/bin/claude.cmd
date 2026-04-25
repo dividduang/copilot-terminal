@@ -1,18 +1,10 @@
 @echo off
-:: claude.cmd - Wrapper that injects --teammate-mode tmux for Claude Code Agent Teams
-:: This file is prepended to PATH by copilot-terminal's tmux compat layer.
-:: It intercepts "claude" calls and appends --teammate-mode tmux.
-
-:: Find the real claude.exe by removing our shim dir from PATH
 setlocal EnableDelayedExpansion
-
 set "SHIM_DIR=%~dp0"
-:: Remove trailing backslash
-set "SHIM_DIR=%SHIM_DIR:~0,-1%"
+set "SHIM_DIR=!SHIM_DIR:~0,-1!"
 
-:: Build a clean PATH without our shim directory
 set "CLEAN_PATH="
-for %%P in ("%PATH:;=";"%) do (
+for %%P in ("%PATH:;=";"%") do (
     set "ITEM=%%~P"
     if /i not "!ITEM!"=="!SHIM_DIR!" (
         if defined CLEAN_PATH (
@@ -22,52 +14,53 @@ for %%P in ("%PATH:;=";"%) do (
         )
     )
 )
+set "PATH=!CLEAN_PATH!"
 
-:: Find the real claude executable
-set "REAL_CLAUDE="
-for %%E in (claude.exe claude.cmd claude.bat) do (
-    set "FOUND="
-    for /f "delims=" %%F in ('where /p "!CLEAN_PATH!" %%E 2^>nul') do (
-        set "FOUND=%%F"
-        goto :found
-    )
-)
-
-:found
-if defined FOUND set "REAL_CLAUDE=!FOUND!"
-
-if not defined REAL_CLAUDE (
-    :: Fallback: try PATH without shim dir via temporary PATH swap
-    set "PATH=!CLEAN_PATH!"
-    where claude.exe >nul 2>&1
-    if !errorlevel! equ 0 (
-        set "REAL_CLAUDE=claude.exe"
-    ) else (
-        where claude >nul 2>&1
-        if !errorlevel! equ 0 (
-            set "REAL_CLAUDE=claude"
+:: Find real claude (could be .exe, .cmd, or .bat from npm)
+set "FOUND="
+for %%E in (claude.cmd claude.exe claude.bat) do (
+    for /f "delims=" %%F in ('where %%E 2^>nul') do (
+        if /i not "%%~dpF"=="!SHIM_DIR!\" (
+            set "FOUND=%%F"
+            goto FoundClaude
         )
     )
 )
 
-if not defined REAL_CLAUDE (
+:FoundClaude
+if not defined FOUND (
+    endlocal
     echo claude.cmd: Cannot find real claude executable 1>&2
     exit /b 1
 )
+endlocal & set "FOUND=%FOUND%"
+set "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1"
+set "PSMUX_CLAUDE_TEAMMATE_MODE=tmux"
+set "CLAUDE_CODE_HOST_PLATFORM=linux"
 
-:: Check if --teammate-mode is already in args to avoid double injection
 set "HAS_TEAMMATE_MODE=0"
 for %%A in (%*) do (
-    if "%%A"=="--teammate-mode" set "HAS_TEAMMATE_MODE=1"
-    if "%%A"=="--teammate-mode=tmux" set "HAS_TEAMMATE_MODE=1"
+    if /i "%%~A"=="--teammate-mode" set "HAS_TEAMMATE_MODE=1"
+    if /i "%%~A"=="--teammate-mode=tmux" set "HAS_TEAMMATE_MODE=1"
 )
 
-if "!HAS_TEAMMATE_MODE!"=="1" (
-    :: Already has teammate mode, just pass through
-    "!REAL_CLAUDE!" %*
-) else (
-    :: Inject --teammate-mode tmux
-    "!REAL_CLAUDE!" %* --teammate-mode tmux
-)
+if "%HAS_TEAMMATE_MODE%"=="1" goto RunClaudePassthrough
+goto RunClaudeInjected
 
+:RunClaudeInjected
+set "LOGFILE=%AUSOME_TMUX_LOG_FILE%"
+if defined LOGFILE goto LogInjected
+set "LOGFILE=%TEMP%\copilot-terminal-tmux-debug.log"
+:LogInjected
+if "%AUSOME_TMUX_DEBUG%"=="1" >>"%LOGFILE%" echo [claude.cmd %DATE% %TIME%] real=%FOUND% tmux=%TMUX% tmuxPane=%TMUX_PANE% host=%CLAUDE_CODE_HOST_PLATFORM% args=--teammate-mode tmux %*
+call "%FOUND%" --teammate-mode tmux %*
+exit /b %errorlevel%
+
+:RunClaudePassthrough
+set "LOGFILE=%AUSOME_TMUX_LOG_FILE%"
+if defined LOGFILE goto LogPassthrough
+set "LOGFILE=%TEMP%\copilot-terminal-tmux-debug.log"
+:LogPassthrough
+if "%AUSOME_TMUX_DEBUG%"=="1" >>"%LOGFILE%" echo [claude.cmd %DATE% %TIME%] real=%FOUND% tmux=%TMUX% tmuxPane=%TMUX_PANE% host=%CLAUDE_CODE_HOST_PLATFORM% args=%*
+call "%FOUND%" %*
 exit /b %errorlevel%

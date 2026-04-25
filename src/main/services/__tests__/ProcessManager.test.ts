@@ -561,7 +561,13 @@ describe('ProcessManager', () => {
       );
 
       expect(tmuxEnv.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS).toBe('1');
+      expect(tmuxEnv.CLAUDE_CODE_HOST_PLATFORM).toBe(process.platform === 'win32' ? 'linux' : process.platform);
       expect(tmuxEnv.AUSOME_TMUX_RPC).toBe(tmuxCompatService.getRpcSocketPath('win-sync'));
+      if (process.platform === 'win32') {
+        expect(tmuxEnv.TMUX).toMatch(/^\\\\\.\\pipe\\ausome-tmux-default,\d+,0$/);
+      } else {
+        expect(tmuxEnv.TMUX).toMatch(/^\/tmp\/tmux-\d+\/default,\d+,0$/);
+      }
 
       tmuxCompatService.destroy();
     });

@@ -130,6 +130,8 @@ export class TmuxCommandParser {
       'neww': TmuxCommand.NewWindow,
       'set-option': TmuxCommand.SetOption,
       'set': TmuxCommand.SetOption,
+      'show-options': TmuxCommand.ShowOptions,
+      'show': TmuxCommand.ShowOptions,
       'break-pane': TmuxCommand.BreakPane,
       'breakp': TmuxCommand.BreakPane,
       'join-pane': TmuxCommand.JoinPane,
@@ -170,7 +172,28 @@ export class TmuxCommandParser {
         options.horizontal = true;
         i++;
       } else if (arg === '-v') {
-        options.vertical = true;
+        if (command === TmuxCommand.ShowOptions) {
+          options.valueOnly = true;
+        } else {
+          options.vertical = true;
+        }
+        i++;
+      } else if (arg === '-g') {
+        options.global = true;
+        i++;
+      } else if (arg === '-q') {
+        options.quiet = true;
+        i++;
+      } else if (command === TmuxCommand.ShowOptions && /^-[a-zA-Z]{2,}$/.test(arg)) {
+        for (const flag of arg.slice(1)) {
+          if (flag === 'g') {
+            options.global = true;
+          } else if (flag === 'v') {
+            options.valueOnly = true;
+          } else if (flag === 'q') {
+            options.quiet = true;
+          }
+        }
         i++;
       } else if (arg === '-l' && i + 1 < args.length) {
         options.size = args[i + 1];
@@ -302,6 +325,7 @@ export class TmuxCommandParser {
    * 解析 target 格式
    * 支持：
    * - %1, %2 (pane ID)
+   * - @0, @1 (window ID)
    * - session:0 (session + window index)
    * - session:windowName (session + window name)
    */
@@ -317,6 +341,14 @@ export class TmuxCommandParser {
       return {
         type: 'pane',
         paneId: target,
+      };
+    }
+
+    // Window ID 格式：@0, @1...
+    if (target.startsWith('@')) {
+      return {
+        type: 'window',
+        windowName: target,
       };
     }
 

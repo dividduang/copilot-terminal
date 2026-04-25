@@ -120,6 +120,26 @@ describe('TmuxCompatService', () => {
       expect(response.stdout).toBe('default:0\n');
     });
 
+    it('应返回 Claude 路由使用的 window_id 和 client_control_mode', async () => {
+      const { service } = createService();
+
+      const windowResponse = await service.executeCommand({
+        argv: ['display-message', '-t', '%1', '-p', '#{window_id}'],
+        windowId: 'win-1',
+        paneId: '%1',
+      });
+      const controlModeResponse = await service.executeCommand({
+        argv: ['display-message', '-p', '#{client_control_mode}'],
+        windowId: 'win-1',
+        paneId: '%1',
+      });
+
+      expect(windowResponse.exitCode).toBe(0);
+      expect(windowResponse.stdout).toBe('@0\n');
+      expect(controlModeResponse.exitCode).toBe(0);
+      expect(controlModeResponse.stdout).toBe('0\n');
+    });
+
     it('找不到 pane 时应返回错误', async () => {
       const { service } = createService();
 
@@ -151,6 +171,25 @@ describe('TmuxCompatService', () => {
       const response = await service.executeCommand({
         argv: ['list-panes', '-F', '#{pane_id}'],
         windowId: 'win-1',
+      });
+
+      expect(response.exitCode).toBe(0);
+      expect(response.stdout).toContain('%1');
+    });
+
+    it('应支持 Claude 通过 window_id 目标列出 panes', async () => {
+      const { service } = createService();
+
+      await service.executeCommand({
+        argv: ['display-message', '-t', '%1', '-p', '#{window_id}'],
+        windowId: 'win-1',
+        paneId: '%1',
+      });
+
+      const response = await service.executeCommand({
+        argv: ['list-panes', '-t', '@0', '-F', '#{pane_id}'],
+        windowId: 'win-1',
+        paneId: '%1',
       });
 
       expect(response.exitCode).toBe(0);
@@ -584,6 +623,18 @@ describe('TmuxCompatService', () => {
   });
 
   describe('Windows teammate launch translation', () => {
+    it.runIf(process.platform === 'win32')('teammate env should keep a valid Windows tmux pipe path', () => {
+      const { service } = createService();
+
+      const assignments = (service as any).buildTeammateLaunchEnvAssignments('win-1', 'pane-1');
+      const tmux = assignments.find(([name]: [string, string]) => name === 'TMUX')?.[1];
+      const hostPlatform = assignments.find(([name]: [string, string]) => name === 'CLAUDE_CODE_HOST_PLATFORM')?.[1];
+
+      expect(tmux).toMatch(/^\\\\\.\\pipe\\ausome-tmux-default,\d+,0$/);
+      expect(tmux).not.toContain('.pipeausome');
+      expect(hostPlatform).toBe('linux');
+    });
+
     it('PowerShell launcher should invoke node for js entrypoints', () => {
       const { service } = createService();
 
@@ -609,6 +660,22 @@ describe('TmuxCompatService', () => {
       );
 
       expect(command).toContain('node D:\\ProgramData\\nodejs\\node_global\\node_modules\\@anthropic-ai\\claude-code\\cli.js --agent-id startup-cto');
+    });
+  });
+
+  describe('show-options', () => {
+    it('应兼容 Claude Code 查询 focus-events 的 value-only 形式', async () => {
+      const { service } = createService();
+
+      const response = await service.executeCommand({
+        argv: ['show', '-gv', 'focus-events'],
+        windowId: 'win-1',
+        paneId: '%1',
+      });
+
+      expect(response.exitCode).toBe(0);
+      expect(response.stdout).toBe('off\n');
+      expect(response.stderr).toBe('');
     });
   });
 

@@ -94,6 +94,7 @@ export class TmuxCompatService extends EventEmitter implements ITmuxCompatServic
     TmuxCommand.SwitchClient,
     TmuxCommand.NewWindow,
     TmuxCommand.SetOption,
+    TmuxCommand.ShowOptions,
     TmuxCommand.BreakPane,
     TmuxCommand.JoinPane,
   ]);
@@ -197,6 +198,9 @@ export class TmuxCompatService extends EventEmitter implements ITmuxCompatServic
           case TmuxCommand.SetOption:
             return this.handleSetOption(parsed, request);
 
+          case TmuxCommand.ShowOptions:
+            return this.handleShowOptions(parsed, request);
+
           case TmuxCommand.HasSession:
             return this.handleHasSession(parsed, request);
 
@@ -273,6 +277,26 @@ export class TmuxCompatService extends EventEmitter implements ITmuxCompatServic
    * - "session:windowName" 闂?闂傚倸鍊风粈渚€骞栭銈嗗仏妞ゆ劧绠戠壕鍧楁煕濞嗗浚妲洪柣?session 濠电姷鏁搁崑鐐哄垂閸洖绠归柍鍝勬噹閸屻劌鈹戦崒婊庣劸缂佺姵鐗犻弻锟犲炊閳轰焦鐏侀梺?windowName 闂?window
    */
   resolveWindowTarget(target: TmuxWindowTarget, namespace: string = 'default'): string | null {
+    if (target.startsWith('@')) {
+      const index = parseInt(target.slice(1), 10);
+      if (Number.isNaN(index)) {
+        return null;
+      }
+
+      for (const session of this.sessions.values()) {
+        if (session.namespace !== namespace) {
+          continue;
+        }
+
+        const tmuxWindow = session.windows.find((window) => window.index === index);
+        if (tmuxWindow) {
+          return tmuxWindow.actualWindowId;
+        }
+      }
+
+      return null;
+    }
+
     // 缂傚倸鍊搁崐鐑芥嚄閼稿灚鍙忔い鎾卞灩绾惧鏌熼崜褏甯涢柣鎾存礋閺屸€愁吋閸愩劌顬嬫繝鈷€灞奸偗闁哄矉缍佹俊鍫曞川椤撗傜磾闂備浇顕栭崰鏍椤撱垹鏋佹い鏇楀亾妞ゃ垺鐟╁畷婊嗩槾鐎规洖鐖煎缁樻媴娓氼垳鍔稿銈嗗灥閹冲海鍙呴梺鍐叉惈閹峰寮?target 闂傚倸鍊风粈渚€骞栭銈囩煋闁割偅娲栭崒銊ф喐韫囨拹锝夊箛閺夎法鍔撮梺鍛婂姦娴滄牠寮?"session:index"
     // 闂傚倷娴囬褎顨ョ粙鍖¤€块梺顒€绉寸壕濠氭煏閸繃濯奸柣搴ゅ煐閵囧嫰寮介妸銉闂佺顑嗛幑鍥х暦閻戠瓔鏁囬柣鎰閸╂稒淇婇妶鍥ラ柛瀣☉鐓ゆい鎾跺€ｅ☉娆戠懝闁逞屽墴瀹曟椽鍩€椤掍降浜滈柟鐑樺灥閳ь剙缍婂畷顖炲传閸旇棄缍婇弫鎰板川椤撶偟绱﹂梻浣告贡閸庛倝銆冮崨鏉戠?session 闂?window 闂傚倸鍊风粈渚€骞栭銈傚亾濮樼厧鏋熼柟渚垮姂楠炴﹢顢欓挊澶婂?
     const parts = target.split(':');
@@ -1046,11 +1070,10 @@ export class TmuxCompatService extends EventEmitter implements ITmuxCompatServic
       return [];
     }
 
-    const tmuxSocketPath = process.platform === 'win32'
-      ? '\\.\pipe\ausome-tmux-default'
-      : `/tmp/tmux-${process.getuid?.() ?? 1000}/default`;
+    const tmuxSocketPath = this.getFakeTmuxSocketPath();
 
     const assignments: Array<[string, string]> = [
+      ['CLAUDE_CODE_HOST_PLATFORM', this.getClaudeHostPlatform()],
       ['TMUX', `${tmuxSocketPath},${process.pid},0`],
       ['TMUX_PANE', tmuxPaneId],
       ['AUSOME_TERMINAL_WINDOW_ID', windowId],
@@ -1203,6 +1226,20 @@ export class TmuxCompatService extends EventEmitter implements ITmuxCompatServic
     return path.join(os.tmpdir(), 'copilot-terminal-tmux-debug.log');
   }
 
+  private getFakeTmuxSocketPath(): string {
+    return process.platform === 'win32'
+      ? '\\\\.\\pipe\\ausome-tmux-default'
+      : `/tmp/tmux-${process.getuid?.() ?? 1000}/default`;
+  }
+
+  private getClaudeHostPlatform(): 'win32' | 'darwin' | 'linux' {
+    if (process.platform === 'win32') {
+      return 'linux';
+    }
+
+    return process.platform === 'darwin' ? 'darwin' : 'linux';
+  }
+
   private appendTmuxDebugFile(request: TmuxCommandRequest | undefined, message: string, extra?: unknown): void {
     const logFile = request?.debugContext?.logFile ?? this.getTmuxDebugLogFilePath();
     const payload = extra === undefined
@@ -1260,6 +1297,12 @@ export class TmuxCompatService extends EventEmitter implements ITmuxCompatServic
 
       case 'window_name':
         return tmuxWindowContext.windowName;
+
+      case 'window_id':
+        return `@${tmuxWindowContext.windowIndex}`;
+
+      case 'client_control_mode':
+        return '0';
 
       case 'pane_title':
         if (context.tmuxPaneId) {
@@ -2539,6 +2582,43 @@ export class TmuxCompatService extends EventEmitter implements ITmuxCompatServic
         stderr: `tmux: ${error instanceof Error ? error.message : String(error)}\n`,
       };
     }
+  }
+
+  /**
+   * show-options / show — 返回默认 tmux 选项
+   * Claude Code 使用此命令查询 tmux 配置
+   */
+  private handleShowOptions(parsed: any, request: TmuxCommandRequest): TmuxCommandResponse {
+    const defaultOptions = [
+      'default-shell ""',
+      'default-command ""',
+      'focus-events off',
+      'pane-border-style "fg=colour238"',
+      'pane-active-border-style "fg=colour81"',
+      'message-style "fg=colour16,bg=colour226"',
+      'status-style "fg=colour254,bg=colour234"',
+      'mouse on',
+      'base-index 1',
+      'pane-base-index 1',
+      'renumber-windows on',
+      'aggressive-resize on',
+    ];
+
+    // 如果指定了具体选项名，只返回该选项
+    const args = parsed.args || [];
+    const optionName = args.find((a: string) => !a.startsWith('-'));
+    if (optionName) {
+      const match = defaultOptions.find((o) => o.startsWith(optionName + ' ') || o.startsWith(optionName + '"'));
+      if (match) {
+        const output = parsed.options?.valueOnly === true
+          ? match.slice(optionName.length).trim()
+          : match;
+        return { exitCode: 0, stdout: output + '\n', stderr: '' };
+      }
+      return { exitCode: 0, stdout: '', stderr: '' };
+    }
+
+    return { exitCode: 0, stdout: defaultOptions.join('\n') + '\n', stderr: '' };
   }
 
   /**

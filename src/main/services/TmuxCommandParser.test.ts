@@ -103,6 +103,20 @@ describe('TmuxCommandParser', () => {
       expect(result.args).toEqual(['pane-border-style', 'fg=blue']);
     });
 
+    it('应该解析 show-options/show 的组合短选项', () => {
+      const result = TmuxCommandParser.parse([
+        'tmux',
+        'show',
+        '-gv',
+        'focus-events',
+      ]);
+
+      expect(result.command).toBe(TmuxCommand.ShowOptions);
+      expect(result.options.global).toBe(true);
+      expect(result.options.valueOnly).toBe(true);
+      expect(result.args).toEqual(['focus-events']);
+    });
+
     it('应该解析 new-window/new-session 的 -n windowName 选项', () => {
       const result = TmuxCommandParser.parse([
         'tmux',
@@ -241,6 +255,14 @@ describe('TmuxCommandParser', () => {
         type: 'window',
         sessionName: 'my-session',
         windowIndex: 0,
+      });
+    });
+
+    it('应该解析 window id target', () => {
+      const target = TmuxCommandParser.parseTarget('@0');
+      expect(target).toEqual({
+        type: 'window',
+        windowName: '@0',
       });
     });
 

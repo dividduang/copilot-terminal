@@ -17,7 +17,7 @@ export const useThemeStore = create<ThemeState>()(
         const newTheme = state.theme === 'dark' ? 'light' : 'dark';
         state.theme = newTheme;
         // 保存到 settings
-        window.electronAPI?.saveSettings?.({ theme: newTheme });
+        window.electronAPI?.updateSettings?.({ theme: newTheme });
       });
     },
 
@@ -25,7 +25,7 @@ export const useThemeStore = create<ThemeState>()(
       set((state) => {
         state.theme = theme;
         // 保存到 settings
-        window.electronAPI?.saveSettings?.({ theme });
+        window.electronAPI?.updateSettings?.({ theme });
       });
     },
 
@@ -34,9 +34,10 @@ export const useThemeStore = create<ThemeState>()(
       const loadTheme = async () => {
         try {
           const response = await window.electronAPI?.getSettings?.();
-          if (response?.success && response.data?.theme) {
+          const settings = response?.data;
+          if (response?.success && settings?.theme) {
             set((state) => {
-              state.theme = response.data.theme;
+              state.theme = settings.theme;
             });
           }
         } catch (error) {
